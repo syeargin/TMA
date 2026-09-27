@@ -40,6 +40,8 @@ Putting everything a person may write under their own `USER#` partition lets IAM
 | Membership (roles) | `TEAM#<t>` | `MEMBER#<uid>` | `USER#<uid>` / `TEAM#<t>` | |
 | Family record | `USER#<uid>` | `FAMILY#<t>` | `TEAM#<t>` / `FAMILY#<uid>` | |
 | Join request | `USER#<uid>` | `REQUEST#<t>` | `TEAM#<t>` / `REQUEST#<at>#<uid>` | |
+| Invite | `INVITE#<email>` | `TEAM#<t>` | `TEAM#<t>` / `INVITE#<email>` | |
+| User profile | `USER#<uid>` | `PROFILE` | | |
 | Payment | `USER#<uid>` | `PAYMENT#<t>#<payId>` | `TEAM#<t>` / `PAYMENT#<status>#<at>#<uid>` | |
 
 ## Access patterns
@@ -64,6 +66,8 @@ Putting everything a person may write under their own `USER#` partition lets IAM
 | 16 | Approve a member | TransactWriteItems: Put `MEMBER#uid` + Delete `REQUEST#t` |
 | 17 | Confirm a payment | TransactWriteItems: Put `LEDGER#l-uid-payId` (`attribute_not_exists(PK)`) + Update payment `status`, `GSI1SK` → `PAYMENT#settled#…` |
 | 18 | Claim a meal (first family wins) | UpdateItem meal `SET claimedBy = :pid` with `attribute_not_exists(claimedBy) OR claimedBy = :null` |
+| 19 | Is this email invited? (sign-up check) | Query `PK = INVITE#email`, `begins_with(SK, TEAM#)`, limit 1 |
+| 20 | A team's pending invites | Query GSI1 `GSI1PK = TEAM#t`, `begins_with(GSI1SK, INVITE#)` |
 
 Patterns 16–18 use DynamoDB's conditional writes and transactions, which replace the hosted version's newest-wins and earliest-claim merge rules.
 

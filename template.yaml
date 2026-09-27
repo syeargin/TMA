@@ -21,14 +21,29 @@ Parameters:
     Type: Number
     Default: 20
     MinValue: 1
+  ClubId:
+    Type: String
+    Default: a5
+    Description: Club id used in keys (CLUB#<id>).
+  ClubAdminEmails:
+    Type: String
+    Default: ""
+    Description: Comma-separated emails that may sign up without an invite and become club admins.
+  SesFromEmail:
+    Type: String
+    Default: ""
+    Description: >
+      Optional. A verified SES identity to send sign-in emails from. Empty uses Cognito's
+      built-in sender (fine for testing, limited to a small number of emails per day).
 
 Conditions:
   IsProd: !Equals [!Ref Env, prod]
   HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+  UseSes: !Not [!Equals [!Ref SesFromEmail, ""]]
 
 Globals:
   Function:
-    Runtime: nodejs20.x
+    Runtime: nodejs24.x
     Architectures: [arm64]
     MemorySize: 256
     Timeout: 10
@@ -167,6 +182,130 @@ Resources:
             Resource: [!GetAtt SiteBucket.Arn, !Sub "${SiteBucket.Arn}/*"]
             Condition: { Bool: { "aws:SecureTransport": "false" } }
 
+  # ---------- Sign-in (Phase 1) ----------
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: !Sub "${AppPrefix}-${Env}-users"
+      UserPoolTier: LITE
+      DeletionProtection: !If [IsProd, ACTIVE, INACTIVE]
+      UsernameAttributes: [email]
+      UsernameConfiguration: { CaseSensitive: false }
+      AutoVerifiedAttributes: [email]
+      AdminCreateUserConfig: { AllowAdminCreateUserOnly: false }
+      AccountRecoverySetting:
+        RecoveryMechanisms: [{ Name: verified_email, Priority: 1 }]
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 10
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          TemporaryPasswordValidityDays: 7
+      MfaConfiguration: "OFF"
+      Schema:
+        - { Name: email, AttributeDataType: String, Required: true, Mutable: true }
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailSubject: "Your A5 Team Hub code"
+        EmailMessage: "Your A5 Team Hub verification code is {####}. It expires in 24 hours."
+      EmailConfiguration: !If
+        - UseSes
+        - EmailSendingAccount: DEVELOPER
+          From: !Sub "A5 Team Hub <${SesFromEmail}>"
+          SourceArn: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${SesFromEmail}"
+        - EmailSendingAccount: COGNITO_DEFAULT
+      UserPoolTags:
+        app: team-hub
+        env: !Ref Env
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "${AppPrefix}-${Env}-web"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows: [ALLOW_USER_SRP_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits: { AccessToken: minutes, IdToken: minutes, RefreshToken: days }
+      SupportedIdentityProviders: [COGNITO]
+
+  PreSignUpFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/auth-triggers/pre-sign-up.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Allows sign-up only for invited emails and club admins.
+      CodeUri: api/
+      Handler: pre-sign-up.handler
+      Environment:
+        Variables:
+          CLUB_ADMIN_EMAILS: !Ref ClubAdminEmails
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref TeamHubTable }
+      Events:
+        CognitoPreSignUp:
+          Type: Cognito
+          Properties:
+            UserPool: !Ref UserPool
+            Trigger: PreSignUp
+
+  PostConfirmationFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/auth-triggers/post-confirmation.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Turns invites into team memberships once an email is verified.
+      CodeUri: api/
+      Handler: post-confirmation.handler
+      Environment:
+        Variables:
+          CLUB_ID: !Ref ClubId
+          CLUB_ADMIN_EMAILS: !Ref ClubAdminEmails
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+      Events:
+        CognitoPostConfirmation:
+          Type: Cognito
+          Properties:
+            UserPool: !Ref UserPool
+            Trigger: PostConfirmation
+
+  PreSignUpLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${PreSignUpFunction}"
+      RetentionInDays: 30
+
+  PostConfirmationLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${PostConfirmationFunction}"
+      RetentionInDays: 30
+
   # ---------- Cost guardrail ----------
   MonthlyBudget:
     Type: AWS::Budgets::Budget
@@ -195,3 +334,7 @@ Outputs:
     Value: !Ref TeamHubTable
   TableStreamArn:
     Value: !GetAtt TeamHubTable.StreamArn
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient

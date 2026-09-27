@@ -1,1 +1,1 @@
-{ "env": "local" }
+{ "env": "dev", "commit": "abcdef1234", "userPoolId": "us-east-1_TestPool1", "userPoolClientId": "testclientid1234567890ab" }

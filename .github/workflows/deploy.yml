@@ -62,8 +62,19 @@ jobs:
         with:
           use-installer: true
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            api/package-lock.json
+
       - name: Build stack
-        run: sam build --template template.yaml
+        run: |
+          npm install -g esbuild@0.25
+          (cd api && npm ci)
+          sam build --template template.yaml
 
       - name: Deploy stack
         run: sam deploy --config-env "$DEPLOY_ENV" --no-progressbar
@@ -78,19 +89,21 @@ jobs:
             echo "bucket=$(get SiteBucketName)"
             echo "distribution=$(get DistributionId)"
             echo "url=$(get SiteUrl)"
+            echo "user_pool=$(get UserPoolId)"
+            echo "client=$(get UserPoolClientId)"
           } >> "$GITHUB_OUTPUT"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: web/package-lock.json
 
       - name: Build site
         working-directory: web
+        env:
+          USER_POOL_ID: ${{ steps.out.outputs.user_pool }}
+          CLIENT_ID: ${{ steps.out.outputs.client }}
         run: |
           npm ci
-          printf '{ "env": "%s", "commit": "%s", "region": "%s" }\n' "$DEPLOY_ENV" "$GITHUB_SHA" "$AWS_REGION" > public/config.json
+          jq -n --arg env "$DEPLOY_ENV" --arg commit "$GITHUB_SHA" --arg region "$AWS_REGION" \
+                --arg pool "$USER_POOL_ID" --arg client "$CLIENT_ID" \
+                '{env: $env, commit: $commit, region: $region, userPoolId: $pool, userPoolClientId: $client}' > public/config.json
+          cat public/config.json
           npm run build
 
       - name: Upload site
