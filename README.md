@@ -48,7 +48,7 @@ This creates:
 | Resource | Name |
 |---|---|
 | GitHub OIDC provider | `token.actions.githubusercontent.com` |
-| Deploy role for dev | `tma-github-deploy-dev` (trusted only from the `dev` environment of `syeargin/TMA`) |
+| Deploy role for dev | `tma-github-deploy-dev` (trusted only from the `dev` environment of `syeargin/TMA`, matched by name and by GitHub's numeric owner/repo IDs) |
 | Deploy role for prod | `tma-github-deploy-prod` (trusted only from the `prod` environment) |
 | CloudFormation execution role | `tma-cfn-exec` (may create IAM roles only if they're named `tma-*`) |
 | SAM artifact bucket | `tma-sam-artifacts-774924543698-us-east-1` |
