@@ -11,6 +11,14 @@ Parameters:
   GitHubRepo:
     Type: String
     Default: TMA
+  GitHubOwnerId:
+    Type: String
+    Default: "33122537"
+    Description: Numeric GitHub account id of the owner (api.github.com/users/<owner> → id).
+  GitHubRepoId:
+    Type: String
+    Default: "1389120123"
+    Description: Numeric GitHub repository id (api.github.com/repos/<owner>/<repo> → id).
   CreateOidcProvider:
     Type: String
     AllowedValues: ["true", "false"]
@@ -72,6 +80,10 @@ Resources:
             Resource: [!GetAtt ArtifactBucket.Arn, !Sub "${ArtifactBucket.Arn}/*"]
             Condition: { Bool: { "aws:SecureTransport": "false" } }
 
+  # GitHub issues OIDC subjects either as repo:<owner>/<repo>:environment:<env> or, with
+  # immutable identifiers, repo:<owner>@<ownerId>/<repo>@<repoId>:environment:<env>.
+  # The deploy roles accept both, pinned to this exact account and repository.
+
   # Role CloudFormation assumes to create the app stack's resources. GitHub never holds these rights directly.
   CfnExecutionRole:
     Type: AWS::IAM::Role
@@ -130,13 +142,18 @@ Resources:
               "Condition": {
                 "StringEquals": {
                   "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-                  "token.actions.githubusercontent.com:sub": "repo:${Owner}/${Repo}:environment:dev"
+                  "token.actions.githubusercontent.com:sub": [
+                    "repo:${Owner}@${OwnerId}/${Repo}@${RepoId}:environment:dev",
+                    "repo:${Owner}/${Repo}:environment:dev"
+                  ]
                 }
               }
             }]
           }
         - Owner: !Ref GitHubOwner
           Repo: !Ref GitHubRepo
+          OwnerId: !Ref GitHubOwnerId
+          RepoId: !Ref GitHubRepoId
           ProviderArn: !If
             - MakeProvider
             - !Ref GitHubOidcProvider
@@ -180,13 +197,18 @@ Resources:
               "Condition": {
                 "StringEquals": {
                   "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-                  "token.actions.githubusercontent.com:sub": "repo:${Owner}/${Repo}:environment:prod"
+                  "token.actions.githubusercontent.com:sub": [
+                    "repo:${Owner}@${OwnerId}/${Repo}@${RepoId}:environment:prod",
+                    "repo:${Owner}/${Repo}:environment:prod"
+                  ]
                 }
               }
             }]
           }
         - Owner: !Ref GitHubOwner
           Repo: !Ref GitHubRepo
+          OwnerId: !Ref GitHubOwnerId
+          RepoId: !Ref GitHubRepoId
           ProviderArn: !If
             - MakeProvider
             - !Ref GitHubOidcProvider
