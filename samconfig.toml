@@ -18,7 +18,7 @@ s3_bucket = "tma-sam-artifacts-774924543698-us-east-1"
 s3_prefix = "tma-dev"
 role_arn = "arn:aws:iam::774924543698:role/tma-cfn-exec"
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "Env=dev AppPrefix=tma"
+parameter_overrides = "Env=dev AppPrefix=tma AlertEmail=sam.yeargin@gmail.com"
 confirm_changeset = false
 fail_on_empty_changeset = false
 tags = "app=team-hub env=dev"
