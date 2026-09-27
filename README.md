@@ -11,7 +11,7 @@ This repo moves the hub from its claude.ai prototype to AWS. The plan lives in [
 | Infrastructure | AWS SAM (`template.yaml`), deployed from GitHub Actions through OIDC |
 | Site | Vite build → private S3 bucket → CloudFront |
 | Data | DynamoDB single table `TeamHub-<env>` (streams, PITR, TTL) |
-| Sign-in *(Phase 1)* | Cognito user pool, email and password, invite-only sign-up |
+| Sign-in | Cognito user pool, email and password, invite-only sign-up |
 | API *(Phase 2)* | HTTP API + Lambda with server-side role checks |
 | Live updates *(Phase 3)* | WebSocket API fed by DynamoDB Streams |
 
@@ -23,7 +23,9 @@ samconfig.toml              dev / prod deploy settings
 bootstrap/github-oidc.yaml  one-time: GitHub OIDC trust, deploy roles, artifact bucket
 .github/workflows/ci.yml    pull requests: validate templates, build site
 .github/workflows/deploy.yml main → dev; release → prod (with approval)
-web/                        site (Phase 0 placeholder; the hub moves here in Phase 4)
+api/                        Lambda code (TypeScript, bundled by SAM with esbuild) and tests
+scripts/invite.sh           add a team invite from the command line
+web/                        site: sign-in screens now; the hub moves here in Phase 4
 db/                         DynamoDB key design and example items
 docs/                       migration plan and data model
 legacy/claude-hub.html      current claude.ai hub, source for Phase 4
@@ -71,11 +73,32 @@ This creates:
 | Publish a GitHub release | Deploys **prod** after you approve it |
 | *Actions → Deploy → Run workflow* | Deploys the environment you choose |
 
+## Sign-in (Phase 1)
+
+Sign-up is invite-only:
+
+1. An invite is stored as `INVITE#<email>` / `TEAM#<teamId>` with the person's roles and family.
+2. On sign-up, a pre-sign-up check refuses emails that have no invite.
+3. After the person enters the emailed code, a post-confirmation step turns each invite into a `MEMBER#<sub>` record on that team and deletes the invite.
+
+Emails in the `ClubAdminEmails` parameter (`samconfig.toml`) can sign up without an invite and become club admins.
+
+Until the Invites screen ships in Phase 2, add invites from CloudShell:
+
+```bash
+scripts/invite.sh dev parent@example.com a5-13tom parent parent:p12:1 p12
+scripts/invite.sh dev coach@example.com  a5-13tom coach,admin coach:0
+```
+
+**Email sending.** By default Cognito sends verification and reset codes from `no-reply@verificationemail.com`, which is limited to a small number of emails per day. That's fine for testing. For real use, verify a sender in Amazon SES, request SES production access, and set `SesFromEmail=<address>` in `samconfig.toml`.
+
 ## Local development
 
 ```bash
 cd web && npm install && npm run dev      # site on http://localhost:5173
-sam validate --lint                         # check the template
+cd api && npm install && npm test         # unit tests for the Lambda code
+npm install -g esbuild                     # needed once for sam build
+sam validate --lint && sam build          # check and build the stack
 ```
 
 ## Notes

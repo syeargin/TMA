@@ -23,14 +23,39 @@ jobs:
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
-      - name: Install cfn-lint
-        run: pip install cfn-lint
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install cfn-lint and esbuild
+        run: |
+          pip install cfn-lint
+          npm install -g esbuild@0.25
+          (cd api && npm ci)
       - name: Validate app template
         run: sam validate --lint --template template.yaml --region us-east-1
       - name: Lint bootstrap template
         run: cfn-lint bootstrap/github-oidc.yaml
       - name: Build
         run: sam build --template template.yaml
+
+  api:
+    name: Test API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
 
   web:
     name: Build site
@@ -42,7 +67,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
