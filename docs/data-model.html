@@ -1,0 +1,533 @@
+<title>Team Hub Data Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#F1F4F8; --surface:#FFFFFF; --surface-2:#F6F8FB; --sunken:#E6EBF2;
+  --ink:#0F1B2E; --ink-2:#46536B; --ink-3:#6D7990; --line:#D4DBE6; --line-2:#E5EAF1;
+  --navy:#15294D; --accent:#C8323E; --accent-soft:#FBE6E8;
+  --self:#A0620A; --self-soft:#FBF0DA; --owner:#C8323E; --owner-soft:#FBE6E8; --editor:#15294D; --editor-soft:#E3E9F4;
+  --ok:#17744A; --ok-soft:#DFF2E8;
+  --code-bg:#F3F6FA;
+  --f-display:"Big Shoulders Display","Arial Narrow",sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0A111E; --surface:#111A2B; --surface-2:#142036; --sunken:#0D1524;
+    --ink:#E6EBF3; --ink-2:#A6B2C7; --ink-3:#7E8BA3; --line:#26344B; --line-2:#1C2839;
+    --navy:#A9C1EE; --accent:#F0616B; --accent-soft:#3A161A;
+    --self:#E6B552; --self-soft:#30240C; --owner:#F0616B; --owner-soft:#3A161A; --editor:#A9C1EE; --editor-soft:#1C2A44;
+    --ok:#56C893; --ok-soft:#0F2E20; --code-bg:#0E1726;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A111E; --surface:#111A2B; --surface-2:#142036; --sunken:#0D1524;
+  --ink:#E6EBF3; --ink-2:#A6B2C7; --ink-3:#7E8BA3; --line:#26344B; --line-2:#1C2839;
+  --navy:#A9C1EE; --accent:#F0616B; --accent-soft:#3A161A;
+  --self:#E6B552; --self-soft:#30240C; --owner:#F0616B; --owner-soft:#3A161A; --editor:#A9C1EE; --editor-soft:#1C2A44;
+  --ok:#56C893; --ok-soft:#0F2E20; --code-bg:#0E1726;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--navy)}
+h1,h2,h3,h4{margin:0;text-wrap:balance}
+code,.mono{font-family:var(--f-mono);font-size:.88em}
+code{background:var(--code-bg);border:1px solid var(--line-2);border-radius:4px;padding:1px 5px;white-space:nowrap}
+.tn{font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-2)}
+.small{font-size:13.5px}
+.label{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.masthead{background:var(--navy);color:#F3F6FA;position:relative}
+:root[data-theme="dark"] .masthead{background:#0E1A31}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .masthead{background:#0E1A31}}
+.masthead::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--accent)}
+.mh-in{max-width:1180px;margin:0 auto;padding:28px 16px 30px;display:grid;gap:10px}
+.masthead .eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#A8B6CF}
+.masthead h1{font-family:var(--f-display);font-weight:900;font-size:clamp(38px,6vw,60px);line-height:.92;text-transform:uppercase;letter-spacing:.01em}
+.masthead p{margin:0;max-width:70ch;color:#D5DDEB}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 20px;font-family:var(--f-mono);font-size:12.5px;color:#A8B6CF;margin-top:6px}
+.meta-row b{color:#F3F6FA;font-weight:500}
+
+.layout{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:24px 80px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:36px}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.toc{display:none}}
+.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 18px);align-self:start;display:flex;flex-direction:column;gap:2px;font-size:13.5px}
+.toc a{display:block;padding:6px 10px;border-left:2px solid var(--line);color:var(--ink-2);text-decoration:none}
+.toc a:hover{color:var(--ink);border-left-color:var(--ink-3)}
+.toc .label{padding:0 10px 8px}
+
+main{min-width:0}
+section{padding-block:10px 34px;border-bottom:1px solid var(--line)}
+section:last-child{border-bottom:0}
+.sh{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:18px 0 12px}
+.sh .num{font-family:var(--f-mono);font-size:13px;color:var(--accent);font-weight:600}
+.sh h2{font-family:var(--f-display);font-weight:800;font-size:34px;line-height:1;text-transform:uppercase;letter-spacing:.01em}
+p{max-width:74ch}
+h3{font-size:17px;font-weight:700;margin:22px 0 8px}
+
+.principles{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:14px}
+.pr{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.pr b{display:block;margin-bottom:4px}
+.pr p{margin:0;font-size:14px;color:var(--ink-2)}
+
+figure{margin:16px 0 8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+figure .scroll{overflow-x:auto}
+figure svg{display:block;width:100%;height:auto;min-width:720px;color:var(--ink)}
+figcaption{font-size:13.5px;color:var(--ink-2);margin-top:10px;max-width:none}
+
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line-2);vertical-align:top}
+th{font-family:var(--f-mono);font-weight:500;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td code{white-space:normal;word-break:break-word}
+
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px}
+.chip{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font:inherit;font-size:13.5px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--navy);color:var(--surface);border-color:var(--navy)}
+.rule{display:inline-block;border-radius:5px;padding:1px 8px;font-family:var(--f-mono);font-size:11.5px;font-weight:600;white-space:nowrap}
+.r-owner{background:var(--owner-soft);color:var(--owner)}
+.r-self{background:var(--self-soft);color:var(--self)}
+.r-editor{background:var(--editor-soft);color:var(--editor)}
+.r-scope{background:var(--sunken);color:var(--ink-2)}
+
+.coll-grid{display:grid;gap:14px}
+.coll{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.coll-h{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--line-2);align-items:start}
+.coll-h .path{font-family:var(--f-mono);font-weight:600;font-size:15px;word-break:break-all}
+.coll-h p{margin:4px 0 0;font-size:14px;color:var(--ink-2)}
+.coll-h .tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.coll-stats{display:flex;gap:18px;flex-wrap:wrap;padding:8px 16px;background:var(--surface-2);border-bottom:1px solid var(--line-2);font-size:13px;color:var(--ink-2)}
+.coll-stats b{color:var(--ink);font-weight:600}
+.coll-b{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+@media (max-width:860px){.coll-b{grid-template-columns:minmax(0,1fr)}}
+.coll-b .fields{border-right:1px solid var(--line-2);overflow-x:auto}
+@media (max-width:860px){.coll-b .fields{border-right:0;border-bottom:1px solid var(--line-2)}}
+.coll-b table{font-size:13.5px}
+.coll-b td:first-child{font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+.coll-b td:nth-child(2){font-family:var(--f-mono);font-size:12px;color:var(--navy);white-space:nowrap}
+pre{margin:0;padding:14px 16px;font-family:var(--f-mono);font-size:12px;line-height:1.55;background:var(--code-bg);overflow-x:auto;color:var(--ink);white-space:pre}
+.example{min-width:0}
+.example .label{display:block;padding:10px 16px 0;background:var(--code-bg)}
+
+.callout{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--surface);border-radius:8px;padding:12px 16px;margin:14px 0;max-width:80ch}
+.callout p{margin:4px 0 0}
+.recs{display:grid;gap:10px}
+.rec{display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.pri{font-family:var(--f-mono);font-weight:600;font-size:13px;border-radius:6px;text-align:center;padding:4px 0;height:max-content}
+.p1{background:var(--owner-soft);color:var(--owner)}
+.p2{background:var(--self-soft);color:var(--self)}
+.p3{background:var(--editor-soft);color:var(--editor)}
+.rec h4{font-size:15.5px;margin-bottom:4px}
+.rec p{margin:4px 0 0;font-size:14px;color:var(--ink-2);max-width:none}
+
+@media print{
+  body{background:#fff;font-size:12px}
+  .toc,.chips{display:none}
+  .layout{display:block;padding:0}
+  .coll,figure,.rec,.pr,table,tr{break-inside:avoid}
+  section{break-before:auto}
+  .coll[hidden]{display:block!important}
+  figure svg{min-width:0}
+}
+@media (prefers-reduced-motion:no-preference){.toc a,.chip{transition:color .15s,border-color .15s}}
+</style>
+
+<header class="masthead">
+  <div class="mh-in">
+    <div class="eyebrow">Design spec · NoSQL document model</div>
+    <h1>Team Hub Data Model</h1>
+    <p>The document-database design behind the multi-team club hub: how data is organized, who may write where, how the app reads it, and where the design should go next.</p>
+    <div class="meta-row"><span>Engine <b>document store (JSON), realtime</b></span><span>Tenancy <b>club → teams</b></span><span>Live instance <b>A5 13 Tom · 51 documents</b></span><span>Status <b>as built, with recommendations</b></span></div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Contents">
+    <div class="label">Contents</div>
+    <a href="#principles">Design principles</a>
+    <a href="#model">Data model</a>
+    <a href="#collections">Collections</a>
+    <a href="#access">Access patterns</a>
+    <a href="#security">Security rules</a>
+    <a href="#consistency">Writes &amp; consistency</a>
+    <a href="#keys">Keys &amp; conventions</a>
+    <a href="#capacity">Capacity</a>
+    <a href="#roadmap">Recommendations</a>
+    <a href="#portability">Portability</a>
+  </nav>
+  <main>
+
+  <section id="principles">
+    <div class="sh"><span class="num">01</span><h2>Design principles</h2></div>
+    <p>The hub runs on a schemaless JSON document store with path-based collections, realtime listeners, last-writer-wins writes and no transactions. Access rules are keyed on the viewer's sharing level plus one special rule, <code>{self}</code>, that limits a path to the viewer's own document. Every decision below works within those constraints.</p>
+    <div class="principles">
+      <div class="pr"><b>Tenant by path</b><p>Each team's data lives under <code>teams/{teamId}/…</code>. Switching teams swaps one set of listeners; nothing team-specific sits at the root.</p></div>
+      <div class="pr"><b>One writer per document</b><p>Family answers live in each person's own <code>mine/{uid}</code> document, so two parents can never overwrite each other. Shared documents are written only by staff.</p></div>
+      <div class="pr"><b>Identity is owner-only</b><p>The account registry (<code>accounts/{uid}</code>) can only be written by the site owner. Every permission the app grants is derived from it.</p></div>
+      <div class="pr"><b>Validate on read</b><p>The client merges family documents and ignores any entry whose writer isn't approved for that family or role. A forged entry is stored but never counts.</p></div>
+      <div class="pr"><b>Derive, don't store, totals</b><p>Fund balance, dues paid and RSVP counts are computed from source rows at read time. No counters to drift under concurrent writes.</p></div>
+      <div class="pr"><b>Idempotent keys</b><p>Confirming a payment writes a ledger document whose id is derived from the source payment, so a double click or retry lands on the same document.</p></div>
+      <div class="pr"><b>Store ids, never names</b><p>Accounts are referenced by opaque user id and people by roster reference. Display names are resolved at render and never frozen into data.</p></div>
+      <div class="pr"><b>Rules over rows</b><p>Weekly practices are stored as recurrence rules and expanded client-side, instead of hundreds of single-practice documents.</p></div>
+    </div>
+  </section>
+
+  <section id="model">
+    <div class="sh"><span class="num">02</span><h2>Data model</h2></div>
+    <p>Three club-wide collections sit at the root. Everything else belongs to a team. Box colour shows who the database lets write; arrows show the id references the app follows.</p>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1000 650" role="img" aria-label="Document tree: club-scope collections teams, accounts and mine at the top; a team subtree with meta, players, events, refjobs, agenda, meals, ledger, announcements and tasks below; arrows show id references between them.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+          <marker id="ahs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--self)"/></marker>
+          <marker id="aho" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--owner)"/></marker>
+        </defs>
+        <!-- club scope -->
+        <text x="20" y="22" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="1.2" fill="var(--ink-3)">CLUB SCOPE · ROOT COLLECTIONS</text>
+        <g font-family="IBM Plex Mono, monospace" font-size="13">
+          <rect x="60" y="40" width="220" height="62" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="170" y="66" text-anchor="middle" fill="currentColor" font-weight="600">teams/{teamId}</text>
+          <text x="170" y="86" text-anchor="middle" fill="var(--ink-2)" font-size="11">team directory entry</text>
+          <rect x="390" y="40" width="220" height="62" rx="8" fill="var(--owner-soft)" stroke="var(--owner)" stroke-width="1.5"/>
+          <text x="500" y="66" text-anchor="middle" fill="currentColor" font-weight="600">accounts/{uid}</text>
+          <text x="500" y="86" text-anchor="middle" fill="var(--ink-2)" font-size="11">roles per team · clubAdmin</text>
+          <rect x="720" y="40" width="220" height="62" rx="8" fill="var(--self-soft)" stroke="var(--self)" stroke-width="1.5"/>
+          <text x="830" y="66" text-anchor="middle" fill="currentColor" font-weight="600">mine/{uid}</text>
+          <text x="830" y="86" text-anchor="middle" fill="var(--ink-2)" font-size="11">family entries per team</text>
+        </g>
+        <!-- team group -->
+        <rect x="20" y="170" width="960" height="400" rx="12" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="6 5"/>
+        <text x="40" y="196" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="1.2" fill="var(--ink-3)">TEAM SCOPE · teams/{teamId}/…</text>
+        <g font-family="IBM Plex Mono, monospace" font-size="12.5">
+          <!-- row A -->
+          <rect x="50" y="220" width="160" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="130" y="244" text-anchor="middle" fill="currentColor" font-weight="600">meta/settings</text>
+          <text x="130" y="263" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">practices · dues · lists</text>
+          <rect x="240" y="220" width="160" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="320" y="244" text-anchor="middle" fill="currentColor" font-weight="600">meta/handbook</text>
+          <text x="320" y="263" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">sections[]</text>
+          <rect x="430" y="220" width="160" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="510" y="244" text-anchor="middle" fill="currentColor" font-weight="600">players/{pid}</text>
+          <text x="510" y="263" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">roster · parents[]</text>
+          <rect x="620" y="220" width="160" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="700" y="244" text-anchor="middle" fill="currentColor" font-weight="600">events/{eid}</text>
+          <text x="700" y="263" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">tournaments · events</text>
+          <rect x="810" y="220" width="160" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="890" y="244" text-anchor="middle" fill="currentColor" font-weight="600">refjobs/{eid}</text>
+          <text x="890" y="263" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">job per girl per set</text>
+          <!-- row B -->
+          <rect x="50" y="420" width="160" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="130" y="444" text-anchor="middle" fill="currentColor" font-weight="600">announcements</text>
+          <text x="130" y="463" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">/{aid}</text>
+          <rect x="240" y="420" width="160" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="320" y="444" text-anchor="middle" fill="currentColor" font-weight="600">tasks/{kid}</text>
+          <text x="320" y="463" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">coordinator list</text>
+          <rect x="430" y="420" width="160" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="510" y="444" text-anchor="middle" fill="currentColor" font-weight="600">ledger/{lid}</text>
+          <text x="510" y="463" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">confirmed money</text>
+          <rect x="620" y="420" width="160" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="700" y="444" text-anchor="middle" fill="currentColor" font-weight="600">meals/{mid}</text>
+          <text x="700" y="463" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">slots · staff assign</text>
+          <rect x="810" y="420" width="160" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="890" y="444" text-anchor="middle" fill="currentColor" font-weight="600">agenda/{eid}</text>
+          <text x="890" y="463" text-anchor="middle" fill="var(--ink-2)" font-size="10.5">travel itinerary</text>
+        </g>
+        <!-- arrows -->
+        <g font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="var(--ink-2)">
+          <line x1="170" y1="102" x2="170" y2="168" stroke="currentColor" stroke-width="1.4" marker-end="url(#ah)"/>
+          <text x="180" y="140">owns subtree</text>
+
+          <line x1="490" y1="102" x2="490" y2="218" stroke="var(--owner)" stroke-width="1.6" marker-end="url(#aho)"/>
+          <text x="398" y="134" text-anchor="start" fill="var(--owner)">person, pid</text>
+
+          <polyline points="800,102 800,140 540,140 540,218" fill="none" stroke="var(--self)" stroke-width="1.6" marker-end="url(#ahs)"/>
+          <text x="560" y="132" fill="var(--self)">rsvp · travel · uniform keyed by pid</text>
+
+          <polyline points="880,102 880,150 795,150 795,448 782,448" fill="none" stroke="var(--self)" stroke-width="1.6" marker-end="url(#ahs)"/>
+          <text x="804" y="200" fill="var(--self)">claims by mealId</text>
+
+          <polyline points="920,102 920,160 985,160 985,600 510,600 510,478" fill="none" stroke="var(--self)" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ahs)"/>
+          <text x="530" y="592" fill="var(--self)">payment copied on confirm · ledger.src = uid:payId</text>
+
+          <line x1="808" y1="248" x2="784" y2="248" stroke="currentColor" stroke-width="1.4" marker-end="url(#ah)"/>
+          <line x1="868" y1="418" x2="748" y2="279" stroke="currentColor" stroke-width="1.4" marker-end="url(#ah)"/>
+          <text x="796" y="238" text-anchor="middle" font-size="10.5">same id</text>
+          <text x="904" y="408" font-size="10.5">same id</text>
+          <line x1="700" y1="418" x2="700" y2="279" stroke="currentColor" stroke-width="1.4" marker-end="url(#ah)"/>
+          <text x="660" y="350" text-anchor="end">eventId</text>
+          <line x1="618" y1="248" x2="594" y2="248" stroke="currentColor" stroke-width="1.4" marker-end="url(#ah)"/>
+          <text x="606" y="300" text-anchor="middle">dutyPid</text>
+          <line x1="606" y1="290" x2="606" y2="252" stroke="currentColor" stroke-opacity=".4" stroke-width="1"/>
+          <line x1="510" y1="418" x2="510" y2="279" stroke="currentColor" stroke-width="1.4" marker-end="url(#ah)"/>
+          <text x="500" y="350" text-anchor="end">pid</text>
+        </g>
+        <!-- legend -->
+        <g font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--ink-2)">
+          <rect x="40" y="620" width="14" height="14" rx="3" fill="var(--owner-soft)" stroke="var(--owner)"/><text x="62" y="632">site owner only writes</text>
+          <rect x="230" y="620" width="14" height="14" rx="3" fill="var(--self-soft)" stroke="var(--self)"/><text x="252" y="632">each person writes only their own</text>
+          <rect x="480" y="620" width="14" height="14" rx="3" fill="var(--editor-soft)" stroke="var(--editor)"/><text x="502" y="632">Editors write; the app gates by role</text>
+          <line x1="760" y1="627" x2="800" y2="627" stroke="var(--self)" stroke-width="1.6" stroke-dasharray="5 4"/><text x="808" y="632">copied by a workflow</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption>Every team-scope document references players and events by id. The two family paths into the team (solid amber) are read-time merges; the dashed path is the only place data moves from a family document into shared team data, and only when finance confirms it.</figcaption>
+    </figure>
+  </section>
+
+  <section id="collections">
+    <div class="sh"><span class="num">03</span><h2>Collections</h2></div>
+    <p>Twelve collections: three at the club level and nine per team. Sizes are measured from the live A5 13 Tom data or estimated for a full season.</p>
+    <div class="chips" role="group" aria-label="Filter collections">
+      <button class="chip" aria-pressed="true" data-f="all">All 12</button>
+      <button class="chip" aria-pressed="false" data-f="club">Club scope</button>
+      <button class="chip" aria-pressed="false" data-f="team">Team scope</button>
+      <button class="chip" aria-pressed="false" data-f="restricted">Database-restricted writes</button>
+    </div>
+    <div class="coll-grid" id="collGrid"></div>
+  </section>
+
+  <section id="access">
+    <div class="sh"><span class="num">04</span><h2>Access patterns</h2></div>
+    <p>The app is read-heavy and small. Each open view keeps 12 live listeners (3 club, 9 team) and filters, sorts and joins in memory. No query needs an index.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Screen / action</th><th>Reads</th><th>Writes</th><th>Shape</th></tr></thead>
+      <tbody>
+        <tr><td>Open hub, pick team</td><td><code>teams</code>, <code>accounts</code>, <code>mine</code></td><td>—</td><td>3 collection listeners; last team from local storage</td></tr>
+        <tr><td>Switch team</td><td>9 collections under <code>teams/{t}/</code></td><td>—</td><td>Unsubscribe old team, subscribe new</td></tr>
+        <tr><td>Schedule + availability counts</td><td><code>events</code>, <code>meta/settings.practices</code>, all <code>mine</code> → <code>teams.{t}.rsvp</code></td><td>—</td><td>Expand rules to dates; latest valid answer per player per key</td></tr>
+        <tr><td>Mark availability</td><td>—</td><td><code>mine/{me}</code></td><td>Whole-document set, queued one at a time</td></tr>
+        <tr><td>Tournament game-day sheet</td><td><code>events/{eid}</code>, <code>refjobs/{eid}</code></td><td><code>events/{eid}</code>, <code>refjobs/{eid}</code> (staff)</td><td>Same id joins event and ref jobs</td></tr>
+        <tr><td>Claim a meal</td><td><code>meals</code>, all <code>mine</code> → <code>claims</code></td><td><code>mine/{me}</code></td><td>Earliest valid claim after <code>resetAt</code> wins</td></tr>
+        <tr><td>Travel plans</td><td>all <code>mine</code> → <code>travel</code></td><td><code>mine/{me}</code></td><td>Latest valid entry per family per event</td></tr>
+        <tr><td>Record dues / request reimbursement</td><td>—</td><td><code>mine/{me}</code> → <code>payments</code></td><td>Pending until a ledger row cites it</td></tr>
+        <tr><td>Confirm payment</td><td><code>ledger</code>, all <code>mine</code> → <code>payments</code></td><td><code>ledger/l-{uid}-{payId}</code></td><td>Idempotent id; status confirmed or declined</td></tr>
+        <tr><td>Fund balance &amp; dues by family</td><td><code>ledger</code>, pending payments</td><td>—</td><td>Summed on every render</td></tr>
+        <tr><td>Request to join a team</td><td>—</td><td><code>mine/{me}</code> → <code>teams.{t}.request</code></td><td>Pending while no newer account entry exists</td></tr>
+        <tr><td>Approve account</td><td><code>mine</code>, <code>accounts</code></td><td><code>accounts/{uid}</code> (owner)</td><td>Read-merge-write of that person's team map</td></tr>
+        <tr><td>Create team</td><td>source team's <code>meta</code> (optional copy)</td><td><code>teams/{t}</code>, <code>teams/{t}/meta/settings</code>, <code>…/meta/handbook</code></td><td>Three sequential sets</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="security">
+    <div class="sh"><span class="num">05</span><h2>Security rules</h2></div>
+    <p>Rules are declared when the page is published and keyed on the viewer's sharing level: <code>view</code> &lt; <code>interact</code> (Contributor) &lt; <code>admin</code> (Editor) &lt; <code>owner</code>. A deeper rule overrides the one above it.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Path</th><th>Read</th><th>Write</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td><code>(root)</code></td><td><code>view</code></td><td><code>admin</code></td><td>Everyone the page is shared with reads; Editors write team data</td></tr>
+        <tr><td><code>accounts</code></td><td><code>view</code></td><td><code>owner</code></td><td>Only the site owner links accounts or changes roles</td></tr>
+        <tr><td><code>mine</code></td><td><code>view</code></td><td><code>owner</code></td><td>Opens all family documents for reading; blocks cross-writes</td></tr>
+        <tr><td><code>mine/{self}</code></td><td>inherited</td><td><code>interact</code></td><td>Each person writes only <code>mine/&lt;their id&gt;</code></td></tr>
+      </tbody>
+    </table></div>
+    <h3>Two layers of enforcement</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Guarantee</th><th>Enforced by</th><th>Bypassable by</th></tr></thead>
+      <tbody>
+        <tr><td>Only the owner assigns roles and links accounts</td><td><span class="rule r-owner">database</span></td><td>No one</td></tr>
+        <tr><td>A person writes only their own family record</td><td><span class="rule r-self">database</span></td><td>No one</td></tr>
+        <tr><td>Family entries only count for the approved family</td><td><span class="rule r-self">client merge</span></td><td>No one (entries are ignored, not blocked)</td></tr>
+        <tr><td>Only coaches edit the schedule, only finance the ledger, etc.</td><td><span class="rule r-editor">app role gates</span></td><td>An Editor calling the database directly</td></tr>
+        <tr><td>Teams can't see each other's data</td><td><span class="rule r-editor">app scoping</span></td><td>An Editor calling the database directly</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout"><b>Why team data isn't locked per team</b><p>Rules accept only literal paths plus the trailing <code>{self}</code> placeholder, so a rule cannot say "members of team X write <code>teams/X/…</code>". Parents also need Editor access to write their own record. Recommendation R1 covers the options.</p></div>
+  </section>
+
+  <section id="consistency">
+    <div class="sh"><span class="num">06</span><h2>Writes &amp; consistency</h2></div>
+    <p>The store is last-writer-wins with no transactions. The design avoids contended documents rather than coordinating them.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Data</th><th>Writers</th><th>Conflict strategy</th></tr></thead>
+      <tbody>
+        <tr><td>Family answers (<code>rsvp</code>, <code>travel</code>, <code>uniform</code>)</td><td>Each parent, own doc</td><td>Every entry carries <code>at</code>; read picks the newest across both parents and authorized staff</td></tr>
+        <tr><td>Meal claims</td><td>Each parent, own doc</td><td>Earliest valid claim wins; a staff release sets <code>resetAt</code>, which voids older claims</td></tr>
+        <tr><td>Payments → ledger</td><td>Parent writes, finance confirms</td><td>Ledger id derived from source (<code>l-{uid}-{payId}</code>); repeats overwrite the same row</td></tr>
+        <tr><td>Account requests</td><td>Person requests, owner decides</td><td>A request is pending while <code>accounts.teams.{t}.at</code> is older than <code>request.at</code></td></tr>
+        <tr><td>Shared team docs (<code>events</code>, <code>refjobs</code>, <code>meta</code>)</td><td>Staff</td><td>Last writer wins; rare because few staff edit at once</td></tr>
+        <tr><td>Own <code>mine</code> doc from several tabs</td><td>One person</td><td>Writes queued client-side; each write sends the full doc built from the latest snapshot</td></tr>
+      </tbody>
+    </table></div>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1000 330" role="img" aria-label="Two lifecycles. Payment: recorded in the parent's own document as pending, then finance marks it received or declined, which writes a ledger row, or the parent withdraws it. Account: request in the person's own document, then the owner approves, declines, or later removes access in the accounts registry.">
+        <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+        <g font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-3)" letter-spacing="1"><text x="20" y="22">PAYMENT</text><text x="20" y="192">ACCOUNT</text></g>
+        <g font-family="IBM Plex Mono, monospace" font-size="12">
+          <rect x="20" y="40" width="220" height="64" rx="8" fill="var(--self-soft)" stroke="var(--self)" stroke-width="1.5"/>
+          <text x="130" y="66" text-anchor="middle" fill="currentColor" font-weight="600">mine/{uid} · payments</text>
+          <text x="130" y="86" text-anchor="middle" fill="var(--ink-2)" font-size="11">pending (no ledger src)</text>
+          <rect x="470" y="20" width="240" height="52" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="590" y="42" text-anchor="middle" fill="currentColor" font-weight="600">ledger/l-{uid}-{payId}</text>
+          <text x="590" y="60" text-anchor="middle" fill="var(--ok)" font-size="11">status: confirmed → counts</text>
+          <rect x="470" y="86" width="240" height="52" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="590" y="108" text-anchor="middle" fill="currentColor" font-weight="600">ledger/l-{uid}-{payId}</text>
+          <text x="590" y="126" text-anchor="middle" fill="var(--ink-2)" font-size="11">status: declined → excluded</text>
+          <rect x="800" y="40" width="180" height="64" rx="8" fill="none" stroke="currentColor" stroke-opacity=".45" stroke-dasharray="5 4"/>
+          <text x="890" y="66" text-anchor="middle" fill="currentColor" font-weight="600">entry removed</text>
+          <text x="890" y="86" text-anchor="middle" fill="var(--ink-2)" font-size="11">withdrawn by parent</text>
+
+          <rect x="20" y="210" width="220" height="64" rx="8" fill="var(--self-soft)" stroke="var(--self)" stroke-width="1.5"/>
+          <text x="130" y="236" text-anchor="middle" fill="currentColor" font-weight="600">mine/{uid} · request</text>
+          <text x="130" y="256" text-anchor="middle" fill="var(--ink-2)" font-size="11">{person, note, at}</text>
+          <rect x="470" y="190" width="240" height="52" rx="8" fill="var(--owner-soft)" stroke="var(--owner)" stroke-width="1.5"/>
+          <text x="590" y="212" text-anchor="middle" fill="currentColor" font-weight="600">accounts · status active</text>
+          <text x="590" y="230" text-anchor="middle" fill="var(--ink-2)" font-size="11">person · pid · roles[]</text>
+          <rect x="470" y="256" width="240" height="52" rx="8" fill="var(--owner-soft)" stroke="var(--owner)" stroke-width="1.5"/>
+          <text x="590" y="278" text-anchor="middle" fill="currentColor" font-weight="600">accounts · status declined</text>
+          <text x="590" y="296" text-anchor="middle" fill="var(--ink-2)" font-size="11">may request again</text>
+          <rect x="800" y="190" width="180" height="52" rx="8" fill="var(--owner-soft)" stroke="var(--owner)" stroke-width="1.5"/>
+          <text x="890" y="212" text-anchor="middle" fill="currentColor" font-weight="600">status removed</text>
+          <text x="890" y="230" text-anchor="middle" fill="var(--ink-2)" font-size="11">rights revoked</text>
+        </g>
+        <g font-family="IBM Plex Sans, sans-serif" font-size="12" fill="var(--ink-2)">
+          <polyline points="240,62 355,62 355,46 466,46" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#a2)"/><text x="362" y="38">finance: Received</text>
+          <polyline points="240,82 355,82 355,112 466,112" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#a2)"/><text x="362" y="130">finance: Decline</text>
+          <path d="M130 40 C130 6, 890 6, 890 38" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 4" marker-end="url(#a2)"/><text x="720" y="14">parent: Withdraw</text>
+          <polyline points="240,232 355,232 355,216 466,216" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#a2)"/><text x="362" y="208">owner: Approve</text>
+          <polyline points="240,252 355,252 355,282 466,282" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#a2)"/><text x="362" y="300">owner: Decline</text>
+          <line x1="710" y1="216" x2="796" y2="216" stroke="currentColor" stroke-width="1.4" marker-end="url(#a2)"/><text x="753" y="236" text-anchor="middle">Remove</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption>Both workflows cross the same boundary: a person writes in their own document, and an authorized role writes the shared record that settles it. "Pending" is never stored; it's the absence of a newer settling record.</figcaption>
+    </figure>
+  </section>
+
+  <section id="keys">
+    <div class="sh"><span class="num">07</span><h2>Keys &amp; conventions</h2></div>
+    <div class="tw"><table>
+      <thead><tr><th>Thing</th><th>Format</th><th>Example</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Team id</td><td>slug of name, suffixed on collision</td><td><code>a5-13tom</code>, <code>a5-14-kate</code></td><td>Stable; the display name can change</td></tr>
+        <tr><td>User id</td><td>platform opaque id</td><td><code>u_…</code> (22 chars)</td><td>Never shown or parsed</td></tr>
+        <tr><td>Player</td><td><code>pNN</code> seeded, <code>p&lt;time&gt;&lt;rand&gt;</code> new</td><td><code>p12</code></td><td>Unique within a team only</td></tr>
+        <tr><td>Event</td><td><code>t-</code> tournament, <code>e-</code> event</td><td><code>t-southern-power</code></td><td>Reused as <code>refjobs</code> / <code>agenda</code> id</td></tr>
+        <tr><td>Practice occurrence</td><td><code>pr-{ruleId}-{date}</code></td><td><code>pr-sat-2026-10-03</code></td><td>Virtual; used as RSVP key and in <code>cancelled[]</code></td></tr>
+        <tr><td>Person reference</td><td><code>coach:{i}</code> · <code>parent:{pid}:{i}</code> · <code>other:{name}</code></td><td><code>parent:p12:1</code></td><td>Team-scoped pointer into the roster</td></tr>
+        <tr><td>Ledger from payment</td><td><code>l-{uid}-{payId}</code></td><td><code>l-u_abc-pmui9h…</code></td><td>Idempotency key</td></tr>
+        <tr><td>Dates</td><td><code>YYYY-MM-DD</code>, local calendar</td><td><code>2027-01-09</code></td><td>Sortable as strings</td></tr>
+        <tr><td>Timestamps</td><td>ISO 8601 UTC</td><td><code>2026-09-26T18:24:47Z</code></td><td>Used for newest-wins comparisons</td></tr>
+        <tr><td>Clock times</td><td>display strings</td><td><code>7:30 AM</code></td><td>Parsed only for sorting</td></tr>
+        <tr><td>Money</td><td>number, dollars</td><td><code>400</code></td><td>See R4: move to integer cents</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="capacity">
+    <div class="sh"><span class="num">08</span><h2>Capacity</h2></div>
+    <p>Platform limits: 5,000 documents per database, 256 KB per document, 64 listeners per view.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Per team, per season</th><th class="num">Documents</th><th>Basis</th></tr></thead>
+      <tbody>
+        <tr><td>Directory + meta</td><td class="num">3</td><td>Fixed</td></tr>
+        <tr><td>Players</td><td class="num">13</td><td>Measured</td></tr>
+        <tr><td>Events</td><td class="num">~20</td><td>16 today, plus additions</td></tr>
+        <tr><td>Ref jobs + agendas</td><td class="num">~17</td><td>12 tournaments, 5 travel weekends</td></tr>
+        <tr><td>Meals</td><td class="num">~30</td><td>~6 per travel weekend</td></tr>
+        <tr><td>Ledger</td><td class="num">~60</td><td>Dues, top-ups, reimbursements</td></tr>
+        <tr><td>Announcements + tasks</td><td class="num">~50</td><td>About one post a week</td></tr>
+        <tr><td><b>Team subtotal</b></td><td class="num"><b>~190</b></td><td></td></tr>
+        <tr><td>People (<code>accounts</code> + <code>mine</code>)</td><td class="num">~60</td><td>~30 adults × 2; shared by any teams they join</td></tr>
+        <tr><td><b>Total per team-season</b></td><td class="num"><b>~250</b></td><td>≈ 20 team-seasons fit in 5,000</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small muted"><code>mine/{uid}</code> grows by about 12 KB per team per season (RSVPs dominate: ~130 dated entries × ~70 bytes per player). The 256 KB cap allows roughly 20 team-seasons per person. Listeners stay at 12 per view regardless of team count.</p>
+  </section>
+
+  <section id="roadmap">
+    <div class="sh"><span class="num">09</span><h2>Recommendations</h2></div>
+    <div class="recs">
+      <div class="rec"><div class="pri p1">R1</div><div><h4>Enforce team isolation in the database</h4><p>Option A: publish one rule set per team (<code>teams/X</code> write for staff, <code>teams/X/mine/{self}</code> for families) and republish on team creation. It fits under the 64-rule limit for about 20 teams. Option B: one hub per team, with a lightweight club directory linking them. B isolates completely and removes the capacity ceiling.</p></div></div>
+      <div class="rec"><div class="pri p1">R2</div><div><h4>Stop every viewer loading every family document</h4><p>Today each client subscribes to all of <code>mine</code> across all teams. Moving family records to <code>teams/{t}/mine/{self}</code> (needs R1-A rules) limits reads to the open team and cuts download size as the club grows.</p></div></div>
+      <div class="rec"><div class="pri p2">R3</div><div><h4>Add a season dimension</h4><p>Key teams by season (<code>a5-13tom-2026</code>) and add an archive action. Archived teams stay readable, drop out of pickers, and their <code>mine</code> entries can be pruned.</p></div></div>
+      <div class="rec"><div class="pri p2">R4</div><div><h4>Store money as integer cents</h4><p>Change <code>amount</code> to <code>amountCents</code> to avoid floating-point drift in fund totals. Migrate with a one-pass rewrite of ledger rows and pending payments.</p></div></div>
+      <div class="rec"><div class="pri p2">R5</div><div><h4>Separate contact details from the roster</h4><p>Parent phones and emails are readable by anyone the page is shared with. Moving them to a <code>contacts</code> document per player gives one place to tighten later.</p></div></div>
+      <div class="rec"><div class="pri p3">R6</div><div><h4>Add an audit trail</h4><p>Append staff edits and approvals to <code>teams/{t}/audit/{yyyy-mm}</code>, one document per month holding an array of events, to stay inside the document cap.</p></div></div>
+      <div class="rec"><div class="pri p3">R7</div><div><h4>Retire legacy role lists</h4><p><code>settings.coordinators / food / finance / admins</code> are now only suggestions when approving accounts. Drop them once every role holder has a linked account.</p></div></div>
+      <div class="rec"><div class="pri p3">R8</div><div><h4>Scheduled export</h4><p>No automatic backup exists. A weekly scheduled task can read each team and save JSON snapshots to the project's files.</p></div></div>
+    </div>
+  </section>
+
+  <section id="portability">
+    <div class="sh"><span class="num">10</span><h2>Portability</h2></div>
+    <p>If the hub outgrows its host, the model maps cleanly onto mainstream document stores.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Concept</th><th>Firestore</th><th>MongoDB</th><th>DynamoDB (single table)</th></tr></thead>
+      <tbody>
+        <tr><td>Team subtree</td><td>Same paths, subcollections</td><td>One collection per type with a <code>teamId</code> field</td><td><code>PK=TEAM#{t}</code>, <code>SK=PLAYER#{pid}</code>, <code>EVENT#{eid}</code>…</td></tr>
+        <tr><td>Accounts</td><td><code>accounts/{uid}</code></td><td><code>accounts</code>, <code>_id</code> = uid</td><td><code>PK=USER#{uid}</code>, <code>SK=TEAM#{t}</code> per membership</td></tr>
+        <tr><td>Family records</td><td><code>teams/{t}/mine/{uid}</code></td><td><code>familyEntries</code>, index <code>{teamId, uid}</code></td><td><code>PK=TEAM#{t}</code>, <code>SK=MINE#{uid}</code></td></tr>
+        <tr><td>Per-person write rule</td><td>Security rules: <code>request.auth.uid == uid</code></td><td>App tier or Atlas App Services rules</td><td>IAM condition on leading key</td></tr>
+        <tr><td>Team isolation</td><td>Rule on <code>teams/{t}</code> checking membership doc</td><td>Filter by <code>teamId</code> in every query</td><td>Partition key per team</td></tr>
+        <tr><td>Live updates</td><td>Native listeners</td><td>Change streams</td><td>Streams + WebSocket fan-out</td></tr>
+        <tr><td>Payment confirm</td><td>Transaction or idempotent id</td><td>Multi-document transaction</td><td><code>TransactWriteItems</code></td></tr>
+      </tbody>
+    </table></div>
+    <p class="small muted">Firestore is the closest fit: the paths, listeners and per-user write rule carry over as is, and its rules can check team membership, which solves R1 directly.</p>
+  </section>
+  </main>
+</div>
+
+<script>
+(() => {
+const C = [
+ { scope:"club", path:"teams/{teamId}", rule:"editor", title:"Team directory", desc:"One entry per team for the All Teams page and team switcher. Kept in sync with the team's settings when they're saved.", count:"1 per team", size:"~0.2 KB", writers:"Club admins",
+   fields:[["name","string","Display name"],["club","string","Club name"],["season","string","e.g. 2026–27"],["age","string","Age group / division"],["coaches","string[]","Names, for the directory card"],["createdAt","ISO time",""],["createdBy","uid",""],["archived","bool?","Hidden from non-admins"]],
+   ex:{name:"A5 13 Tom",club:"A5 Volleyball",season:"2026–27",age:"13U",coaches:["Coach Tom","Coach Kate"],createdAt:"2026-09-26T10:23:48Z"} },
+ { scope:"club", path:"accounts/{uid}", rule:"owner", title:"Account registry", desc:"Maps a claude.ai account to a roster person and roles on each team. The single source of every permission.", count:"1 per person", size:"~0.3 KB per team", writers:"Site owner only",
+   fields:[["clubAdmin","bool","Team-admin rights on every team"],["teams","map<teamId, Membership>",""],["teams.{t}.status","enum","active · declined · removed"],["teams.{t}.person","personRef","coach:0 · parent:p12:1 · other:Name"],["teams.{t}.pid","playerId","Family the person answers for"],["teams.{t}.roles","string[]","admin, coach, coordinator, food, finance, parent"],["teams.{t}.at","ISO time","Settles requests older than this"],["teams.{t}.by","uid","Who approved"]],
+   ex:{clubAdmin:true,teams:{"a5-13tom":{status:"active",person:"parent:p12:1",pid:"p12",roles:["admin","parent"],at:"2026-09-26T18:24:47Z",by:"u_owner…"}}} },
+ { scope:"club", path:"mine/{uid}", rule:"self", title:"Family record", desc:"Everything one person contributes, grouped by team. Only its owner can write it; the app merges all of them on read and ignores unauthorized entries.", count:"1 per person", size:"~12 KB per team-season", writers:"That person only",
+   fields:[["teams.{t}.request","object?","{person, note, at}: join request"],["teams.{t}.rsvp","map<pid, map<key, {v, at}>>","v: yes · maybe · no · ''"],["teams.{t}.travel","map<pid, map<eid, Travel>>","mode, flight, hotel, conf, arrive, depart, notes, at, cleared?"],["teams.{t}.uniform","map<pid, {sizes, at}>","sizes keyed by item index"],["teams.{t}.claims","map<mealId, {pid, at}>","Meal sign-ups"],["teams.{t}.payments","map<payId, Payment>","kind in|out, cat, pid, amount, date, desc, at"],["updated","ISO time",""]],
+   ex:{teams:{"a5-13tom":{rsvp:{p12:{"pr-sat-2026-10-03":{v:"yes",at:"2026-09-26T18:24:47Z"}}},payments:{pmui9h:{kind:"in",cat:"Dues",pid:"p12",amount:400,date:"2026-09-26",desc:"Venmo to coordinator",at:"…"}}}},updated:"…"} },
+ { scope:"team", path:"teams/{t}/meta/settings", rule:"editor", title:"Team settings", desc:"Configuration read by every screen: coaches, dues, meal budget, weekly practice rules, cancellations and list templates.", count:"1", size:"2.2 KB", writers:"Coordinator, team admin",
+   fields:[["teamName, club, season","string",""],["coaches","{name, phone}[]",""],["teamCode","string","Tournament check-in code"],["dues","{amount, due, label}",""],["budget","{costPerMeal, mealsPerDay, people, families}","Meal planner defaults"],["practices","Rule[]","{id, label, dow, start, end, from, until, location, note}"],["cancelled","string[]","Practice occurrence keys"],["checklist, uniformItems","string[]",""],["coordinators, food, finance, admins","string[]","Legacy role hints (R7)"]],
+   ex:{dues:{amount:400,due:"2026-11-01"},practices:[{id:"sat",label:"Saturday practice",dow:6,start:"7:30 AM",end:"10:00 AM",from:"2026-09-19",until:"2027-06-19"}],cancelled:[]} },
+ { scope:"team", path:"teams/{t}/meta/handbook", rule:"editor", title:"Handbook", desc:"Kickoff-meeting policies as ordered sections.", count:"1", size:"3.9 KB", writers:"Coaches, coordinator",
+   fields:[["sections","{t, b}[]","Heading and body text"]], ex:{sections:[{t:"Attendance",b:"Attendance is taken at every practice…"}]} },
+ { scope:"team", path:"teams/{t}/players/{pid}", rule:"editor", title:"Roster", desc:"Players with embedded parent contacts. Embedded because they're always read together and a player has at most two or three guardians.", count:"13", size:"0.4 KB", writers:"Coordinator, team admin",
+   fields:[["first, last","string",""],["jersey","string",""],["shirt","string","Size on file"],["town","string","For carpools; no street address"],["allergies","string",""],["refTeam","A | B","Ref job group"],["order","number","Display order"],["parents","{name, cell, email}[]","R5 suggests moving these"]],
+   ex:{first:"Sidney",last:"Yeargin",jersey:"2",shirt:"Adult M",refTeam:"B",order:12,parents:[{name:"Alexis Yeargin",cell:"…",email:"…"}]} },
+ { scope:"team", path:"teams/{t}/events/{eid}", rule:"editor", title:"Events & tournaments", desc:"One polymorphic collection keyed by type. Tournaments carry the game-day sheet and hotel details inline, since they're one screen.", count:"16", size:"0.2–0.9 KB", writers:"Coaches, coordinator",
+   fields:[["type","enum","tournament · event · deadline"],["title, date, endDate, time","string",""],["city, location, division, website","string",""],["travel","bool",""],["dutyPid","playerId","Balls & cart family"],["parking, waves, arrival, start, meet, uniforms","string","Game-day sheet"],["admissions, teamCode, scheduleLink, ticketHelp","string",""],["foodPlan, reservations, notes","string",""],["hotel, hotelLink, hotelCode, hotelBy","string","Travel tournaments"]],
+   ex:{type:"tournament",title:"Southern Power AAU Super Regional",travel:true,date:"2027-01-09",endDate:"2027-01-10",city:"Spartanburg, SC",dutyPid:"p02"} },
+ { scope:"team", path:"teams/{t}/refjobs/{eid}", rule:"editor", title:"Ref jobs", desc:"Shares its id with the tournament. One document holds the whole grid so assignments save together.", count:"≤ 12", size:"~1 KB", writers:"Coaches, coordinator",
+   fields:[["assign","map<pid, {s1, s2, s3}>","Book · Score · Libero · Lines · Off · Playing"]], ex:{assign:{p01:{s1:"Book",s2:"Libero",s3:"Lines"}}} },
+ { scope:"team", path:"teams/{t}/meals/{mid}", rule:"editor", title:"Meal slots", desc:"Staff define slots; families claim through their own record. claimedBy is a staff override.", count:"~30", size:"0.15 KB", writers:"Food coordinators",
+   fields:[["eventId","eventId",""],["day","date",""],["meal, time, plan","string",""],["cost","number","Estimate"],["claimedBy","playerId?","Staff assignment; beats family claims"],["resetAt","ISO time?","Voids family claims older than this"]],
+   ex:{eventId:"t-southern-power",day:"2027-01-09",meal:"Lunch",cost:300,claimedBy:""} },
+ { scope:"team", path:"teams/{t}/agenda/{eid}", rule:"editor", title:"Travel agenda", desc:"Itinerary for a travel weekend, nested days and items in one document.", count:"≤ 5", size:"~4 KB", writers:"Coaches, food coordinators",
+   fields:[["note","string",""],["days","{label, items: {what, where, who}[]}[]",""]], ex:{days:[{label:"Friday",items:[{what:"5:00 PM Meet in hotel lobby",where:"…",who:"Coaches and girls"}]}]} },
+ { scope:"team", path:"teams/{t}/ledger/{lid}", rule:"editor", title:"Ledger", desc:"Only settled money. Balances and dues are summed from these rows; declined rows are kept for history and excluded.", count:"~60", size:"0.3 KB", writers:"Finance, coordinator",
+   fields:[["kind","in | out",""],["cat","string","Dues, Team meals, Coach care, Reimbursement…"],["amount","number","R4: integer cents"],["date","date",""],["desc","string",""],["pid","playerId?","Family"],["payee","string?","Non-family payee"],["status","confirmed | declined",""],["src","string?","uid:payId of the source payment"],["by, at","string, ISO time",""]],
+   ex:{kind:"in",cat:"Dues",pid:"p12",amount:400,status:"confirmed",src:"u_owner:pmui9h",by:"Nikki Schreiber"} },
+ { scope:"team", path:"teams/{t}/announcements/{aid} · tasks/{kid}", rule:"editor", title:"Announcements & tasks", desc:"Two small lists with the same shape: text, author, time, and a pinned or status flag.", count:"~50", size:"0.2 KB", writers:"Coaches, coordinator",
+   fields:[["text, pinned, by, at","announcement",""],["title, desc, owner, status, order","task","status: To do · In progress · Done · N/A"]], ex:{text:"Team fund: each family's $400 deposit is due November 1…",pinned:true,by:"From the kickoff meeting"} }
+];
+const RULE = { owner:["r-owner","owner writes"], self:["r-self","{self} writes"], editor:["r-editor","Editors write"] };
+const grid = document.getElementById("collGrid");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+grid.innerHTML = C.map(c => `<article class="coll" data-scope="${c.scope}" data-restricted="${c.rule !== "editor"}">
+  <div class="coll-h"><div><div class="path">${esc(c.path)}</div><p><b>${esc(c.title)}.</b> ${esc(c.desc)}</p></div>
+    <div class="tags"><span class="rule r-scope">${c.scope === "club" ? "club" : "team"}</span><span class="rule ${RULE[c.rule][0]}">${RULE[c.rule][1]}</span></div></div>
+  <div class="coll-stats"><span>Docs <b class="tn">${esc(c.count)}</b></span><span>Size <b class="tn">${esc(c.size)}</b></span><span>App writers <b>${esc(c.writers)}</b></span></div>
+  <div class="coll-b"><div class="fields"><table><thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead><tbody>${c.fields.map(f => `<tr><td>${esc(f[0])}</td><td>${esc(f[1])}</td><td>${esc(f[2])}</td></tr>`).join("")}</tbody></table></div>
+  <div class="example"><span class="label">Example</span><pre>${esc(JSON.stringify(c.ex, null, 2))}</pre></div></div></article>`).join("");
+document.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  const f = b.dataset.f;
+  grid.querySelectorAll(".coll").forEach(el => { el.hidden = !(f === "all" || (f === "restricted" ? el.dataset.restricted === "true" : el.dataset.scope === f)); });
+}));
+})();
+</script>

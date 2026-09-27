@@ -1,0 +1,36 @@
+# SAM CLI settings. GitHub Actions runs:  sam deploy --config-env dev|prod
+version = 0.1
+
+[default.global.parameters]
+region = "us-east-1"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[dev.deploy.parameters]
+stack_name = "tma-dev"
+region = "us-east-1"
+s3_bucket = "tma-sam-artifacts-774924543698-us-east-1"
+s3_prefix = "tma-dev"
+role_arn = "arn:aws:iam::774924543698:role/tma-cfn-exec"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Env=dev AppPrefix=tma"
+confirm_changeset = false
+fail_on_empty_changeset = false
+tags = "app=team-hub env=dev"
+
+[prod.deploy.parameters]
+stack_name = "tma-prod"
+region = "us-east-1"
+s3_bucket = "tma-sam-artifacts-774924543698-us-east-1"
+s3_prefix = "tma-prod"
+role_arn = "arn:aws:iam::774924543698:role/tma-cfn-exec"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Env=prod AppPrefix=tma"
+confirm_changeset = false
+fail_on_empty_changeset = false
+tags = "app=team-hub env=prod"

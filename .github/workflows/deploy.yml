@@ -1,0 +1,106 @@
+name: Deploy
+
+# main   -> dev  (automatic)
+# release published -> prod (waits for approval on the "prod" environment)
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        type: choice
+        options: [dev, prod]
+        default: dev
+
+permissions:
+  id-token: write   # OIDC token for AWS
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "774924543698"
+
+jobs:
+  deploy:
+    name: Deploy ${{ github.event_name == 'release' && 'prod' || inputs.environment || 'dev' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'release' && 'prod' || inputs.environment || 'dev' }}
+    concurrency:
+      group: deploy-${{ github.event_name == 'release' && 'prod' || inputs.environment || 'dev' }}
+      cancel-in-progress: false
+    env:
+      DEPLOY_ENV: ${{ github.event_name == 'release' && 'prod' || inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/tma-github-deploy-${{ env.DEPLOY_ENV }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: tma-${{ env.DEPLOY_ENV }}-${{ github.run_id }}
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Build stack
+        run: sam build --template template.yaml
+
+      - name: Deploy stack
+        run: sam deploy --config-env "$DEPLOY_ENV" --no-progressbar
+
+      - name: Read stack outputs
+        id: out
+        run: |
+          stack="tma-$DEPLOY_ENV"
+          get() { aws cloudformation describe-stacks --stack-name "$stack" \
+                    --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
+          {
+            echo "bucket=$(get SiteBucketName)"
+            echo "distribution=$(get DistributionId)"
+            echo "url=$(get SiteUrl)"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build site
+        working-directory: web
+        run: |
+          npm ci
+          printf '{ "env": "%s", "commit": "%s", "region": "%s" }\n' "$DEPLOY_ENV" "$GITHUB_SHA" "$AWS_REGION" > public/config.json
+          npm run build
+
+      - name: Upload site
+        working-directory: web/dist
+        env:
+          BUCKET: ${{ steps.out.outputs.bucket }}
+        run: |
+          # Hashed assets: cache for a year. Everything else: always revalidate.
+          aws s3 sync assets "s3://$BUCKET/assets" --delete --cache-control "public,max-age=31536000,immutable"
+          aws s3 sync . "s3://$BUCKET" --delete --exclude "assets/*" --cache-control "no-cache"
+
+      - name: Refresh CloudFront
+        env:
+          DIST: ${{ steps.out.outputs.distribution }}
+        run: aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/index.html" "/config.json" >/dev/null
+
+      - name: Smoke test
+        env:
+          URL: ${{ steps.out.outputs.url }}
+        run: |
+          for _ in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/config.json") || true
+            [ "$code" = "200" ] && curl -s "$URL/config.json" | grep -q "$GITHUB_SHA" && { echo "Live: $URL"; exit 0; }
+            echo "Waiting for CloudFront ($code)…"; sleep 20
+          done
+          echo "Site did not serve this build" >&2; exit 1
+
+      - name: Summary
+        run: echo "### Deployed to $DEPLOY_ENV → ${{ steps.out.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

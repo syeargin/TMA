@@ -1,0 +1,225 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Team Hub (TMA) one-time bootstrap. Lets GitHub Actions in syeargin/TMA deploy to this
+  account without stored keys (OIDC), and creates the SAM artifact bucket plus the role
+  CloudFormation uses to create app resources. Deploy once per account, by hand.
+
+Parameters:
+  GitHubOwner:
+    Type: String
+    Default: syeargin
+  GitHubRepo:
+    Type: String
+    Default: TMA
+  CreateOidcProvider:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: Set to false if this account already has the token.actions.githubusercontent.com provider.
+  AppPrefix:
+    Type: String
+    Default: tma
+    AllowedPattern: "^[a-z][a-z0-9-]{1,15}$"
+    Description: Prefix for stack names (tma-dev, tma-prod) and every role the app stack may create.
+
+Conditions:
+  MakeProvider: !Equals [!Ref CreateOidcProvider, "true"]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: MakeProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${AppPrefix}-sam-artifacts-${AWS::AccountId}-${AWS::Region}"
+      OwnershipControls: { Rules: [{ ObjectOwnership: BucketOwnerEnforced }] }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-old-artifacts
+            Status: Enabled
+            ExpirationInDays: 90
+            NoncurrentVersionExpiration: { NoncurrentDays: 30 }
+
+  ArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource: [!GetAtt ArtifactBucket.Arn, !Sub "${ArtifactBucket.Arn}/*"]
+            Condition: { Bool: { "aws:SecureTransport": "false" } }
+
+  # Role CloudFormation assumes to create the app stack's resources. GitHub never holds these rights directly.
+  CfnExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AppPrefix}-cfn-exec"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudformation.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/PowerUserAccess
+      Policies:
+        - PolicyName: app-iam-roles-only
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ManageAppRoles
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:UpdateRole
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:PassRole
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${AppPrefix}-*"
+              - Sid: ServiceLinkedRoles
+                Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Resource: "*"
+
+  DevDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AppPrefix}-github-deploy-dev"
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument: !Sub
+        - |
+          {
+            "Version": "2012-10-17",
+            "Statement": [{
+              "Effect": "Allow",
+              "Principal": { "Federated": "${ProviderArn}" },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                  "token.actions.githubusercontent.com:sub": "repo:${Owner}/${Repo}:environment:dev"
+                }
+              }
+            }]
+          }
+        - Owner: !Ref GitHubOwner
+          Repo: !Ref GitHubRepo
+          ProviderArn: !If
+            - MakeProvider
+            - !Ref GitHubOidcProvider
+            - !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+      Policies:
+        - PolicyName: deploy
+          PolicyDocument: !Sub
+            - |
+              {
+                "Version": "2012-10-17",
+                "Statement": [
+                  { "Sid": "Stacks", "Effect": "Allow",
+                    "Action": ["cloudformation:CreateStack","cloudformation:UpdateStack","cloudformation:CreateChangeSet","cloudformation:ExecuteChangeSet","cloudformation:DeleteChangeSet","cloudformation:Describe*","cloudformation:GetTemplate*","cloudformation:ListStackResources"],
+                    "Resource": "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AppPrefix}-${Env}/*" },
+                  { "Sid": "SamTransform", "Effect": "Allow", "Action": "cloudformation:CreateChangeSet",
+                    "Resource": "arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31" },
+                  { "Sid": "ValidateTemplates", "Effect": "Allow", "Action": ["cloudformation:ValidateTemplate","cloudformation:ListStacks"], "Resource": "*" },
+                  { "Sid": "PassExecRole", "Effect": "Allow", "Action": "iam:PassRole", "Resource": "${CfnExecArn}" },
+                  { "Sid": "Artifacts", "Effect": "Allow", "Action": ["s3:PutObject","s3:GetObject","s3:ListBucket","s3:GetBucketLocation"],
+                    "Resource": ["arn:aws:s3:::${Bucket}","arn:aws:s3:::${Bucket}/*"] },
+                  { "Sid": "SiteUpload", "Effect": "Allow", "Action": ["s3:PutObject","s3:DeleteObject","s3:ListBucket","s3:GetObject"],
+                    "Resource": ["arn:aws:s3:::${AppPrefix}-${Env}-site-*","arn:aws:s3:::${AppPrefix}-${Env}-site-*/*"] },
+                  { "Sid": "Invalidate", "Effect": "Allow", "Action": ["cloudfront:CreateInvalidation","cloudfront:GetInvalidation"], "Resource": "*" }
+                ]
+              }
+            - { Env: dev, CfnExecArn: !GetAtt CfnExecutionRole.Arn, Bucket: !Ref ArtifactBucket }
+
+  ProdDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AppPrefix}-github-deploy-prod"
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument: !Sub
+        - |
+          {
+            "Version": "2012-10-17",
+            "Statement": [{
+              "Effect": "Allow",
+              "Principal": { "Federated": "${ProviderArn}" },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+                  "token.actions.githubusercontent.com:sub": "repo:${Owner}/${Repo}:environment:prod"
+                }
+              }
+            }]
+          }
+        - Owner: !Ref GitHubOwner
+          Repo: !Ref GitHubRepo
+          ProviderArn: !If
+            - MakeProvider
+            - !Ref GitHubOidcProvider
+            - !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
+      Policies:
+        - PolicyName: deploy
+          PolicyDocument: !Sub
+            - |
+              {
+                "Version": "2012-10-17",
+                "Statement": [
+                  { "Sid": "Stacks", "Effect": "Allow",
+                    "Action": ["cloudformation:CreateStack","cloudformation:UpdateStack","cloudformation:CreateChangeSet","cloudformation:ExecuteChangeSet","cloudformation:DeleteChangeSet","cloudformation:Describe*","cloudformation:GetTemplate*","cloudformation:ListStackResources"],
+                    "Resource": "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AppPrefix}-${Env}/*" },
+                  { "Sid": "SamTransform", "Effect": "Allow", "Action": "cloudformation:CreateChangeSet",
+                    "Resource": "arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31" },
+                  { "Sid": "ValidateTemplates", "Effect": "Allow", "Action": ["cloudformation:ValidateTemplate","cloudformation:ListStacks"], "Resource": "*" },
+                  { "Sid": "PassExecRole", "Effect": "Allow", "Action": "iam:PassRole", "Resource": "${CfnExecArn}" },
+                  { "Sid": "Artifacts", "Effect": "Allow", "Action": ["s3:PutObject","s3:GetObject","s3:ListBucket","s3:GetBucketLocation"],
+                    "Resource": ["arn:aws:s3:::${Bucket}","arn:aws:s3:::${Bucket}/*"] },
+                  { "Sid": "SiteUpload", "Effect": "Allow", "Action": ["s3:PutObject","s3:DeleteObject","s3:ListBucket","s3:GetObject"],
+                    "Resource": ["arn:aws:s3:::${AppPrefix}-${Env}-site-*","arn:aws:s3:::${AppPrefix}-${Env}-site-*/*"] },
+                  { "Sid": "Invalidate", "Effect": "Allow", "Action": ["cloudfront:CreateInvalidation","cloudfront:GetInvalidation"], "Resource": "*" }
+                ]
+              }
+            - { Env: prod, CfnExecArn: !GetAtt CfnExecutionRole.Arn, Bucket: !Ref ArtifactBucket }
+
+Outputs:
+  ArtifactBucketName:
+    Value: !Ref ArtifactBucket
+  CfnExecutionRoleArn:
+    Value: !GetAtt CfnExecutionRole.Arn
+  DevDeployRoleArn:
+    Value: !GetAtt DevDeployRole.Arn
+  ProdDeployRoleArn:
+    Value: !GetAtt ProdDeployRole.Arn

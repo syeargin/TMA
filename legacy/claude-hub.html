@@ -1,0 +1,1530 @@
+<title>A5 13 Tom Team Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Big+Shoulders+Display:wght@700;800;900&display=swap">
+<style>
+:root{
+  --bg:#EDF0F5; --surface:#FFFFFF; --surface-2:#F6F8FB; --sunken:#E3E8F0;
+  --ink:#101B2E; --ink-2:#47546C; --ink-3:#6C7890; --line:#D5DBE5; --line-2:#E6EAF1;
+  --navy:#15294D; --accent:#C8323E; --accent-ink:#FFFFFF; --accent-soft:#FBE6E8;
+  --btn:#15294D; --btn-ink:#FFFFFF; --btn-soft:#E3E9F4;
+  --ok:#17744A; --ok-soft:#DFF2E8; --warn:#8F5C05; --warn-soft:#FAEFD6; --bad:#B42318; --bad-soft:#FDE7E4;
+  --hdr:#15294D; --hdr-2:#0F1F3C; --hdr-ink:#F4F6FA; --hdr-mute:#A8B6CF; --line-court:rgba(255,255,255,.10);
+  --shadow:0 1px 2px rgba(16,27,46,.05),0 6px 18px rgba(16,27,46,.06);
+  --r:12px;
+  --f-display:"Big Shoulders Display","Barlow Condensed","Arial Narrow",sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-cond:"Barlow Condensed","Arial Narrow",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0A111E; --surface:#111A2B; --surface-2:#15203340; --sunken:#0C1422;
+    --ink:#E6EBF3; --ink-2:#A6B2C7; --ink-3:#7E8BA3; --line:#243249; --line-2:#1B2739;
+    --navy:#A9C1EE; --accent:#F0616B; --accent-ink:#1B0609; --accent-soft:#3A161A;
+    --btn:#A9C1EE; --btn-ink:#0A111E; --btn-soft:#1C2A44;
+    --ok:#56C893; --ok-soft:#0F2E20; --warn:#E6B552; --warn-soft:#30240C; --bad:#F87A6F; --bad-soft:#3A1613;
+    --hdr:#0E1A31; --hdr-2:#0A1426; --hdr-ink:#F1F4F9; --hdr-mute:#8C9CBB;
+    --shadow:0 1px 0 rgba(255,255,255,.03);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A111E; --surface:#111A2B; --surface-2:#15203340; --sunken:#0C1422;
+  --ink:#E6EBF3; --ink-2:#A6B2C7; --ink-3:#7E8BA3; --line:#243249; --line-2:#1B2739;
+  --navy:#A9C1EE; --accent:#F0616B; --accent-ink:#1B0609; --accent-soft:#3A161A;
+  --btn:#A9C1EE; --btn-ink:#0A111E; --btn-soft:#1C2A44;
+  --ok:#56C893; --ok-soft:#0F2E20; --warn:#E6B552; --warn-soft:#30240C; --bad:#F87A6F; --bad-soft:#3A1613;
+  --hdr:#0E1A31; --hdr-2:#0A1426; --hdr-ink:#F1F4F9; --hdr-mute:#8C9CBB;
+  --shadow:0 1px 0 rgba(255,255,255,.03);
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+a{color:var(--navy);text-underline-offset:2px}
+button{font:inherit;color:inherit}
+h1,h2,h3,h4{margin:0;text-wrap:balance}
+.tn{font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-2)}
+.small{font-size:13px}
+.label{font-family:var(--f-cond);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:12.5px;color:var(--ink-3)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* ---------- header ---------- */
+.hdr{background:var(--hdr);color:var(--hdr-ink);position:relative;overflow:hidden}
+.hdr::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+   linear-gradient(90deg,transparent calc(50% - 1px),var(--line-court) calc(50% - 1px),var(--line-court) calc(50% + 1px),transparent calc(50% + 1px)),
+   linear-gradient(90deg,transparent 33.3%,var(--line-court) 33.3%,var(--line-court) calc(33.3% + 1px),transparent calc(33.3% + 1px),transparent 66.6%,var(--line-court) 66.6%,var(--line-court) calc(66.6% + 1px),transparent calc(66.6% + 1px));}
+.hdr::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--accent)}
+.hdr-in{position:relative;max-width:1180px;margin:0 auto;padding:18px 16px 16px;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.crest{width:52px;height:52px;flex:none}
+.brand h1{font-family:var(--f-display);font-weight:900;font-size:34px;letter-spacing:.01em;line-height:.9;text-transform:uppercase}
+.brand .sub{font-family:var(--f-cond);font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:13px;color:var(--hdr-mute);margin-top:4px}
+.who{margin-left:auto;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:6px 8px 6px 14px;cursor:pointer;color:var(--hdr-ink);max-width:100%}
+.who:hover{background:rgba(255,255,255,.14)}
+.who .w-l{font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.08em;font-size:11.5px;color:var(--hdr-mute);line-height:1}
+.who .w-n{font-weight:600;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.who .w-c{background:var(--accent);color:#fff;border-radius:999px;font-size:12px;font-weight:600;padding:5px 10px;white-space:nowrap}
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:var(--shadow)}
+.tabs-in{max-width:1180px;margin:0 auto;display:flex;gap:2px;overflow-x:auto;padding:0 8px;scrollbar-width:none}
+.tabs-in::-webkit-scrollbar{display:none}
+.tab{appearance:none;border:0;background:none;padding:14px 12px 12px;font-family:var(--f-cond);font-weight:600;font-size:16px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+main{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:22px 64px}
+.banner{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:var(--r);padding:12px 14px;margin-bottom:18px}
+.banner.info{background:var(--btn-soft);border-color:var(--line)}
+.banner p{margin:0;flex:1 1 240px}
+
+/* ---------- layout ---------- */
+.grid{display:grid;gap:18px}
+.g-home{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)}
+.g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:860px){.g-home,.g-2{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:18px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;flex-wrap:wrap}
+.card-h h2,.card-h h3{font-family:var(--f-cond);font-weight:700;font-size:19px;text-transform:uppercase;letter-spacing:.04em}
+.card-b{padding:4px 16px 16px}
+.sec-h{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.sec-h h2{font-family:var(--f-display);font-weight:800;font-size:32px;text-transform:uppercase;line-height:1}
+.sec-h p{margin:0}
+
+/* ---------- buttons, chips ---------- */
+.btn{appearance:none;border:1px solid transparent;border-radius:8px;padding:8px 14px;font-weight:600;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:var(--btn-soft);color:var(--ink);text-decoration:none;line-height:1.2}
+.btn:hover{filter:brightness(.97)}
+.btn.primary{background:var(--btn);color:var(--btn-ink)}
+.btn.red{background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;border-color:var(--line)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn.danger-ghost{background:transparent;color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
+.btn.confirming{background:var(--bad);color:#fff}
+.icon-btn{appearance:none;border:0;background:var(--btn-soft);width:32px;height:32px;border-radius:8px;font-size:20px;line-height:1;cursor:pointer;color:var(--ink)}
+.link-btn{appearance:none;border:0;background:none;padding:0;color:var(--navy);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-size:inherit}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.pill{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;font-family:var(--f-body);white-space:nowrap;line-height:1.5}
+.p-travel{background:var(--accent-soft);color:var(--accent)}
+.p-local{background:var(--btn-soft);color:var(--navy)}
+.p-ok{background:var(--ok-soft);color:var(--ok)}
+.p-warn{background:var(--warn-soft);color:var(--warn)}
+.p-bad{background:var(--bad-soft);color:var(--bad)}
+.p-mute{background:var(--sunken);color:var(--ink-2)}
+
+/* ---------- next-up hero ---------- */
+.nextup{display:grid;grid-template-columns:auto minmax(0,1fr);gap:0;overflow:hidden}
+.dateblock{background:var(--hdr);color:var(--hdr-ink);padding:16px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:112px;border-top:5px solid var(--accent)}
+.dateblock .dow{font-family:var(--f-cond);font-weight:600;letter-spacing:.14em;text-transform:uppercase;font-size:14px;color:var(--hdr-mute)}
+.dateblock .dnum{font-family:var(--f-display);font-weight:900;font-size:64px;line-height:.9}
+.dateblock .mon{font-family:var(--f-cond);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:15px}
+.nextup .body{padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.nextup h3{font-family:var(--f-display);font-weight:800;font-size:30px;line-height:1;text-transform:uppercase}
+.meta{display:flex;gap:6px 14px;flex-wrap:wrap;color:var(--ink-2);font-size:14px}
+@media (max-width:480px){.nextup{grid-template-columns:minmax(0,1fr)}.dateblock{flex-direction:row;gap:10px;justify-content:flex-start;min-width:0;padding:10px 16px}.dateblock .dnum{font-size:40px}}
+
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:560px){.stats{grid-template-columns:minmax(0,1fr)}}
+.stat{padding:12px 14px}
+.stat .v{font-family:var(--f-display);font-weight:800;font-size:32px;line-height:1;margin-top:4px}
+.stat .s{font-size:13px;color:var(--ink-2);margin-top:4px}
+.meter{height:6px;border-radius:99px;background:var(--sunken);overflow:hidden;margin-top:8px}
+.meter>i{display:block;height:100%;background:var(--ok);border-radius:99px}
+
+/* ---------- lists ---------- */
+.list{list-style:none;margin:0;padding:0}
+.li{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line-2)}
+.li:first-child{border-top:0}
+.todo{display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-2);cursor:pointer;text-align:left;width:100%}
+.todo:hover{border-color:var(--line)}
+.todo .dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--accent)}
+.todo .dot.warn{background:var(--warn)}
+.todo .dot.ok{background:var(--ok)}
+.todo .t{flex:1;min-width:0}
+.todo .t b{display:block;font-weight:600}
+.todo .go{color:var(--ink-3);font-size:18px}
+.ann{padding:12px 0;border-top:1px solid var(--line-2)}
+.ann:first-child{border-top:0}
+.ann .txt{white-space:pre-wrap;margin:4px 0 0}
+.pin{color:var(--accent);font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-family:var(--f-cond)}
+
+/* schedule */
+.month{font-family:var(--f-cond);font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:15px;color:var(--ink-2);margin:22px 0 8px;display:flex;align-items:center;gap:10px}
+.month::after{content:"";flex:1;height:1px;background:var(--line)}
+.ev{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:6px}
+.ev.k-tournament{border-left:5px solid var(--accent)}
+.ev.k-practice{border-left:5px solid var(--btn)}
+.ev.k-event{border-left:5px solid var(--warn)}
+.ev.k-deadline{border-left:5px solid var(--ink-3)}
+.ev.cancel{opacity:.6}
+.ev.cancel .ev-t{text-decoration:line-through}
+.ev .d{text-align:center;line-height:1}
+.ev .d .dw{font-family:var(--f-cond);font-weight:600;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.ev .d .dn{font-family:var(--f-display);font-weight:800;font-size:28px}
+.ev-t{font-weight:600;font-size:15.5px}
+.ev-t button{all:unset;cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.ev-t button:hover{text-decoration-color:var(--ink-3)}
+.ev .side{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+@media (max-width:640px){.ev{grid-template-columns:48px minmax(0,1fr)}.ev .side{grid-column:1/-1;align-items:flex-start;flex-direction:row;flex-wrap:wrap}}
+.rsvp{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.rsvp button{appearance:none;border:0;background:var(--surface);padding:5px 10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink-2);border-left:1px solid var(--line)}
+.rsvp button:first-child{border-left:0}
+.rsvp button[aria-pressed="true"].y{background:var(--ok);color:#fff}
+.rsvp button[aria-pressed="true"].m{background:var(--warn);color:#fff}
+.rsvp button[aria-pressed="true"].n{background:var(--bad);color:#fff}
+.counts{font-size:12.5px;color:var(--ink-2)}
+
+/* tournaments */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.tcard{appearance:none;text-align:left;cursor:pointer;padding:0;display:flex;flex-direction:column;overflow:hidden;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.tcard:hover{border-color:var(--ink-3)}
+.tcard .top{display:flex;gap:12px;align-items:center;padding:14px 14px 10px}
+.tcard .when{background:var(--hdr);color:var(--hdr-ink);border-radius:8px;padding:6px 8px;text-align:center;min-width:64px;line-height:1.05}
+.tcard .when .m{font-family:var(--f-cond);font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:12px;color:var(--hdr-mute)}
+.tcard .when .dd{font-family:var(--f-display);font-weight:800;font-size:22px}
+.tcard.past{opacity:.62}
+.tcard h3{font-weight:700;font-size:16px;line-height:1.2}
+.tcard .foot{border-top:1px solid var(--line-2);padding:8px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--ink-2);margin-top:auto}
+.thead{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:end;padding:18px;background:var(--hdr);color:var(--hdr-ink);border-radius:var(--r) var(--r) 0 0;position:relative;overflow:hidden}
+.thead::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--accent)}
+.thead h2{font-family:var(--f-display);font-weight:900;font-size:36px;line-height:.95;text-transform:uppercase}
+.thead .meta{color:var(--hdr-mute)}
+.thead a{color:var(--hdr-ink)}
+.thead .count{text-align:right}
+.thead .count .v{font-family:var(--f-display);font-weight:900;font-size:44px;line-height:.9}
+@media (max-width:560px){.thead{grid-template-columns:minmax(0,1fr)}.thead .count{text-align:left}}
+.subtabs{display:flex;gap:4px;overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-top:0;padding:6px;border-radius:0 0 var(--r) var(--r);margin-bottom:16px}
+.subtabs button{appearance:none;border:0;background:none;padding:8px 12px;border-radius:8px;font-weight:600;cursor:pointer;color:var(--ink-2);white-space:nowrap}
+.subtabs button[aria-selected="true"]{background:var(--btn-soft);color:var(--ink)}
+.kv{display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1fr);border-top:1px solid var(--line-2)}
+.kv>div{padding:10px 0;border-bottom:1px solid var(--line-2)}
+.kv>div:nth-child(odd){color:var(--ink-3);font-family:var(--f-cond);font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:13px;padding-right:12px;padding-top:12px}
+.kv>div:nth-child(even){white-space:pre-wrap;overflow-wrap:anywhere}
+@media (max-width:520px){.kv{grid-template-columns:minmax(0,1fr)}.kv>div:nth-child(odd){border-bottom:0;padding-bottom:0}}
+.tbd{color:var(--ink-3);font-style:italic}
+.checklist{list-style:none;padding:0;margin:0;columns:2 220px;column-gap:18px}
+.checklist li{break-inside:avoid;padding:5px 0 5px 26px;position:relative}
+.checklist li::before{content:"";position:absolute;left:0;top:8px;width:15px;height:15px;border:2px solid var(--ink-3);border-radius:4px}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line-2);vertical-align:middle}
+th{font-family:var(--f-cond);font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:12.5px;color:var(--ink-3);background:var(--surface-2);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.mine td{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.sticky-col{position:sticky;left:0;background:var(--surface);z-index:1}
+th.sticky-col{background:var(--surface-2)}
+tr.mine td.sticky-col{background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+select.cell{font:inherit;font-size:13.5px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);min-width:88px}
+
+/* roster */
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.pcard{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;padding:14px}
+.jersey{width:64px;height:70px;position:relative;display:flex;align-items:center;justify-content:center}
+.jersey svg{position:absolute;inset:0;width:100%;height:100%}
+.jersey b{position:relative;font-family:var(--f-display);font-weight:900;font-size:28px;color:#fff;margin-top:8px}
+.pcard h3{font-size:17px;font-weight:700}
+.parent{font-size:13.5px;padding-top:6px;margin-top:6px;border-top:1px dashed var(--line)}
+.parent .pn{font-weight:600}
+.copy{appearance:none;border:0;background:none;padding:0;color:var(--navy);cursor:pointer;font:inherit;font-size:13.5px;text-align:left;overflow-wrap:anywhere}
+.copy:hover{text-decoration:underline}
+
+/* fund */
+.bignum{font-family:var(--f-display);font-weight:900;font-size:52px;line-height:.95}
+.amt-in{color:var(--ok)}
+.amt-out{color:var(--bad)}
+.calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.calc label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--ink-2)}
+.calc input,.calc select{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.calc-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px}
+.calc-out>div{background:var(--surface-2);border:1px solid var(--line-2);border-radius:10px;padding:10px 12px}
+.calc-out .v{font-family:var(--f-display);font-weight:800;font-size:28px}
+
+/* handbook */
+.hb h3{font-family:var(--f-cond);font-weight:700;font-size:18px;text-transform:uppercase;letter-spacing:.04em}
+.hb p{white-space:pre-wrap;margin:6px 0 0;max-width:72ch}
+.hb section{padding:14px 0;border-top:1px solid var(--line-2)}
+.hb section:first-child{border-top:0}
+.task-s{appearance:none;border:0;cursor:pointer}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:100;background:rgba(6,12,24,.55);display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) 16px 24px;overflow-y:auto}
+.modal[hidden],#toast[hidden]{display:none}
+.sheet{background:var(--surface);color:var(--ink);border-radius:14px;width:100%;max-width:560px;box-shadow:0 20px 60px rgba(0,0,0,.35);border:1px solid var(--line)}
+.sheet-h{display:flex;align-items:center;gap:10px;padding:16px 18px 8px}
+.sheet-h h3{font-family:var(--f-cond);font-weight:700;font-size:22px;text-transform:uppercase;letter-spacing:.03em;flex:1}
+.sheet .inner{padding:0 18px 18px}
+.form{display:flex;flex-direction:column;gap:12px;padding:6px 18px 18px}
+.form label{display:flex;flex-direction:column;gap:5px;font-weight:600;font-size:13.5px;color:var(--ink-2)}
+.form input,.form textarea,.form select{font:inherit;font-weight:400;font-size:15px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);width:100%}
+.form textarea{min-height:90px;resize:vertical}
+.form .hint{font-weight:400;color:var(--ink-3);font-size:12.5px}
+.form .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:460px){.form .two{grid-template-columns:1fr}}
+.form-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.whogrid{display:flex;flex-direction:column;gap:14px}
+.whogrid .opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:200;max-width:calc(100% - 32px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.empty{padding:18px;text-align:center;color:var(--ink-2);border:1px dashed var(--line);border-radius:10px}
+.skel{height:14px;border-radius:6px;background:var(--sunken);margin:10px 0}
+/* access */
+.role{display:inline-flex;align-items:center;border-radius:6px;padding:2px 8px;font-family:var(--f-cond);font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:12.5px;white-space:nowrap}
+.r-admin{background:var(--ink);color:var(--bg)}
+.r-coach{background:var(--btn);color:var(--btn-ink)}
+.r-coordinator{background:var(--accent);color:var(--accent-ink)}
+.r-food{background:var(--warn-soft);color:var(--warn)}
+.r-finance{background:var(--ok-soft);color:var(--ok)}
+.r-parent{background:var(--sunken);color:var(--ink-2)}
+.matrix td,.matrix th{text-align:center}
+.matrix td:first-child,.matrix th:first-child{text-align:left;min-width:260px}
+.yes{color:var(--ok);font-weight:800}
+.no{color:var(--line)}
+.acct-me{display:grid;grid-template-columns:48px minmax(0,1fr);gap:12px;align-items:center}
+.avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:var(--sunken)}
+.lock{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-2);font-size:13.5px}
+.lock svg{flex:none;margin-top:2px}
+.checks{display:flex;flex-wrap:wrap;gap:8px}
+.checks label{flex-direction:row;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-weight:600;color:var(--ink);cursor:pointer}
+.checks input{width:auto}
+@media (prefers-reduced-motion:no-preference){.tcard,.todo,.btn{transition:border-color .15s,filter .15s}}
+</style>
+
+<header class="hdr">
+  <div class="hdr-in">
+    <div class="brand">
+      <svg class="crest" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" fill="none" stroke="#fff" stroke-width="2.5"/><path d="M26 2c-6 8-8 16-7 24s5 16 13 24M4.5 17c9 2 18 1 26-4s13-10 15-11M3 31c9-4 20-4 29 0s14 11 16 12" fill="none" stroke="#fff" stroke-width="2" opacity=".85"/><circle cx="26" cy="26" r="24" fill="none" stroke="#C8323E" stroke-width="2.5" stroke-dasharray="10 140" transform="rotate(-60 26 26)"/></svg>
+      <div>
+        <h1 id="teamName">A5 13 Tom</h1>
+        <div class="sub" id="teamSub">2026–27 season · Coach Tom &amp; Coach Kate</div>
+      </div>
+    </div>
+    <button class="who" data-act="who" id="whoBtn" aria-label="Choose who you are"></button>
+  </div>
+</header>
+<nav class="tabs" aria-label="Sections"><div class="tabs-in" role="tablist" id="tabs"></div></nav>
+<main id="app" aria-live="polite"></main>
+<div id="modal" class="modal" hidden></div>
+<div id="toast" role="status" hidden></div>
+
+<script>
+(() => {
+"use strict";
+/* ============ helpers ============ */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pd = s => { const [y, m, d] = String(s).split("-").map(Number); return new Date(y, (m || 1) - 1, d || 1); };
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const addDays = (s, n) => { const d = pd(s); d.setDate(d.getDate() + n); return iso(d); };
+const TODAY = iso(new Date());
+const NOW = () => new Date().toISOString();
+const daysUntil = s => Math.round((pd(s) - pd(TODAY)) / 864e5);
+const fmt = (s, o) => s ? pd(s).toLocaleDateString("en-US", o || { weekday: "short", month: "short", day: "numeric" }) : "";
+const MON = s => fmt(s, { month: "short" });
+function fmtRange(a, b) {
+  if (!b || b === a) return fmt(a, { weekday: "short", month: "short", day: "numeric" });
+  const A = pd(a), B = pd(b);
+  if (A.getMonth() === B.getMonth()) return `${MON(a)} ${A.getDate()}–${B.getDate()}`;
+  return `${MON(a)} ${A.getDate()} – ${MON(b)} ${B.getDate()}`;
+}
+const money = n => (n < 0 ? "−$" : "$") + Math.abs(Math.round(n * 100) / 100).toLocaleString("en-US", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+function tmin(t) { const m = /(\d{1,2}):(\d{2})\s*(AM|PM)?/i.exec(t || ""); if (!m) return 0; let h = +m[1] % 12; if ((m[3] || "").toUpperCase() === "PM") h += 12; return h * 60 + +m[2]; }
+const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const norm = s => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+const clone = o => JSON.parse(JSON.stringify(o || {}));
+
+/* ============ roles & permissions ============ */
+const ROLES = {
+  admin: { label: "Team admin", desc: "Full access to this team's pages, people and settings." },
+  coach: { label: "Coach", desc: "Runs the schedule, tournaments, ref jobs and announcements." },
+  coordinator: { label: "Team coordinator", desc: "Point person for the coach. Manages everything except accounts." },
+  food: { label: "Food coordinator", desc: "Plans team meals and assigns families." },
+  finance: { label: "Finance", desc: "Keeps the ledger and confirms payments and reimbursements." },
+  parent: { label: "Parent / guardian", desc: "Answers for their own family." }
+};
+const ROLE_ORDER = ["admin", "coach", "coordinator", "food", "finance", "parent"];
+const PERMS = [
+  ["contacts", "See roster phone numbers and emails", ["admin", "coach", "coordinator", "food", "finance", "parent"]],
+  ["fundView", "See the team fund and dues", ["admin", "coach", "coordinator", "food", "finance", "parent"]],
+  ["family", "Answer for own family: availability, travel, uniform sizes, meal sign-ups, payments", ["parent"]],
+  ["reimb", "Request a reimbursement", ["admin", "coach", "coordinator", "food", "finance", "parent"]],
+  ["attendance", "Mark availability for any player", ["admin", "coach", "coordinator"]],
+  ["schedule", "Edit schedule, practices, tournaments, hotels and game-day sheets", ["admin", "coach", "coordinator"]],
+  ["refjobs", "Assign ref jobs", ["admin", "coach", "coordinator"]],
+  ["announce", "Post and pin announcements", ["admin", "coach", "coordinator"]],
+  ["handbook", "Edit the team handbook", ["admin", "coach", "coordinator"]],
+  ["meals", "Plan meals and assign families to them", ["admin", "coordinator", "food"]],
+  ["finance", "Add, edit and confirm fund entries", ["admin", "coordinator", "finance"]],
+  ["roster", "Edit the roster; fix any family's travel or sizes", ["admin", "coordinator"]],
+  ["tasks", "Manage coordinator tasks", ["admin", "coordinator"]],
+  ["settings", "Change team settings", ["admin", "coordinator"]]
+];
+const PERM_OF = Object.fromEntries(PERMS.map(([k, , r]) => [k, new Set(r)]));
+const rolesHave = (roles, perm) => [...roles].some(r => PERM_OF[perm] && PERM_OF[perm].has(r));
+const roleChip = r => `<span class="role r-${r}">${esc((ROLES[r] || { label: r }).label)}</span>`;
+
+/* ============ state ============ */
+const S = {
+  players: [], events: [], meals: [], ledger: [], announcements: [], tasks: [],
+  refjobs: {}, agenda: {}, meta: {}, teams: [], accounts: {}, mine: {},
+  loaded: new Set(), dbState: "connecting"
+};
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+};
+const UI = { tab: "home", teamId: "", eventId: null, sub: "gameday", schedFilter: "all", schedRange: "8w", calc: null, profiles: {} };
+const V = { ready: false, id: null, name: "", email: null, avatar: "", isOwner: false };
+const ARR = ["players", "events", "meals", "ledger", "announcements", "tasks"];
+const MAP = ["refjobs", "agenda", "meta"];
+const GLOBAL = ["teams", "accounts", "mine"];
+let db = null, userNs = null, teamUnsubs = [];
+
+const set = () => S.meta.settings || {};
+const team = (id = UI.teamId) => S.teams.find(t => t.id === id);
+const coachNames = () => (set().coaches || []).map(c => c.name).join(" or ") || "a coach";
+const players = () => [...S.players].sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.first.localeCompare(b.first));
+const player = id => S.players.find(p => p.id === id);
+const pname = id => { const p = player(id); return p ? p.first : "—"; };
+const event = id => S.events.find(e => e.id === id);
+const tournaments = () => S.events.filter(e => e.type === "tournament").sort((a, b) => a.date.localeCompare(b.date));
+
+/* ============ people & accounts ============ */
+function people() {
+  const out = [];
+  (set().coaches || []).forEach((c, i) => out.push({ id: "coach:" + i, name: c.name, type: "coach", roles: ["coach"] }));
+  players().forEach(p => (p.parents || []).forEach((par, i) => out.push({ id: `parent:${p.id}:${i}`, name: par.name, email: par.email, cell: par.cell, type: "parent", pid: p.id, roles: ["parent"] })));
+  return out;
+}
+function personName(ref) {
+  if (!ref) return "";
+  if (ref.startsWith("other:")) return ref.slice(6);
+  const p = people().find(x => x.id === ref);
+  return p ? p.name : "Unknown person";
+}
+function personPid(ref) { const m = /^parent:([^:]+):/.exec(ref || ""); return m ? m[1] : ""; }
+function suggestedRoles(ref) {
+  const st = set(), name = personName(ref), r = new Set();
+  if ((ref || "").startsWith("coach:")) r.add("coach");
+  if ((ref || "").startsWith("parent:")) r.add("parent");
+  const has = l => (l || []).some(n => norm(n) === norm(name));
+  if (has(st.admins)) r.add("admin");
+  if (has(st.coordinators)) r.add("coordinator");
+  if (has(st.food)) r.add("food");
+  if (has(st.finance)) r.add("finance");
+  return [...r];
+}
+const acctOf = (u, tid = UI.teamId) => (((S.accounts[u] || {}).teams) || {})[tid] || null;
+const mineOf = (u, tid = UI.teamId) => (((S.mine[u] || {}).teams) || {})[tid] || {};
+const isClubAdmin = u => !!(S.accounts[u] && S.accounts[u].clubAdmin);
+const linkedAccounts = () => Object.keys(S.accounts).map(u => [u, acctOf(u)]).filter(([, a]) => a && a.status === "active" && a.person);
+const acctRoles = u => { const a = acctOf(u), r = new Set((a && a.status === "active" && a.roles) || []); if (isClubAdmin(u)) r.add("admin"); return r; };
+const acctPid = u => { const a = acctOf(u); return (a && a.status === "active" && a.pid) || ""; };
+/** may account `u` write family data of type `famPerm` for player `pid`? */
+function mayFor(u, pid, staffPerm) {
+  const roles = acctRoles(u);
+  if (!roles.size) return false;
+  if (acctPid(u) === pid && rolesHave(roles, "family")) return true;
+  return !!staffPerm && rolesHave(roles, staffPerm);
+}
+function me() {
+  if (!V.ready || !V.id) return null;
+  const a = acctOf(V.id);
+  const active = a && a.status === "active";
+  const roles = new Set(active ? a.roles || [] : []);
+  if (V.isOwner || isClubAdmin(V.id)) roles.add("admin");
+  if (!roles.size) return { id: V.id, linked: false, pending: pendingRequests().some(([u]) => u === V.id), declined: a && a.status === "declined", roles, can: () => false, name: V.name || "You" };
+  const person = active ? a.person : "";
+  return { id: V.id, linked: !!active, person, name: person ? personName(person) : (V.name || "Owner"), pid: active ? a.pid || "" : "", roles, can: p => p === "accounts" ? V.isOwner : rolesHave(roles, p) };
+}
+const can = p => { const m = me(); return !!(m && m.can(p)); };
+const roleLine = m => [...m.roles].sort((a, b) => ROLE_ORDER.indexOf(a) - ROLE_ORDER.indexOf(b)).map(r => ROLES[r] ? ROLES[r].label : r).join(" · ");
+function holders(role) {
+  const out = linkedAccounts().filter(([, a]) => (a.roles || []).includes(role)).map(([, a]) => personName(a.person));
+  return [...new Set(out)];
+}
+
+/* ============ merged family data (only valid writers count) ============ */
+function mineEntries() { return Object.keys(S.mine).map(u => [u, mineOf(u)]); }
+function rsvpOf(pid, key) {
+  let best = null;
+  for (const [u, d] of mineEntries()) {
+    const e = ((d.rsvp || {})[pid] || {})[key];
+    if (e && mayFor(u, pid, "attendance") && (!best || e.at > best.at)) best = e;
+  }
+  return best && best.v ? best.v : "";
+}
+function rsvpBy(pid, key) {
+  let best = null, who = "";
+  for (const [u, d] of mineEntries()) { const e = ((d.rsvp || {})[pid] || {})[key]; if (e && mayFor(u, pid, "attendance") && (!best || e.at > best.at)) { best = e; who = u; } }
+  return who ? personName((acctOf(who) || {}).person) || "a coach" : "";
+}
+function travelOf(pid, eid) {
+  let best = null;
+  for (const [u, d] of mineEntries()) { const e = ((d.travel || {})[pid] || {})[eid]; if (e && mayFor(u, pid, "roster") && (!best || e.at > best.at)) best = e; }
+  return best && !best.cleared ? best : null;
+}
+function uniformOf(pid) {
+  let best = null;
+  for (const [u, d] of mineEntries()) { const e = (d.uniform || {})[pid]; if (e && mayFor(u, pid, "roster") && (!best || e.at > best.at)) best = e; }
+  return (best && best.sizes) || {};
+}
+function mealClaim(x) {
+  if (x.claimedBy) return { pid: x.claimedBy, staff: true };
+  let best = null;
+  for (const [u, d] of mineEntries()) {
+    const c = (d.claims || {})[x.id];
+    if (c && c.pid && mayFor(u, c.pid, null) && (!x.resetAt || c.at > x.resetAt) && (!best || c.at < best.at)) best = { ...c, u };
+  }
+  return best;
+}
+function allPayments() {
+  const out = [], srcs = new Set(S.ledger.map(l => l.src).filter(Boolean));
+  for (const [u, d] of mineEntries()) {
+    const roles = acctRoles(u); if (!roles.size) continue;
+    for (const [id, p] of Object.entries(d.payments || {})) {
+      if (p.kind === "in" && !mayFor(u, p.pid, null)) continue;
+      if (p.kind === "out" && !rolesHave(roles, "reimb")) continue;
+      const src = u + ":" + id;
+      out.push({ ...p, id, u, src, done: srcs.has(src), who: personName((acctOf(u) || {}).person) });
+    }
+  }
+  return out;
+}
+const pendingPayments = () => allPayments().filter(p => !p.done);
+
+/* ============ schedule model ============ */
+function allItems() {
+  const out = [], tours = tournaments(), st = set();
+  for (const e of S.events) out.push({ key: e.id, kind: e.type === "tournament" ? "tournament" : (e.type || "event"), title: e.title, date: e.date, end: e.endDate || e.date, time: e.time || "", location: e.location || e.city || "", src: e, travel: !!e.travel });
+  for (const r of st.practices || []) {
+    if (!r.from) continue;
+    const d = pd(r.from), until = pd(r.until || "2027-06-30");
+    let guard = 0;
+    while (d.getDay() !== Number(r.dow) && guard++ < 8) d.setDate(d.getDate() + 1);
+    for (; d <= until; d.setDate(d.getDate() + 7)) {
+      const ds = iso(d);
+      if (tours.some(t => ds >= t.date && ds <= (t.endDate || t.date))) continue;
+      const key = "pr-" + r.id + "-" + ds;
+      out.push({ key, kind: "practice", title: r.label, date: ds, end: ds, time: r.start ? r.start + (r.end ? " – " + r.end : "") : "Time TBD", location: r.location || "", rule: r, note: r.note || "", cancelled: (st.cancelled || []).includes(key) });
+    }
+  }
+  out.sort((a, b) => a.date.localeCompare(b.date) || tmin(a.time) - tmin(b.time));
+  return out;
+}
+const rsvpable = it => it.kind !== "deadline";
+function counts(key) {
+  const c = { yes: 0, maybe: 0, no: 0, none: 0 };
+  S.players.forEach(p => { c[rsvpOf(p.id, key) || "none"]++; });
+  return c;
+}
+
+/* ============ db + identity ============ */
+async function connect() {
+  const c = window.claude;
+  const has = c && typeof c.use === "function";
+  try { userNs = has ? await c.use("user") : null; } catch (e) { userNs = null; }
+  if (userNs) {
+    try { const v = await userNs.me(); Object.assign(V, { id: v.id, name: v.name || "", email: v.email, avatar: v.avatarUrl, isOwner: !!v.isOwner }); } catch (e) {}
+  }
+  V.ready = true;
+  try { db = has ? await c.use("db") : null; } catch (e) { db = null; }
+  if (!db) { S.dbState = "off"; render(); return; }
+  S.dbState = "on";
+  GLOBAL.forEach(col => {
+    db.collection(col).onSnapshot(snap => {
+      if (col === "teams") S.teams = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      else { const o = {}; snap.docs.forEach(d => o[d.id] = d.data()); S[col] = o; }
+      S.loaded.add(col);
+      if (col === "accounts" || col === "mine") resolveProfiles();
+      if (!UI.teamId && S.loaded.has("teams") && S.loaded.has("accounts")) pickTeam();
+      scheduleRender();
+    }, err => { if (err && err.code === "revoked") { S.dbState = "off"; scheduleRender(); } });
+  });
+}
+function pickTeam() {
+  const live = id => S.teams.some(t => t.id === id && !t.archived);
+  const cand = [store.get("hub-team"), ...Object.keys((S.accounts[V.id] || {}).teams || {})].find(live);
+  if (cand) setTeam(cand, true);
+  else if (S.teams.filter(t => !t.archived).length === 1) setTeam(S.teams.find(t => !t.archived).id, true);
+  else UI.tab = "club";
+}
+function setTeam(id, quiet) {
+  teamUnsubs.forEach(f => { try { f(); } catch (e) {} }); teamUnsubs = [];
+  UI.teamId = id; UI.eventId = null; UI.calc = null; UI.tab = quiet && UI.tab === "club" ? "home" : "home";
+  store.set("hub-team", id);
+  ARR.forEach(c => S[c] = []); MAP.forEach(c => S[c] = {});
+  [...ARR, ...MAP].forEach(c => S.loaded.delete(c));
+  if (!db) return;
+  [...ARR, ...MAP].forEach(col => {
+    teamUnsubs.push(db.collection(`teams/${id}/${col}`).onSnapshot(snap => {
+      if (UI.teamId !== id) return;
+      if (ARR.includes(col)) S[col] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      else { const o = {}; snap.docs.forEach(d => o[d.id] = d.data()); S[col] = o; }
+      S.loaded.add(col);
+      scheduleRender();
+    }, err => { if (err && err.code === "revoked") { S.dbState = "off"; scheduleRender(); } }));
+  });
+  if (!quiet) { render(); window.scrollTo(0, 0); }
+}
+async function resolveProfiles() {
+  if (!userNs) return;
+  const ids = [...new Set([...Object.keys(S.accounts), ...Object.keys(S.mine)])];
+  if (!ids.length) return;
+  try { UI.profiles = await userNs.profiles(ids); scheduleRender(); } catch (e) {}
+}
+const prof = u => UI.profiles[u] || { name: "", email: null, avatarUrl: "" };
+const scoped = path => /^(accounts|mine|teams)\//.test(path) ? path : `teams/${UI.teamId}/${path}`;
+function saveAcct(u, entry, msg, top) {
+  const d = clone(S.accounts[u]); d.teams = d.teams || {}; d.teams[UI.teamId] = entry; Object.assign(d, top || {});
+  return save("accounts/" + u, d, msg);
+}
+async function save(path, data, msg) {
+  if (!db) { toast("Saving isn't available in this view."); return false; }
+  path = scoped(path);
+  try { await db.doc(path).set(JSON.parse(JSON.stringify(data))); if (msg) toast(msg); return true; }
+  catch (e) {
+    if (e && e.code === "invalid_argument") toast("You don't have access to change that. Ask the site admin.");
+    else if (e && e.code === "quota_exceeded") toast("The team database is full. Delete old entries and try again.");
+    else toast("That didn't save. Check your connection and try again.");
+    return false;
+  }
+}
+async function remove(path, msg) {
+  if (!db) return false;
+  path = scoped(path);
+  try { await db.doc(path).delete(); if (msg) toast(msg); return true; } catch (e) { toast("That didn't delete. Try again."); return false; }
+}
+let mineQ = Promise.resolve(true);
+function writeMine(mut, msg) {
+  if (!V.id) { toast("Sign in to claude.ai to save."); return Promise.resolve(false); }
+  const tid = UI.teamId;
+  mineQ = mineQ.then(async () => {
+    const cur = clone(S.mine[V.id]); cur.teams = cur.teams || {}; cur.teams[tid] = cur.teams[tid] || {};
+    mut(cur.teams[tid]); cur.updated = NOW();
+    S.mine[V.id] = cur; scheduleRender();
+    return save("mine/" + V.id, cur, msg);
+  });
+  return mineQ;
+}
+
+/* ============ render plumbing ============ */
+let pending = false;
+function scheduleRender() {
+  const a = document.activeElement;
+  if (a && $("#app").contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName)) { pending = true; return; }
+  render();
+}
+document.addEventListener("focusout", () => { if (pending) { pending = false; setTimeout(render, 0); } });
+
+const TABS = [["club", "All teams"], ["home", "Home"], ["schedule", "Schedule"], ["tournaments", "Tournaments"], ["fund", "Team Fund"], ["roster", "Roster"], ["info", "Team Info"], ["access", "Access"]];
+function render() {
+  const st = set(), t = UI.tab === "club" && S.loaded.has("teams") ? null : team(), cur = team();
+  $("#teamName").textContent = t ? (st.teamName || t.name) : "Club Team Hub";
+  $("#teamSub").textContent = t ? `${t.club || "A5 Volleyball"} · ${st.season || t.season || ""} season · ${(st.coaches || []).map(c => c.name).join(" & ")}` : `${(S.teams[0] || {}).club || "A5 Volleyball"} · ${S.teams.length} team${S.teams.length === 1 ? "" : "s"}`;
+  if (!cur && UI.tab !== "club") UI.tab = "club";
+  const m = t ? me() : null;
+  const reqCount = t && can("accounts") ? pendingRequests().length : 0;
+  $("#whoBtn").hidden = !t;
+  $("#whoBtn").innerHTML = m && m.roles.size
+    ? `<span><span class="w-l">${esc(roleLine(m))}</span><br><span class="w-n">${esc(m.name)}</span></span><span class="w-c">${reqCount ? reqCount + " to approve" : "Account"}</span>`
+    : `<span><span class="w-l">${m && m.pending ? "Waiting for approval" : "Not linked yet"}</span><br><span class="w-n">${esc(V.name || "Your account")}</span></span><span class="w-c">${m && m.pending ? "Status" : "Link"}</span>`;
+  $("#tabs").innerHTML = TABS.filter(([k]) => cur || k === "club").map(([k, l]) => `<button class="tab" role="tab" aria-selected="${UI.tab === k}" data-act="tab" data-tab="${k}">${l}${k === "access" && reqCount ? ` <span class="pill p-travel">${reqCount}</span>` : ""}</button>`).join("");
+  const app = $("#app");
+  if (S.dbState === "off" && !S.loaded.has("players")) {
+    app.innerHTML = `<div class="banner info"><p><b>Team data can't load in this view.</b> Open the team hub from its claude.ai link while signed in. If it still doesn't load, ask the site admin to share it with you as an Editor.</p></div>`;
+    return;
+  }
+  if (UI.tab === "club" && S.loaded.has("teams") && S.loaded.has("accounts")) { app.innerHTML = vClub(); return; }
+  if (!["teams", "accounts", "players", "meta", "events"].every(c => S.loaded.has(c))) {
+    app.innerHTML = `<div class="card card-b" style="padding:20px"><div class="label">Loading team</div>${'<div class="skel"></div>'.repeat(5)}</div>`;
+    return;
+  }
+  const views = { club: vClub, home: vHome, schedule: vSchedule, tournaments: vTournaments, fund: vFund, roster: vRoster, info: vInfo, access: vAccess };
+  app.innerHTML = (views[UI.tab] || vHome)();
+}
+const LOCK = `<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
+function gate(what) {
+  const m = me();
+  return `<div class="card card-b" style="padding:22px"><div class="lock">${LOCK}<div><b>${esc(what)} is for linked team accounts.</b><div class="muted">${m && m.pending ? "Your request is waiting for the site admin to approve it." : "Link your claude.ai account to your place on the roster. The site admin approves it and assigns your role."}</div>${m && !m.pending ? `<button class="btn red sm" style="margin-top:10px" data-act="requestLink">Link my account</button>` : ""}</div></div></div>`;
+}
+
+/* ============ small components ============ */
+function canAnswer(pid) { const m = me(); return !!(m && pid && ((m.pid === pid && m.can("family")) || m.can("attendance"))); }
+function rsvpButtons(it, pid) {
+  if (!pid || !canAnswer(pid) || !rsvpable(it) || it.cancelled || it.end < TODAY) return "";
+  const v = rsvpOf(pid, it.key);
+  const b = (val, cls, label) => `<button class="${cls}" aria-pressed="${v === val}" data-act="rsvp" data-pid="${esc(pid)}" data-key="${esc(it.key)}" data-val="${val}">${label}</button>`;
+  return `<span class="rsvp" role="group" aria-label="${esc(pname(pid))}'s availability">${b("yes", "y", "In")}${b("maybe", "m", "Maybe")}${b("no", "n", "Out")}</span>`;
+}
+function countLink(it) {
+  if (!rsvpable(it) || it.cancelled) return "";
+  const c = counts(it.key);
+  return `<button class="link-btn counts" data-act="rsvpDetail" data-key="${esc(it.key)}"><span class="tn">${c.yes}</span> in · <span class="tn">${c.maybe}</span> maybe · <span class="tn">${c.no}</span> out${c.none ? ` · <span class="tn">${c.none}</span> no reply` : ""}</button>`;
+}
+function kindPill(it) {
+  if (it.kind === "tournament") return it.travel ? `<span class="pill p-travel">Travel</span>` : `<span class="pill p-local">Local</span>`;
+  if (it.kind === "practice") return it.cancelled ? `<span class="pill p-bad">Cancelled</span>` : "";
+  if (it.kind === "deadline") return `<span class="pill p-mute">Deadline</span>`;
+  return `<span class="pill p-warn">Team event</span>`;
+}
+function evRow(it, pid) {
+  const d = pd(it.date);
+  const title = it.kind === "tournament" ? `<button data-act="openEvent" data-id="${esc(it.key)}">${esc(it.title)}</button>` : esc(it.title);
+  const when = it.kind === "tournament" ? fmtRange(it.date, it.end) : (it.time || "");
+  const mng = can("schedule") && it.kind === "practice" && it.end >= TODAY ? `<button class="link-btn small" data-act="togglePractice" data-key="${esc(it.key)}">${it.cancelled ? "Restore" : "Cancel practice"}</button>` : "";
+  const mngE = can("schedule") && it.kind !== "practice" && it.kind !== "tournament" ? `<button class="link-btn small" data-act="editEvent" data-id="${esc(it.key)}">Edit</button>` : "";
+  return `<div class="ev k-${it.kind}${it.cancelled ? " cancel" : ""}">
+    <div class="d"><div class="dw">${d.toLocaleDateString("en-US", { weekday: "short" })}</div><div class="dn tn">${d.getDate()}</div></div>
+    <div><div class="ev-t">${title} ${kindPill(it)}</div>
+      <div class="meta small">${when ? `<span>${esc(when)}</span>` : ""}${it.location ? `<span>${esc(it.location)}</span>` : ""}${it.src && it.src.notes && it.kind !== "tournament" ? `<span>${esc(it.src.notes)}</span>` : ""}${it.note ? `<span>${esc(it.note)}</span>` : ""}</div></div>
+    <div class="side">${rsvpButtons(it, pid)}${countLink(it)}${mng}${mngE}</div>
+  </div>`;
+}
+const statusPill = v => v ? `<span class="pill ${({ yes: "p-ok", maybe: "p-warn", no: "p-bad" })[v]}">${({ yes: "In", maybe: "Maybe", no: "Out" })[v]}</span>` : "";
+
+/* ============ HOME ============ */
+function vHome() {
+  const m = me(), pid = m && m.pid, st = set();
+  const items = allItems().filter(i => i.end >= TODAY);
+  const next = items.find(i => !i.cancelled && i.kind !== "deadline");
+  const nextT = items.find(i => i.kind === "tournament");
+  const week = items.filter(i => i.date <= addDays(TODAY, 7));
+  let h = "";
+  if (!V.id && V.ready) h += `<div class="banner info"><p><b>You're viewing read-only.</b> Sign in to claude.ai and open this page from its link to take part.</p></div>`;
+  else if (m && !m.roles.size) h += m.pending
+    ? `<div class="banner info"><p><b>Your account is waiting for approval.</b> You asked to join as ${esc(personName(mineOf(V.id).request?.person))}. The site admin will approve it and assign your role.</p><button class="btn sm" data-act="tab" data-tab="access">View request</button></div>`
+    : `<div class="banner"><p><b>Link your account to the team.</b> Tell the hub who you are on the roster. Once the site admin approves it, you can mark availability, add travel, claim meals and record payments for your family.</p><button class="btn red" data-act="requestLink">Link my account</button></div>`;
+  else if (m && V.isOwner && !m.linked) h += `<div class="banner"><p><b>You own this site, but your account isn't on the roster yet.</b> Link it to your family so your entries count and others see your name.</p><button class="btn red" data-act="linkSelf">Link my account</button></div>`;
+
+  let hero = `<div class="card empty">Nothing on the calendar yet.</div>`;
+  if (next) {
+    const d = pd(next.date), isT = next.kind === "tournament", du = daysUntil(next.date);
+    hero = `<div class="card nextup">
+      <div class="dateblock"><div class="dow">${d.toLocaleDateString("en-US", { weekday: "long" })}</div><div class="dnum tn">${d.getDate()}</div><div class="mon">${d.toLocaleDateString("en-US", { month: "short" })}</div></div>
+      <div class="body"><div class="label">Next up · ${du === 0 ? "today" : du === 1 ? "tomorrow" : "in " + du + " days"}</div>
+        <h3>${esc(next.title)}</h3>
+        <div class="meta"><span>${esc(isT ? fmtRange(next.date, next.end) : next.time)}</span>${next.location ? `<span>${esc(next.location)}</span>` : ""}${kindPill(next)}</div>
+        <div class="row">${rsvpButtons(next, pid)}${countLink(next)}${isT ? `<button class="btn sm" data-act="openEvent" data-id="${esc(next.key)}">Game-day details</button>` : ""}</div>
+      </div></div>`;
+  }
+  const f = fundStats(), dues = st.dues || {};
+  const showFund = can("fundView");
+  const stats = `<div class="stats">
+    <div class="card stat"><div class="label">Team fund</div>${showFund ? `<div class="v tn">${money(f.balance)}</div><div class="s">${f.pendingIn ? money(f.pendingIn) + " waiting to be confirmed" : "Confirmed balance"}</div>` : `<div class="s" style="margin-top:10px">Visible to linked accounts</div>`}</div>
+    <div class="card stat"><div class="label">Dues collected</div><div class="v tn">${f.duesPaidFamilies}<span class="muted" style="font-size:20px"> / ${S.players.length}</span></div><div class="s">${money(dues.amount || 0)} per family · due ${fmt(dues.due, { month: "short", day: "numeric" })}</div><div class="meter"><i style="width:${S.players.length ? Math.round(100 * f.duesPaidFamilies / S.players.length) : 0}%"></i></div></div>
+    <div class="card stat"><div class="label">Next tournament</div><div class="v tn">${nextT ? daysUntil(nextT.date) + "<span class='muted' style='font-size:20px'> days</span>" : "—"}</div><div class="s">${nextT ? esc(nextT.title) : "Season complete"}</div></div>
+  </div>`;
+  const todos = myTodos(m);
+  const todoHtml = m && m.roles.size ? `<div class="card"><div class="card-h"><h2>For you</h2><span class="muted small">${esc(roleLine(m))}</span></div><div class="card-b stack" style="gap:8px">${todos.length ? todos.map(t => `<button class="todo" data-act="${t.act}" ${t.data || ""}><span class="dot ${t.tone || ""}"></span><span class="t"><b>${esc(t.title)}</b><span class="muted small">${esc(t.sub || "")}</span></span><span class="go" aria-hidden="true">›</span></button>`).join("") : `<div class="empty">You're all caught up.</div>`}</div></div>` : "";
+  const anns = [...S.announcements].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || String(b.at).localeCompare(String(a.at)));
+  const annHtml = `<div class="card"><div class="card-h"><h2>Announcements</h2><span class="spacer"></span>${can("announce") ? `<button class="btn sm primary" data-act="postAnn">Post</button>` : ""}</div><div class="card-b">${anns.length ? anns.map(a => `<div class="ann">${a.pinned ? `<div class="pin">Pinned</div>` : ""}<p class="txt">${esc(a.text)}</p><div class="row small muted" style="margin-top:6px"><span>${esc(a.by || "")}${a.at ? " · " + fmt(String(a.at).slice(0, 10), { month: "short", day: "numeric" }) : ""}</span>${can("announce") ? `<span class="spacer"></span><button class="link-btn small" data-act="pinAnn" data-id="${esc(a.id)}">${a.pinned ? "Unpin" : "Pin"}</button><button class="link-btn small" data-act="delAnn" data-id="${esc(a.id)}">Delete</button>` : ""}</div></div>`).join("") : `<div class="empty">No announcements yet.</div>`}</div></div>`;
+  const weekHtml = `<div class="card"><div class="card-h"><h2>Next 7 days</h2><span class="spacer"></span><button class="link-btn small" data-act="tab" data-tab="schedule">Full schedule</button></div><div class="card-b">${week.length ? week.map(i => `<div class="li"><div style="min-width:70px" class="label">${fmt(i.date, { weekday: "short", day: "numeric" })}</div><div style="flex:1;min-width:0"><b${i.cancelled ? ' style="text-decoration:line-through"' : ""}>${esc(i.title)}</b><div class="small muted">${esc(i.kind === "tournament" ? fmtRange(i.date, i.end) : i.time)}${i.location ? " · " + esc(i.location) : ""}</div></div>${pid ? (statusPill(rsvpOf(pid, i.key)) || (rsvpable(i) && !i.cancelled ? `<span class="pill p-mute">No reply</span>` : "")) : ""}</div>`).join("") : `<div class="empty">Nothing this week.</div>`}</div></div>`;
+  const showC = can("contacts");
+  const coaches = (st.coaches || []).map(c => `<div class="li"><div style="flex:1"><b>${esc(c.name)}</b><div class="small muted">Text during practices and tournaments</div></div>${showC ? `<button class="copy tn" data-act="copy" data-text="${esc(c.phone)}">${esc(c.phone)}</button>` : ""}</div>`).join("");
+  const coordN = holders("coordinator").length ? holders("coordinator") : (st.coordinators || []);
+  const foodN = holders("food").length ? holders("food") : (st.food || []);
+  const contacts = `<div class="card"><div class="card-h"><h2>Key contacts</h2></div><div class="card-b">${coaches}${coordN.map(n => contactFor(n, "Team coordinator", showC)).join("")}${foodN.map(n => contactFor(n, "Food coordinator", showC)).join("")}${showC ? "" : `<p class="small muted" style="margin-bottom:0">Phone numbers show once your account is linked.</p>`}</div></div>`;
+  return h + `<div class="grid g-home"><div class="stack">${hero}${stats}${weekHtml}${annHtml}</div><div class="stack">${todoHtml}${contacts}</div></div>`;
+}
+function findParent(name) {
+  for (const p of S.players) for (const par of p.parents || []) if (norm(par.name) === norm(name)) return { ...par, pid: p.id };
+  return null;
+}
+function contactFor(name, role, show) {
+  const par = findParent(name);
+  return `<div class="li"><div style="flex:1;min-width:0"><b>${esc(name)}</b><div class="small muted">${esc(role)}${par ? ` · ${esc(pname(par.pid))}'s parent` : ""}</div></div>${show && par && par.cell ? `<button class="copy tn" data-act="copy" data-text="${esc(par.cell)}">${esc(par.cell)}</button>` : ""}</div>`;
+}
+function pendingRequests(tid = UI.teamId) {
+  return Object.keys(S.mine).map(u => [u, mineOf(u, tid)]).filter(([u, d]) => d.request && d.request.person && !(acctOf(u, tid) && (acctOf(u, tid).at || "") >= d.request.at));
+}
+function myTodos(m) {
+  if (!m || !m.roles.size) return [];
+  const t = [], st = set(), items = allItems().filter(i => i.end >= TODAY);
+  if (m.can("accounts")) { const r = pendingRequests(); if (r.length) t.push({ act: "tab", data: 'data-tab="access"', title: `Approve ${r.length} account request${r.length > 1 ? "s" : ""}`, sub: r.map(([, d]) => personName(d.request.person)).slice(0, 3).join(", ") }); }
+  if (m.pid && m.can("family")) {
+    const soon = items.filter(i => rsvpable(i) && !i.cancelled && i.date <= addDays(TODAY, 14) && !rsvpOf(m.pid, i.key));
+    if (soon.length) t.push({ act: "tab", data: 'data-tab="schedule"', title: `Mark ${pname(m.pid)}'s availability`, sub: `${soon.length} practice${soon.length > 1 ? "s and events" : " or event"} in the next 2 weeks need a reply` });
+    const d = duesFor(m.pid), amt = (st.dues || {}).amount || 0;
+    if (d.paid < amt) t.push({ act: "payDues", title: `Team fund: ${money(amt - d.paid)} to go`, sub: d.pending ? `${money(d.pending)} recorded, waiting to be confirmed` : `Due ${fmt(st.dues.due, { month: "long", day: "numeric" })}. Record it here once you've paid.`, tone: d.pending ? "warn" : "" });
+    const need = tournaments().filter(e => e.travel && e.date >= TODAY && daysUntil(e.date) <= 150 && !travelOf(m.pid, e.id));
+    if (need.length) t.push({ act: "openEvent", data: `data-id="${esc(need[0].id)}" data-sub="travel"`, title: `Add travel plans for ${need[0].title}`, sub: `${fmtRange(need[0].date, need[0].endDate)} · ${need[0].city || ""}${need.length > 1 ? ` · plus ${need.length - 1} more trip${need.length > 2 ? "s" : ""}` : ""}`, tone: "warn" });
+    if (!Object.values(uniformOf(m.pid)).some(Boolean)) t.push({ act: "tab", data: 'data-tab="roster" data-sub="uniforms"', title: "Enter uniform sizes", sub: `${(st.uniformItems || []).length} items on the team order`, tone: "warn" });
+  }
+  if (m.can("family") || m.can("meals")) {
+    const open = S.meals.filter(x => !mealClaim(x) && (event(x.eventId) || {}).date >= TODAY);
+    if (open.length) { const e = event(open[0].eventId); t.push({ act: "openEvent", data: `data-id="${esc(open[0].eventId)}" data-sub="meals"`, title: `${open.length} team meal${open.length > 1 ? "s" : ""} need a family`, sub: `Starting with ${e ? e.title : "the next trip"}`, tone: "warn" }); }
+  }
+  if (m.can("finance")) { const p = pendingPayments(); if (p.length) t.push({ act: "tab", data: 'data-tab="fund"', title: `Confirm ${p.length} payment${p.length > 1 ? "s" : ""} or request${p.length > 1 ? "s" : ""}`, sub: "Sent in by families" }); }
+  if (m.can("tasks")) { const open = S.tasks.filter(x => x.status !== "Done" && x.status !== "N/A"); if (open.length) t.push({ act: "tab", data: 'data-tab="info" data-sub="tasks"', title: `${open.length} coordinator task${open.length > 1 ? "s" : ""} open`, sub: open[0].title, tone: "ok" }); }
+  if (m.can("refjobs")) { const nt = tournaments().find(e => e.date >= TODAY); if (nt && !Object.keys((S.refjobs[nt.id] || {}).assign || {}).length) t.push({ act: "openEvent", data: `data-id="${esc(nt.id)}" data-sub="ref"`, title: `Assign ref jobs for ${nt.title}`, sub: fmtRange(nt.date, nt.endDate), tone: "ok" }); }
+  return t;
+}
+
+/* ============ SCHEDULE ============ */
+function vSchedule() {
+  const m = me(), pid = m && m.pid;
+  const lim = UI.schedRange === "8w" ? addDays(TODAY, 56) : "9999";
+  const f = UI.schedFilter;
+  let items = allItems().filter(i => i.end >= TODAY && i.date <= lim);
+  if (f !== "all") items = items.filter(i => f === "event" ? (i.kind === "event" || i.kind === "deadline") : i.kind === f);
+  const chip = (k, l) => `<button class="chip" aria-pressed="${f === k}" data-act="schedFilter" data-v="${k}">${l}</button>`;
+  const rng = (k, l) => `<button class="chip" aria-pressed="${UI.schedRange === k}" data-act="schedRange" data-v="${k}">${l}</button>`;
+  const note = pid && m.can("family") ? `Marking availability for <b>${esc(pname(pid))}</b>.` : m && m.can("attendance") ? "Tap the counts on any row to mark availability for each player." : "Linked families mark their player's availability here.";
+  let h = `<div class="sec-h"><h2>Schedule</h2><p class="muted">${note}</p><span class="spacer"></span>
+    ${can("schedule") ? `<button class="btn sm" data-act="editPractices">Practice times</button><button class="btn sm primary" data-act="addEvent">Add event</button>` : ""}</div>
+    <div class="row" style="margin-bottom:6px"><div class="chips">${chip("all", "Everything")}${chip("practice", "Practices")}${chip("tournament", "Tournaments")}${chip("event", "Team events")}</div><span class="spacer"></span><div class="chips">${rng("8w", "Next 8 weeks")}${rng("season", "Rest of season")}</div></div>`;
+  if (!items.length) return h + `<div class="empty" style="margin-top:16px">Nothing scheduled in this range.</div>`;
+  let cur = "";
+  for (const it of items) {
+    const mk = it.date.slice(0, 7);
+    if (mk !== cur) { cur = mk; h += `<div class="month">${pd(it.date).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div>`; }
+    h += evRow(it, pid && m.can("family") ? pid : "");
+  }
+  return h;
+}
+
+/* ============ TOURNAMENTS ============ */
+function vTournaments() {
+  if (UI.eventId && event(UI.eventId)) return vTournament(event(UI.eventId));
+  const m = me(), pid = m && m.pid;
+  const ts = tournaments();
+  const up = ts.filter(e => (e.endDate || e.date) >= TODAY), past = ts.filter(e => (e.endDate || e.date) < TODAY);
+  const card = e => {
+    const d = pd(e.date), st = pid ? rsvpOf(pid, e.id) : "";
+    const trv = e.travel ? S.players.filter(p => travelOf(p.id, e.id)).length : null;
+    return `<button class="tcard${(e.endDate || e.date) < TODAY ? " past" : ""}" data-act="openEvent" data-id="${esc(e.id)}">
+      <div class="top"><div class="when"><div class="m">${d.toLocaleDateString("en-US", { month: "short" })}</div><div class="dd tn">${fmtRange(e.date, e.endDate).replace(/^[A-Za-z]{3} /, "")}</div></div>
+      <div style="min-width:0"><h3>${esc(e.title)}</h3><div class="small muted">${esc(e.city || e.location || "")}</div></div></div>
+      <div class="foot">${e.travel ? `<span class="pill p-travel">Travel</span>` : `<span class="pill p-local">Local</span>`}${e.division ? `<span class="pill p-mute">${esc(e.division)}</span>` : ""}${e.dutyPid ? `<span>Balls &amp; cart: <b>${esc(pname(e.dutyPid))}</b></span>` : ""}${trv !== null ? `<span>${trv}/${S.players.length} travel plans</span>` : ""}${statusPill(st)}</div>
+    </button>`;
+  };
+  return `<div class="sec-h"><h2>Tournaments</h2><p class="muted">${up.length} to go · ${ts.filter(e => e.travel).length} travel weekends this season</p><span class="spacer"></span>${can("schedule") ? `<button class="btn sm primary" data-act="addEvent" data-type="tournament">Add tournament</button>` : ""}</div>
+    <div class="tgrid">${up.map(card).join("") || `<div class="empty">No upcoming tournaments.</div>`}</div>
+    ${past.length ? `<div class="month">Completed</div><div class="tgrid">${past.map(card).join("")}</div>` : ""}`;
+}
+function vTournament(e) {
+  const subs = [["gameday", "Game day"], ["ref", "Ref jobs"], ["meals", "Meals"]];
+  if (e.travel) subs.push(["travel", "Travel"], ["agenda", "Agenda"]);
+  if (!subs.some(s => s[0] === UI.sub)) UI.sub = "gameday";
+  const du = daysUntil(e.date), m = me(), pid = m && m.pid && m.can("family") ? m.pid : "";
+  const it = { key: e.id, kind: "tournament", date: e.date, end: e.endDate || e.date };
+  const head = `<button class="link-btn small" data-act="back" style="margin-bottom:10px">‹ All tournaments</button>
+    <div class="thead"><div><div class="row" style="margin-bottom:8px">${e.travel ? `<span class="pill p-travel">Travel</span>` : `<span class="pill p-local">Local</span>`}${e.division ? `<span class="pill" style="background:rgba(255,255,255,.12);color:#fff">${esc(e.division)}</span>` : ""}</div>
+      <h2>${esc(e.title)}</h2>
+      <div class="meta" style="margin-top:8px"><span>${esc(fmtRange(e.date, e.endDate))}</span><span>${esc(e.location || e.city || "")}</span>${e.website ? `<a href="${esc(e.website)}" target="_blank" rel="noopener">Tournament website ↗</a>` : ""}</div></div>
+      <div class="count">${du >= 0 ? `<div class="v tn">${du}</div><div class="label" style="color:var(--hdr-mute)">days away</div>` : `<div class="label" style="color:var(--hdr-mute)">Completed</div>`}</div></div>
+    <div class="subtabs" role="tablist">${subs.map(([k, l]) => `<button role="tab" aria-selected="${UI.sub === k}" data-act="sub" data-sub="${k}">${l}</button>`).join("")}</div>`;
+  const rs = `<div class="row" style="margin-bottom:14px">${rsvpButtons(it, pid) ? `<span class="label">${esc(pname(pid))}:</span>${rsvpButtons(it, pid)}` : ""}${countLink(it)}</div>`;
+  return head + rs + { gameday: tGameday, ref: tRef, meals: tMeals, travel: tTravel, agenda: tAgenda }[UI.sub](e);
+}
+const val = v => v ? esc(v) : `<span class="tbd">TBD</span>`;
+const linkv = v => v ? (/^https?:\/\//.test(v.trim()) ? `<a href="${esc(v.trim())}" target="_blank" rel="noopener">${esc(v.trim().replace(/^https?:\/\/(www\.)?/, "").slice(0, 60))}</a>` : esc(v)) : `<span class="tbd">TBD</span>`;
+function tGameday(e) {
+  const st = set();
+  const checklist = (e.checklist && e.checklist.length ? e.checklist : st.checklist) || [];
+  const rows = [
+    ["Location", val(e.location)], ["Parking", val(e.parking)], ["Waves", val(e.waves)],
+    ["Arrival time", val(e.arrival)], ["First match", val(e.start)], ["Where to meet", val(e.meet)],
+    ["Uniforms", val(e.uniforms)],
+    ["Admission", linkv(e.admissions)], ["Team code", e.teamCode || st.teamCode ? `<button class="copy tn" data-act="copy" data-text="${esc(e.teamCode || st.teamCode)}"><b>${esc(e.teamCode || st.teamCode)}</b> (copy)</button>` : val("")],
+    ["Match schedule", linkv(e.scheduleLink)], ["Ticket help", linkv(e.ticketHelp)],
+    ["Balls & cart", e.dutyPid ? `<b>${esc(pname(e.dutyPid))}'s family</b> — pick up after Thursday practice, return Monday before practice.` : val("")],
+    ["Ref jobs", `<button class="link-btn" data-act="sub" data-sub="ref">See ref job assignments</button>`],
+    ["Food plan", val(e.foodPlan)], ["Restaurant reservations", val(e.reservations)], ["Notes", val(e.notes)]
+  ];
+  return `<div class="grid g-2"><div class="card"><div class="card-h"><h3>Game-day sheet</h3><span class="spacer"></span>${can("schedule") ? `<button class="btn sm primary" data-act="editEvent" data-id="${esc(e.id)}">Edit</button>` : ""}</div><div class="card-b"><div class="kv">${rows.map(([k, v]) => `<div>${k}</div><div>${v}</div>`).join("")}</div></div></div>
+    <div class="stack"><div class="card"><div class="card-h"><h3>What to bring</h3></div><div class="card-b"><ul class="checklist">${checklist.map(c => `<li>${esc(c)}</li>`).join("")}</ul></div></div>
+    <div class="card"><div class="card-h"><h3>Tournament rules</h3></div><div class="card-b small">
+      <p style="margin:0 0 6px">Girls check in with ${esc(coachNames())} before leaving the team for any reason, and always go with an exit buddy.</p>
+      <p style="margin:0 0 6px">No phones or AirPods out during play. Text the coaches for anything urgent — they have watches on.</p>
+      <p style="margin:0">Leave calls to the coaches. Route feedback to the team coordinator, not the bench.</p></div></div></div></div>`;
+}
+function tRef(e) {
+  const a = (S.refjobs[e.id] || {}).assign || {}, edit = can("refjobs"), m = me();
+  const groups = ["A", "B"].map(g => ({ g, ps: players().filter(p => (p.refTeam || "A") === g) }));
+  const opts = ["", "Book", "Score", "Libero", "Lines", "Off", "Playing"];
+  const table = ({ g, ps }) => `<div class="card"><div class="card-h"><h3>Team ${g}</h3><span class="muted small">${ps.map(p => p.first).join(", ")}</span></div>
+    <div class="card-b"><div class="tw"><table><thead><tr><th class="sticky-col">Player</th><th>Set 1</th><th>Set 2</th><th>Set 3</th></tr></thead><tbody>
+    ${ps.map(p => `<tr class="${m && m.pid === p.id ? "mine" : ""}"><td class="sticky-col"><b>${esc(p.first)}</b> <span class="muted tn">#${esc(p.jersey)}</span></td>${["s1", "s2", "s3"].map(s => {
+      const v = (a[p.id] || {})[s] || "";
+      return `<td>${edit ? `<select class="cell" data-act="ref" data-eid="${esc(e.id)}" data-pid="${esc(p.id)}" data-set="${s}" aria-label="${esc(p.first)} set ${s.slice(1)}">${opts.map(o => `<option ${o === v ? "selected" : ""} value="${o}">${o || "—"}</option>`).join("")}</select>` : (v ? esc(v) : `<span class="tbd">—</span>`)}</td>`;
+    }).join("")}</tr>`).join("")}</tbody></table></div></div></div>`;
+  return `<div class="row" style="margin-bottom:12px"><p class="muted" style="margin:0;flex:1 1 300px">When the team works a court, each girl covers one job per set: keeping the book, flipping the score, tracking the libero, or calling lines.</p>${edit ? `<button class="btn sm" data-act="refAuto" data-eid="${esc(e.id)}">Fill by rotation</button><button class="btn sm ghost" data-act="refClear" data-eid="${esc(e.id)}">Clear</button>${can("roster") ? `<button class="btn sm ghost" data-act="refTeams">Edit A/B groups</button>` : ""}` : ""}</div>
+    <div class="grid g-2">${groups.map(table).join("")}</div>`;
+}
+function tMeals(e) {
+  const m = me(), food = can("meals"), fam = m && m.pid && m.can("family");
+  const list = S.meals.filter(x => x.eventId === e.id).sort((a, b) => String(a.day).localeCompare(String(b.day)) || tmin(a.time) - tmin(b.time));
+  const total = list.reduce((s, x) => s + (Number(x.cost) || 0), 0);
+  const fl = holders("food").length ? holders("food") : (set().food || []);
+  return `<div class="row" style="margin-bottom:12px"><p class="muted" style="margin:0;flex:1 1 300px">Food coordinators: ${esc(fl.join(" & ") || "TBD")}. Families claim a meal to organize or pay for it; parents pack snacks, water and hydration for their own girls.</p>${food ? `<button class="btn sm primary" data-act="addMeal" data-eid="${esc(e.id)}">Add meal</button>` : ""}</div>
+  ${list.length ? `<div class="tw"><table><thead><tr><th>Day</th><th>Meal</th><th>Plan</th><th>Family</th><th class="num">Est. cost</th><th></th></tr></thead><tbody>
+    ${list.map(x => { const c = mealClaim(x), mine = fam && c && c.pid === m.pid; const myClaim = V.id && (mineOf(V.id).claims || {})[x.id]; return `<tr class="${mine ? "mine" : ""}"><td>${x.day ? esc(fmt(x.day)) : "—"}</td><td><b>${esc(x.meal)}</b>${x.time ? `<div class="small muted">${esc(x.time)}</div>` : ""}</td><td>${val(x.plan)}</td>
+    <td>${c ? `<span class="pill p-ok">${esc(pname(c.pid))}'s family</span>` : `<span class="pill p-warn">Open</span>`}</td><td class="num">${x.cost ? money(Number(x.cost)) : "—"}</td>
+    <td style="white-space:nowrap">${!c && fam ? `<button class="btn sm red" data-act="claimMeal" data-id="${esc(x.id)}">We'll take it</button>` : ""}${c && mine && myClaim && !c.staff ? `<button class="link-btn small" data-act="unclaimMeal" data-id="${esc(x.id)}">Release</button> ` : ""}${c && food ? `<button class="link-btn small" data-act="staffRelease" data-id="${esc(x.id)}">Release</button> ` : ""}${food ? `<button class="link-btn small" data-act="editMeal" data-id="${esc(x.id)}">Edit</button>` : ""}</td></tr>`; }).join("")}
+    <tr><td colspan="4" class="muted">${list.filter(x => mealClaim(x)).length} of ${list.length} meals covered</td><td class="num"><b>${money(total)}</b></td><td></td></tr></tbody></table></div>` : `<div class="empty">No team meals planned yet.${food ? " Add the meals the team will share." : ""}</div>`}`;
+}
+function tTravel(e) {
+  const m = me(), fix = can("roster"), fam = m && m.pid && m.can("family");
+  const rows = players().map(p => ({ p, t: travelOf(p.id, e.id) }));
+  const done = rows.filter(r => r.t).length;
+  return `<div class="grid g-2" style="margin-bottom:16px">
+    <div class="card"><div class="card-h"><h3>Team hotel</h3><span class="spacer"></span>${can("schedule") ? `<button class="btn sm" data-act="editHotel" data-id="${esc(e.id)}">Edit</button>` : ""}</div><div class="card-b"><div class="kv">
+      <div>Hotel</div><div>${val(e.hotel)}</div><div>Booking link</div><div>${linkv(e.hotelLink)}</div><div>Group / res. code</div><div>${val(e.hotelCode)}</div><div>Book by</div><div>${val(e.hotelBy)}</div></div></div></div>
+    <div class="card"><div class="card-h"><h3>Plans in</h3></div><div class="card-b"><div class="bignum tn">${done}<span class="muted" style="font-size:26px"> / ${rows.length}</span></div><div class="meter"><i style="width:${Math.round(100 * done / (rows.length || 1))}%"></i></div>
+      <p class="small muted">Families add their hotel confirmation and flight or drive plans so the coordinator and coaches know who's arriving when.</p>
+      ${fam ? `<button class="btn red sm" data-act="editTravel" data-pid="${esc(m.pid)}" data-eid="${esc(e.id)}">${travelOf(m.pid, e.id) ? "Update" : "Add"} ${esc(pname(m.pid))}'s travel</button>` : ""}</div></div></div>
+    ${can("contacts") ? `<div class="tw"><table><thead><tr><th class="sticky-col">Family</th><th>Getting there</th><th>Hotel</th><th>Confirmation</th><th>Arrive</th><th>Depart</th><th>Notes</th><th></th></tr></thead><tbody>
+    ${rows.map(({ p, t }) => `<tr class="${m && m.pid === p.id ? "mine" : ""}"><td class="sticky-col"><b>${esc(p.first)}</b></td>${t ? `<td>${esc(t.mode || "")}${t.flight ? `<div class="small muted">${esc(t.flight)}</div>` : ""}</td><td>${esc(t.hotel || "")}</td><td class="tn">${esc(t.conf || "")}</td><td>${esc(t.arrive || "")}</td><td>${esc(t.depart || "")}</td><td class="small">${esc(t.notes || "")}</td>` : `<td colspan="6"><span class="pill p-warn">Not entered</span></td>`}<td>${(fam && m.pid === p.id) || fix ? `<button class="link-btn small" data-act="editTravel" data-pid="${esc(p.id)}" data-eid="${esc(e.id)}">Edit</button>` : ""}</td></tr>`).join("")}
+    </tbody></table></div>` : gate("Family travel plans")}`;
+}
+function tAgenda(e) {
+  const ag = S.agenda[e.id] || { days: [] }, edit = can("schedule") || can("meals");
+  return `<div class="row" style="margin-bottom:12px"><p class="muted" style="margin:0;flex:1 1 300px">${ag.note ? esc(ag.note) : "The weekend plan: meet-ups, team meals, warm-ups and curfew."}</p>${edit ? `<button class="btn sm primary" data-act="addAgenda" data-eid="${esc(e.id)}">Add item</button>` : ""}</div>
+  ${ag.days && ag.days.length ? ag.days.map((d, di) => `<div class="card" style="margin-bottom:12px"><div class="card-h"><h3>${esc(d.label)}</h3></div><div class="card-b"><div class="tw"><table><thead><tr><th>When / what</th><th>Where</th><th>Who</th>${edit ? "<th></th>" : ""}</tr></thead><tbody>
+    ${(d.items || []).map((x, ii) => `<tr><td><b>${esc(x.what)}</b></td><td class="small" style="white-space:pre-wrap">${esc(x.where || "")}</td><td class="small">${esc(x.who || "")}</td>${edit ? `<td><button class="link-btn small" data-act="delAgenda" data-eid="${esc(e.id)}" data-di="${di}" data-ii="${ii}">Remove</button></td>` : ""}</tr>`).join("")}
+  </tbody></table></div></div></div>`).join("") : `<div class="empty">No agenda yet.</div>`}`;
+}
+
+/* ============ FUND ============ */
+function duesFor(pid) {
+  let paid = 0, pending = 0;
+  S.ledger.forEach(l => { if (l.pid === pid && l.cat === "Dues" && l.kind === "in" && l.status !== "declined") paid += +l.amount || 0; });
+  pendingPayments().forEach(p => { if (p.kind === "in" && p.pid === pid && p.cat === "Dues") pending += +p.amount || 0; });
+  return { paid, pending };
+}
+function fundStats() {
+  let inn = 0, out = 0, pendingIn = 0, pendingOut = 0;
+  S.ledger.forEach(l => { if (l.status === "declined") return; const a = +l.amount || 0; if (l.kind === "in") inn += a; else out += a; });
+  pendingPayments().forEach(p => { if (p.kind === "in") pendingIn += +p.amount || 0; else pendingOut += +p.amount || 0; });
+  const amt = (set().dues || {}).amount || 0;
+  const duesPaidFamilies = S.players.filter(p => amt > 0 && duesFor(p.id).paid >= amt).length;
+  return { inn, out, balance: inn - out, pendingIn, pendingOut, duesPaidFamilies };
+}
+function vFund() {
+  if (!can("fundView")) return `<div class="sec-h"><h2>Team Fund</h2></div>` + gate("The team fund");
+  const m = me(), fin = can("finance"), st = set(), f = fundStats(), dues = st.dues || {};
+  const b = st.budget || { costPerMeal: 20, mealsPerDay: 2, people: 15, families: 13 };
+  if (!UI.calc) UI.calc = { days: 2, cost: b.costPerMeal, meals: b.mealsPerDay, people: b.people, fams: S.players.length || b.families };
+  const c = UI.calc;
+  const ledger = [...S.ledger].sort((a, b2) => String(b2.date).localeCompare(String(a.date)) || String(b2.at).localeCompare(String(a.at)));
+  const pend = pendingPayments().filter(p => fin || p.u === V.id || (m.pid && p.pid === m.pid));
+  const duesRows = players().map(p => { const d = duesFor(p.id), pct = Math.min(100, Math.round(100 * d.paid / (dues.amount || 1))); return `<tr class="${m && m.pid === p.id ? "mine" : ""}"><td class="sticky-col"><b>${esc(p.first)} ${esc(p.last)}</b></td><td class="num">${money(d.paid)}</td><td style="min-width:120px"><div class="meter" style="margin:0"><i style="width:${pct}%"></i></div></td><td>${d.paid >= (dues.amount || 0) && dues.amount ? `<span class="pill p-ok">Paid</span>` : d.pending ? `<span class="pill p-warn">${money(d.pending)} to confirm</span>` : `<span class="pill p-mute">Due ${fmt(dues.due, { month: "short", day: "numeric" })}</span>`}</td></tr>`; }).join("");
+  return `<div class="sec-h"><h2>Team Fund</h2><p class="muted">Covers team meals, coach snacks and drinks, and shared tournament costs.</p><span class="spacer"></span>
+    ${m.pid && m.can("family") ? `<button class="btn sm red" data-act="payDues">Record a payment</button>` : ""}${m.can("reimb") ? `<button class="btn sm" data-act="reimb">Request reimbursement</button>` : ""}${fin ? `<button class="btn sm primary" data-act="addEntry">Add entry</button>` : ""}</div>
+  <div class="grid g-home"><div class="stack">
+    <div class="card"><div class="card-b" style="padding-top:16px"><div class="row" style="align-items:flex-end;gap:28px">
+      <div><div class="label">Balance</div><div class="bignum tn">${money(f.balance)}</div></div>
+      <div><div class="label">Money in</div><div class="tn amt-in" style="font-size:22px;font-weight:700">${money(f.inn)}</div></div>
+      <div><div class="label">Money out</div><div class="tn amt-out" style="font-size:22px;font-weight:700">${money(f.out)}</div></div>
+      ${f.pendingIn || f.pendingOut ? `<div><div class="label">Waiting to confirm</div><div class="tn" style="font-size:15px;font-weight:600">+${money(f.pendingIn)} / −${money(f.pendingOut)}</div></div>` : ""}
+    </div></div></div>
+    ${pend.length ? `<div class="card"><div class="card-h"><h3>${fin ? "Waiting for you to confirm" : "Waiting to be confirmed"}</h3></div><div class="card-b"><div class="tw"><table><thead><tr><th>Sent</th><th>What</th><th>From</th><th class="num">Amount</th><th></th></tr></thead><tbody>
+      ${pend.map(p => `<tr><td class="tn" style="white-space:nowrap">${esc(fmt(p.date, { month: "short", day: "numeric" }))}</td><td><b>${esc(p.desc)}</b><div class="small muted">${p.kind === "in" ? "Payment in · " + esc(p.cat || "") : "Reimbursement request"}</div></td><td>${esc(p.who)}${p.pid ? `<div class="small muted">${esc(pname(p.pid))}'s family</div>` : ""}</td><td class="num ${p.kind === "in" ? "amt-in" : "amt-out"}">${money(+p.amount)}</td>
+      <td style="white-space:nowrap">${fin ? `<button class="btn sm primary" data-act="confirmPay" data-src="${esc(p.src)}">${p.kind === "in" ? "Received" : "Paid back"}</button> <button class="link-btn small" data-act="declinePay" data-src="${esc(p.src)}">Decline</button>` : ""}${p.u === V.id ? ` <button class="link-btn small" data-act="withdrawPay" data-id="${esc(p.id)}">Withdraw</button>` : ""}</td></tr>`).join("")}
+    </tbody></table></div></div></div>` : ""}
+    <div class="card"><div class="card-h"><h3>Ledger</h3><span class="muted small">${ledger.length} entries · kept by finance</span></div><div class="card-b">
+      ${ledger.length ? `<div class="tw"><table><thead><tr><th>Date</th><th>Description</th><th>Family / payee</th><th class="num">In</th><th class="num">Out</th>${fin ? "<th></th>" : ""}</tr></thead><tbody>
+      ${ledger.map(l => `<tr style="${l.status === "declined" ? "opacity:.55" : ""}"><td class="tn" style="white-space:nowrap">${esc(fmt(l.date, { month: "short", day: "numeric", year: "2-digit" }))}</td><td><b>${esc(l.desc)}</b><div class="small muted">${esc(l.cat || "")}${l.status === "declined" ? " · declined" : ""}${l.by ? " · " + esc(l.by) : ""}</div></td><td>${esc(l.pid ? pname(l.pid) : (l.payee || ""))}</td><td class="num amt-in">${l.kind === "in" ? money(+l.amount) : ""}</td><td class="num amt-out">${l.kind === "out" ? money(+l.amount) : ""}</td>${fin ? `<td><button class="link-btn small" data-act="editEntry" data-id="${esc(l.id)}">Edit</button></td>` : ""}</tr>`).join("")}
+      </tbody></table></div>` : `<div class="empty">No money in or out yet. Dues of ${money(dues.amount || 0)} per family are due ${fmt(dues.due, { month: "long", day: "numeric" })}.</div>`}
+    </div></div>
+    <div class="card"><div class="card-h"><h3>Tournament meal budget</h3><span class="muted small">Workbook planning model · plan on $20–30 per person per meal</span></div><div class="card-b">
+      <div class="calc">
+        <label for="c_days">Tournament days<select id="c_days" data-calc="days">${[1, 2, 3, 4].map(n => `<option ${+c.days === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>
+        <label for="c_meals">Meals per day<input id="c_meals" type="number" min="0" step="1" value="${c.meals}" data-calc="meals"></label>
+        <label for="c_cost">Cost per meal ($)<input id="c_cost" type="number" min="0" step="1" value="${c.cost}" data-calc="cost"></label>
+        <label for="c_people">People fed<input id="c_people" type="number" min="0" step="1" value="${c.people}" data-calc="people"></label>
+        <label for="c_fams">Families splitting<input id="c_fams" type="number" min="1" step="1" value="${c.fams}" data-calc="fams"></label>
+      </div>
+      <div class="calc-out" id="calcOut">${calcOut()}</div>
+      <p class="small muted" style="margin-bottom:0">People fed = ${S.players.length} players plus coaches. Travel tournaments: ${tournaments().filter(e => e.travel).map(e => esc(e.title.replace(/ \(.*\)/, ""))).join(", ")}.</p>
+    </div></div>
+  </div><div class="stack">
+    <div class="card"><div class="card-h"><h3>Dues by family</h3></div><div class="card-b"><p class="small muted" style="margin-top:0">${esc(dues.label || "Team fund deposit")}: <b>${money(dues.amount || 0)}</b> per family, due <b>${fmt(dues.due, { month: "long", day: "numeric", year: "numeric" })}</b>. Topped up during the season as needed.</p>
+    <div class="tw"><table><thead><tr><th class="sticky-col">Player</th><th class="num">Paid</th><th></th><th>Status</th></tr></thead><tbody>${duesRows}</tbody></table></div></div></div>
+    <div class="card"><div class="card-h"><h3>How it works</h3></div><div class="card-b small">
+      <p style="margin-top:0"><b>Paying dues:</b> send your payment the way the coordinator asks, then tap <i>Record a payment</i>. Finance marks it received.</p>
+      <p><b>Getting reimbursed:</b> bought team food or coach snacks? Tap <i>Request reimbursement</i> and keep the receipt. Checked-bag fees for team balls or carts are reimbursed by A5.</p>
+      <p style="margin-bottom:0"><b>Who confirms:</b> ${esc([...new Set([...holders("finance"), ...holders("coordinator")])].join(", ") || "the team coordinator")}.</p></div></div>
+  </div></div>`;
+}
+function calcOut() {
+  const c = UI.calc || {};
+  const meals = (+c.days || 0) * (+c.meals || 0), per = meals * (+c.cost || 0), total = per * (+c.people || 0), fam = total / Math.max(1, +c.fams || 1);
+  return `<div><div class="label">Meals</div><div class="v tn">${meals}</div></div><div><div class="label">Per person</div><div class="v tn">${money(per)}</div></div><div><div class="label">Team total</div><div class="v tn">${money(total)}</div></div><div><div class="label">Per family</div><div class="v tn">${money(Math.round(fam * 100) / 100)}</div><div class="small muted">≈ ${money(Math.ceil(fam / 10) * 10)} rounded</div></div>`;
+}
+
+/* ============ ROSTER ============ */
+function vRoster() {
+  if (UI.sub !== "uniforms" && UI.sub !== "roster") UI.sub = "roster";
+  const m = me(), mng = can("roster"), showC = can("contacts");
+  const sw = `<div class="chips"><button class="chip" aria-pressed="${UI.sub === "roster"}" data-act="rsub" data-sub="roster">Players &amp; parents</button><button class="chip" aria-pressed="${UI.sub === "uniforms"}" data-act="rsub" data-sub="uniforms">Uniform order</button></div>`;
+  let h = `<div class="sec-h"><h2>Roster</h2><p class="muted">${S.players.length} players${(team() || {}).age ? " · " + esc(team().age) : ""}</p><span class="spacer"></span>${sw}</div>`;
+  if (UI.sub === "uniforms") return h + (showC ? vUniforms() : gate("The uniform order"));
+  const emails = S.players.flatMap(p => (p.parents || []).map(x => x.email).filter(Boolean));
+  if (showC) h += `<div class="row" style="margin-bottom:14px"><button class="btn sm" data-act="copy" data-text="${esc(emails.join(", "))}">Copy all parent emails (${emails.length})</button>${mng ? `<button class="btn sm primary" data-act="editPlayer" data-id="">Add player</button>` : ""}<span class="small muted">Tap a phone number or email to copy it.</span></div>`;
+  else h += `<div style="margin-bottom:14px">${gate("Parent contact details")}</div>`;
+  const linkedPersons = new Set(linkedAccounts().map(([, a]) => a.person));
+  const jersey = n => `<div class="jersey"><svg viewBox="0 0 64 70" aria-hidden="true"><path d="M20 2 L8 8 L1 24 L11 29 L14 23 L14 68 L50 68 L50 23 L53 29 L63 24 L56 8 L44 2 C42 9 22 9 20 2 Z" fill="var(--hdr)"/><path d="M20 2 C22 9 42 9 44 2" fill="none" stroke="var(--accent)" stroke-width="3"/><path d="M1 24 L11 29 M63 24 L53 29" stroke="var(--accent)" stroke-width="3"/></svg><b class="tn">${esc(n)}</b></div>`;
+  h += `<div class="rgrid">${players().map(p => `<div class="card pcard" style="${m && m.pid === p.id ? "border-color:var(--accent)" : ""}">${jersey(p.jersey ?? "")}
+    <div style="min-width:0"><div class="row" style="gap:6px"><h3>${esc(p.first)} ${esc(p.last)}</h3><span class="spacer"></span>${mng ? `<button class="link-btn small" data-act="editPlayer" data-id="${esc(p.id)}">Edit</button>` : ""}</div>
+    <div class="small muted">Shirt ${esc(p.shirt || "—")} · Ref team ${esc(p.refTeam || "—")}${showC && p.town ? " · " + esc(p.town) : ""}</div>
+    ${showC && p.allergies && !/^none$/i.test(p.allergies) ? `<div class="pill p-bad" style="margin-top:4px">Food allergy: ${esc(p.allergies)}</div>` : ""}
+    ${(p.parents || []).map((x, i) => `<div class="parent"><div class="pn">${esc(x.name)} ${linkedPersons.has(`parent:${p.id}:${i}`) ? `<span class="pill p-ok" title="Has a linked account">Linked</span>` : ""}</div>${showC && x.cell ? `<button class="copy tn" data-act="copy" data-text="${esc(x.cell)}">${esc(x.cell)}</button>` : ""}${showC && x.email ? `<br><button class="copy" data-act="copy" data-text="${esc(x.email)}">${esc(x.email)}</button>` : ""}</div>`).join("")}
+    </div></div>`).join("")}</div>`;
+  return h;
+}
+function vUniforms() {
+  const items = set().uniformItems || [], m = me(), fix = can("roster"), fam = m && m.pid && m.can("family");
+  const done = players().filter(p => Object.values(uniformOf(p.id)).some(Boolean)).length;
+  return `<div class="row" style="margin-bottom:12px"><p class="muted" style="margin:0;flex:1 1 300px"><b>${done} of ${S.players.length}</b> families have entered sizes. Each family fills in their own row.</p>${fam ? `<button class="btn sm red" data-act="editUniform" data-pid="${esc(m.pid)}">Enter ${esc(pname(m.pid))}'s sizes</button>` : ""}</div>
+  <div class="tw"><table><thead><tr><th class="sticky-col">Player</th>${items.map(i => `<th title="${esc(i)}" style="white-space:normal;min-width:92px;vertical-align:bottom">${esc(i.replace(/\s*\(W\/Last NAME\)/i, "").replace(/^(Women's|Adult|BSN Mens|Adidas Mens|Adidas)\s+/i, ""))}</th>`).join("")}<th></th></tr></thead><tbody>
+  ${players().map(p => { const s = uniformOf(p.id); return `<tr class="${m && m.pid === p.id ? "mine" : ""}"><td class="sticky-col"><b>${esc(p.first)}</b> <span class="muted small">${esc(p.shirt || "")}</span></td>${items.map((_, i) => `<td class="tn">${s[i] ? esc(s[i]) : `<span class="tbd">—</span>`}</td>`).join("")}<td>${(fam && m.pid === p.id) || fix ? `<button class="link-btn small" data-act="editUniform" data-pid="${esc(p.id)}">Edit</button>` : ""}</td></tr>`; }).join("")}
+  </tbody></table></div>`;
+}
+
+/* ============ INFO ============ */
+function vInfo() {
+  if (!["handbook", "tasks"].includes(UI.sub)) UI.sub = "handbook";
+  const st = set(), hbEdit = can("handbook");
+  const sw = `<div class="chips"><button class="chip" aria-pressed="${UI.sub === "handbook"}" data-act="isub" data-sub="handbook">Team handbook</button><button class="chip" aria-pressed="${UI.sub === "tasks"}" data-act="isub" data-sub="tasks">Coordinator tasks</button></div>`;
+  let h = `<div class="sec-h"><h2>Team Info</h2><span class="spacer"></span>${sw}${can("settings") ? `<button class="btn sm" data-act="editSettings">Team settings</button>` : ""}</div>`;
+  if (UI.sub === "tasks") return h + vTasks();
+  const hb = (S.meta.handbook || {}).sections || [];
+  const holdersOr = (r, fb) => { const h2 = holders(r); return h2.length ? h2 : (fb || []).map(n => n + " (not linked yet)"); };
+  const roles = [["Head coaches", (st.coaches || []).map(c => c.name + (can("contacts") ? ` · ${c.phone}` : ""))], ["Team coordinator", holdersOr("coordinator", st.coordinators)], ["Food coordinators", holdersOr("food", st.food)], ["Finance", holdersOr("finance", st.finance)], ["Team admin", holdersOr("admin", st.admins)]];
+  return h + `<div class="grid g-home"><div class="card"><div class="card-h"><h3>From the kickoff meeting</h3><span class="spacer"></span>${hbEdit ? `<button class="btn sm primary" data-act="editSection" data-i="-1">Add section</button>` : ""}</div><div class="card-b hb">
+    ${hb.map((s, i) => `<section><div class="row"><h3>${esc(s.t)}</h3><span class="spacer"></span>${hbEdit ? `<button class="link-btn small" data-act="editSection" data-i="${i}">Edit</button>` : ""}</div><p>${esc(s.b)}</p></section>`).join("") || `<div class="empty">No handbook sections yet.</div>`}</div></div>
+    <div class="stack"><div class="card"><div class="card-h"><h3>Who does what</h3><span class="spacer"></span><button class="link-btn small" data-act="tab" data-tab="access">Roles &amp; access</button></div><div class="card-b">${roles.map(([k, v]) => `<div class="li" style="align-items:flex-start"><div class="label" style="min-width:120px;padding-top:2px">${esc(k)}</div><div style="flex:1">${v.map(x => esc(x)).join("<br>") || '<span class="tbd">Open</span>'}</div></div>`).join("")}</div></div>
+    <div class="card"><div class="card-h"><h3>Girls' jobs</h3></div><div class="card-b small"><ul style="margin:0;padding-left:18px">
+      <li>Bring the ball bags and ball cart from A5 to tournaments and keep track of them overnight (rotation on each tournament page).</li>
+      <li>Line judging, keeping the score book, flipping the score, and libero tracking (see <i>Ref jobs</i> on each tournament).</li>
+      <li>If balls or the cart have to be checked on a flight, A5 reimburses the fee. Keep the receipt.</li></ul></div></div>
+    <div class="card"><div class="card-h"><h3>Useful links</h3></div><div class="card-b small">
+      <div class="li"><a href="https://a5volleyball.sprocketsports.com/" target="_blank" rel="noopener">A5 registration &amp; player-parent contract ↗</a></div>
+      <div class="li"><a href="https://www.srva.org/" target="_blank" rel="noopener">SRVA / USAV membership ↗</a></div>
+      <div class="li"><a href="https://sportwrench.com/" target="_blank" rel="noopener">SportWrench tournament tickets ↗</a></div>
+      <div class="li"><a href="https://www.a5tournaments.com/club-tournaments" target="_blank" rel="noopener">A5 club tournaments ↗</a></div></div></div></div></div>`;
+}
+function vTasks() {
+  const mng = can("tasks");
+  const ts = [...S.tasks].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+  const tone = s => ({ Done: "p-ok", "In progress": "p-warn", "N/A": "p-mute" })[s] || "p-bad";
+  return `<div class="row" style="margin-bottom:12px"><p class="muted" style="margin:0;flex:1 1 300px">The team coordinator's running checklist. ${ts.filter(t => t.status === "Done").length} of ${ts.length} done.</p>${mng ? `<button class="btn sm primary" data-act="editTask" data-id="">Add task</button>` : ""}</div>
+  <div class="tw"><table><thead><tr><th>#</th><th>Task</th><th>How / notes</th><th>Owner</th><th>Status</th>${mng ? "<th></th>" : ""}</tr></thead><tbody>
+  ${ts.map((t, i) => `<tr><td class="tn muted">${i + 1}</td><td><b>${esc(t.title)}</b></td><td class="small">${esc(t.desc || "")}</td><td class="small">${esc(t.owner || "")}</td><td>${mng ? `<button class="task-s pill ${tone(t.status)}" data-act="cycleTask" data-id="${esc(t.id)}" title="Change status">${esc(t.status || "To do")}</button>` : `<span class="pill ${tone(t.status)}">${esc(t.status || "To do")}</span>`}</td>${mng ? `<td><button class="link-btn small" data-act="editTask" data-id="${esc(t.id)}">Edit</button></td>` : ""}</tr>`).join("")}
+  </tbody></table></div>`;
+}
+
+/* ============ CLUB ============ */
+const DEFAULT_CHECK = ["Court shoes", "Extra pair of socks", "Knee and elbow pads", "2 pairs of spandex", "Both jerseys", "Warmups", "Hair ties, ribbons, brush", "Volleyball backpack", "Water bottle", "Snacks", "Lunch"];
+const slug = s => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "team";
+function vClub() {
+  const admin = V.isOwner || isClubAdmin(V.id);
+  const club = (S.teams[0] || {}).club || "A5 Volleyball";
+  const mem = id => { const a = acctOf(V.id, id); return a && a.status === "active"; };
+  const teams = S.teams.filter(t => !t.archived || admin);
+  const mine = teams.filter(t => mem(t.id)), others = teams.filter(t => !mem(t.id));
+  const card = t => {
+    const a = acctOf(V.id, t.id);
+    const pend = pendingRequests(t.id);
+    const status = a && a.status === "active" ? (a.roles || []).map(roleChip).join(" ")
+      : pend.some(([u]) => u === V.id) ? `<span class="pill p-warn">Request pending</span>`
+      : admin ? `<span class="pill p-mute">Club admin access</span>` : `<span class="pill p-mute">Not a member</span>`;
+    const req = V.isOwner && pend.length ? `<span class="pill p-travel">${pend.length} to approve</span>` : "";
+    return `<button class="tcard" data-act="openTeam" data-id="${esc(t.id)}">
+      <div class="top"><div class="when"><div class="m">${esc(t.season || "")}</div><div class="dd">${esc(t.age || "—")}</div></div>
+      <div style="min-width:0"><h3>${esc(t.name)}</h3><div class="small muted">${esc((t.coaches || []).join(" & ") || "Coaches TBD")}</div></div></div>
+      <div class="foot">${status}${req}${t.archived ? `<span class="pill p-mute">Archived</span>` : ""}<span class="spacer"></span><span>Open ›</span></div></button>`;
+  };
+  const totalReq = V.isOwner ? S.teams.reduce((n, t) => n + pendingRequests(t.id).length, 0) : 0;
+  return `<div class="sec-h"><h2>${esc(club)}</h2><p class="muted">${S.teams.length} team${S.teams.length === 1 ? "" : "s"} on this hub${totalReq ? ` · <b>${totalReq}</b> account request${totalReq > 1 ? "s" : ""} waiting` : ""}</p><span class="spacer"></span>${admin ? `<button class="btn sm primary" data-act="newTeam">Create a team</button>` : ""}</div>
+    ${!V.id && V.ready ? `<div class="banner info"><p><b>You're viewing read-only.</b> Sign in to claude.ai and open this page from its link to join a team.</p></div>` : ""}
+    ${mine.length ? `<div class="month">Your teams</div><div class="tgrid">${mine.map(card).join("")}</div>` : `<div class="banner info"><p><b>Find your team below.</b> Open it and tap <i>Link my account</i>. The site owner approves you and sets your role on that team. Families with players on more than one team link once per team.</p></div>`}
+    ${others.length ? `<div class="month">${mine.length ? "Other teams" : "Teams"}</div><div class="tgrid">${others.map(card).join("")}</div>` : ""}
+    ${!teams.length ? `<div class="empty">No teams yet.${admin ? " Create the first one." : ""}</div>` : ""}`;
+}
+function createTeamForm() {
+  const club = (S.teams[0] || {}).club || "A5 Volleyball";
+  openForm({
+    title: "Create a team", intro: "The team gets its own roster, schedule, fund, accounts and roles. Nothing is shared with other teams.", submit: "Create team",
+    fields: [
+      { type: "two", fields: [{ id: "name", label: "Team name", placeholder: "A5 14 Kate" }, { id: "age", label: "Age group / division", placeholder: "14U" }] },
+      { type: "two", fields: [{ id: "season", label: "Season", value: (team() || S.teams[0] || {}).season || "" }, { id: "club", label: "Club", value: club }] },
+      { type: "two", fields: [{ id: "c0n", label: "Coach 1" }, { id: "c0p", label: "Phone" }] },
+      { type: "two", fields: [{ id: "c1n", label: "Coach 2" }, { id: "c1p", label: "Phone" }] },
+      { id: "copyFrom", label: "Start from another team", type: "select", options: [{ v: "", l: "Start blank" }, ...S.teams.map(t => ({ v: t.id, l: t.name }))], value: UI.teamId || "" },
+      { id: "copy", label: "What to copy", type: "checks", options: [{ v: "handbook", l: "Handbook" }, { v: "lists", l: "Checklist & uniform items" }, { v: "practices", l: "Practice schedule" }, { v: "money", l: "Dues & meal budget" }], value: ["handbook", "lists"], hint: "Rosters, tournaments, money and accounts are never copied." }],
+    onSubmit: async v => {
+      if (!v.name) { toast("Name the team."); return false; }
+      let tid = slug(v.name), i = 2; const base = tid;
+      while (S.teams.some(t => t.id === tid)) tid = base + "-" + i++;
+      let src = {}, hb = { sections: [] };
+      if (v.copyFrom && db) {
+        try { const a = await db.doc(`teams/${v.copyFrom}/meta/settings`).get(); if (a.exists) src = a.data(); } catch (e) {}
+        try { const b = await db.doc(`teams/${v.copyFrom}/meta/handbook`).get(); if (b.exists) hb = b.data(); } catch (e) {}
+      }
+      const c = new Set(v.copy), coaches = [{ name: v.c0n, phone: v.c0p }, { name: v.c1n, phone: v.c1p }].filter(x => x.name);
+      const settings = {
+        teamName: v.name, club: v.club, season: v.season, coaches, teamCode: "",
+        dues: c.has("money") && src.dues ? { ...src.dues } : { amount: 0, due: "", label: "Team fund deposit" },
+        budget: c.has("money") && src.budget ? { ...src.budget } : { costPerMeal: 20, mealsPerDay: 2, people: 15, families: 12 },
+        practices: c.has("practices") ? (src.practices || []) : [], cancelled: [],
+        checklist: c.has("lists") && src.checklist ? src.checklist : DEFAULT_CHECK,
+        uniformItems: c.has("lists") && src.uniformItems ? src.uniformItems : [],
+        coordinators: [], food: [], finance: [], admins: []
+      };
+      const ok = await save(`teams/${tid}`, { name: v.name, club: v.club, season: v.season, age: v.age, coaches: coaches.map(x => x.name), createdAt: NOW(), createdBy: V.id || "" })
+        && await save(`teams/${tid}/meta/settings`, settings)
+        && await save(`teams/${tid}/meta/handbook`, { sections: c.has("handbook") ? (hb.sections || []) : [] });
+      if (!ok) return false;
+      setTeam(tid); toast(`${v.name} created. Add players on the Roster tab.`);
+    }
+  });
+}
+function clubCardHtml() {
+  return `<div class="card"><div class="card-h"><h3>Club-wide roles</h3></div><div class="card-b small">
+    <div class="li" style="align-items:flex-start"><span class="role r-admin">Site owner</span><div style="flex:1">Approves accounts and sets roles on every team. Only the owner can do this, and the database enforces it.</div></div>
+    <div class="li" style="align-items:flex-start"><span class="role r-coordinator">Club admin</span><div style="flex:1">Creates teams and has team-admin rights on every team. The site owner grants it.</div></div>
+    <p class="muted" style="margin-bottom:0">All other roles are per team. The same person can be a parent on one team and a coach on another.</p></div></div>`;
+}
+
+/* ============ ACCESS ============ */
+function vAccess() {
+  const m = me(), req = mineOf(V.id).request;
+  const acct = V.id ? acctOf(V.id) : null;
+  let mine;
+  if (!V.id) mine = `<div class="lock">${LOCK}<div><b>You're not signed in here.</b><div class="muted">Open this page from its claude.ai link while signed in to link an account.</div></div></div>`;
+  else {
+    const status = m.linked ? `<span class="pill p-ok">Linked</span>` : m.pending ? `<span class="pill p-warn">Waiting for approval</span>` : m.declined ? `<span class="pill p-bad">Not approved</span>` : V.isOwner ? `<span class="pill p-mute">Owner · not on roster yet</span>` : `<span class="pill p-mute">Not linked</span>`;
+    mine = `<div class="acct-me">${V.avatar ? `<img class="avatar" src="${esc(V.avatar)}" alt="">` : `<div class="avatar"></div>`}<div style="min-width:0"><div class="row" style="gap:8px"><b style="font-size:17px">${esc(V.name || "Your claude.ai account")}</b>${status}</div><div class="small muted">${esc(V.email || "")}</div></div></div>
+      <div class="kv" style="margin-top:14px"><div>On the roster as</div><div>${m.linked ? `<b>${esc(personName(acct.person))}</b>${acct.pid ? ` · ${esc(pname(acct.pid))}'s family` : ""}` : req ? esc(personName(req.person)) + " (requested)" : `<span class="tbd">Not linked</span>`}</div>
+      <div>Roles</div><div>${m.roles.size ? [...m.roles].map(roleChip).join(" ") : `<span class="tbd">None yet</span>`}</div></div>
+      <div class="row" style="margin-top:12px">${!m.linked && !m.pending && !V.isOwner ? `<button class="btn red sm" data-act="requestLink">Link my account</button>` : ""}${m.pending ? `<button class="btn sm ghost" data-act="cancelRequest">Cancel request</button>` : ""}${V.isOwner && !m.linked ? `<button class="btn red sm" data-act="linkSelf">Link my own account</button>` : ""}</div>`;
+  }
+  const matrix = `<div class="tw"><table class="matrix"><thead><tr><th>What you can do</th>${ROLE_ORDER.map(r => `<th>${esc(ROLES[r].label)}</th>`).join("")}</tr></thead><tbody>
+    ${PERMS.map(([k, label, rs]) => `<tr><td>${esc(label)}</td>${ROLE_ORDER.map(r => rs.includes(r) ? `<td class="yes" aria-label="yes">✓</td>` : `<td class="no" aria-label="no">·</td>`).join("")}</tr>`).join("")}
+    <tr><td>See schedule, tournaments, game-day sheets and handbook</td>${ROLE_ORDER.map(() => `<td class="yes">✓</td>`).join("")}</tr></tbody></table></div>
+    <p class="small muted">People can hold more than one role. A parent who is also the team coordinator gets both sets of rights.</p>`;
+  const enforcement = `<div class="card"><div class="card-h"><h3>How access is protected</h3></div><div class="card-b small">
+    <div class="lock" style="margin-bottom:10px">${LOCK}<div><b>Locked by the database</b><div class="muted">Only the site owner can link accounts or change roles. Each account can only save to its own family record, and the site ignores family entries from anyone not approved for that family.</div></div></div>
+    <div class="lock">${LOCK}<div><b>Controlled by the site</b><div class="muted">Team-wide pages (schedule, tournaments, ref jobs, fund ledger, handbook) are edited only by the roles above. Only share the page with people on the team.</div></div></div></div></div>`;
+  let h = `<div class="sec-h"><h2>Access</h2><p class="muted">Accounts and roles for ${esc((team() || {}).name || "this team")}.</p></div><div class="grid g-home"><div class="stack">`;
+  if (can("accounts")) h += vAdmin();
+  h += `</div>
+    <div class="stack"><div class="card"><div class="card-h"><h3>Your account</h3></div><div class="card-b">${mine}</div></div>${enforcement}
+    ${clubCardHtml()}<div class="card"><div class="card-h"><h3>Role descriptions</h3></div><div class="card-b">${ROLE_ORDER.map(r => `<div class="li" style="align-items:flex-start">${roleChip(r)}<div class="small" style="flex:1">${esc(ROLES[r].desc)}</div></div>`).join("")}</div></div></div></div>
+    <div class="card" style="margin-top:18px"><div class="card-h"><h3>Roles &amp; permissions</h3></div><div class="card-b">${matrix}</div></div>`;
+  return h;
+}
+function vAdmin() {
+  const reqs = pendingRequests();
+  const accts = linkedAccounts().sort((a, b) => personName(a[1].person).localeCompare(personName(b[1].person)));
+  const linked = new Set(accts.map(([, a]) => a.person));
+  const reqRow = ([u, d]) => {
+    const p = prof(u), ref = d.request.person, pe = people().find(x => x.id === ref);
+    const match = pe && pe.email && p.email && norm(pe.email) === norm(p.email);
+    return `<div class="li" style="align-items:flex-start;flex-wrap:wrap"><div style="flex:1 1 220px;min-width:0"><b>${esc(personName(ref))}</b>${pe && pe.pid ? ` <span class="muted small">· ${esc(pname(pe.pid))}'s family</span>` : ""}
+      <div class="small muted">claude.ai account: ${esc(p.name || "name hidden")}${p.email ? " · " + esc(p.email) : ""}</div>
+      <div class="row small" style="margin-top:4px;gap:6px">${match ? `<span class="pill p-ok">Email matches roster</span>` : pe && pe.email ? `<span class="pill p-warn">Roster email: ${esc(pe.email)}</span>` : ""}${linked.has(ref) ? `<span class="pill p-warn">This person already has a linked account</span>` : ""}${d.request.note ? `<span class="muted">“${esc(d.request.note)}”</span>` : ""}</div></div>
+      <div class="row"><button class="btn sm primary" data-act="approve" data-u="${esc(u)}">Approve…</button><button class="btn sm ghost" data-act="decline" data-u="${esc(u)}">Decline</button></div></div>`;
+  };
+  const acctRow = ([u, a]) => { const p = prof(u); return `<tr><td><b>${esc(personName(a.person))}</b><div class="small muted">${esc(p.name || "")}${p.email ? " · " + esc(p.email) : ""}</div></td><td>${a.pid ? esc(pname(a.pid)) : "—"}</td><td>${(a.roles || []).map(roleChip).join(" ")}</td><td><button class="link-btn small" data-act="editAcct" data-u="${esc(u)}">Change</button></td></tr>`; };
+  const fams = players().map(p => { const ps = (p.parents || []).map((x, i) => ({ ...x, ref: `parent:${p.id}:${i}` })); return `<tr><td><b>${esc(p.first)}</b></td><td>${ps.map(x => `${linked.has(x.ref) ? `<span class="pill p-ok">✓</span>` : `<span class="pill p-mute">—</span>`} ${esc(x.name)}`).join("<br>")}</td></tr>`; }).join("");
+  const unlinkedEmails = people().filter(x => x.email && !linked.has(x.id)).map(x => x.email);
+  const coachesUnlinked = people().filter(x => x.type === "coach" && !linked.has(x.id));
+  return `<div class="card" style="border-color:var(--accent)"><div class="card-h"><h3>Account requests</h3><span class="pill ${reqs.length ? "p-travel" : "p-mute"}">${reqs.length}</span></div><div class="card-b">${reqs.length ? reqs.map(reqRow).join("") : `<div class="empty">No one is waiting. When someone opens the site and taps <i>Link my account</i>, they show up here.</div>`}</div></div>
+  <div class="card"><div class="card-h"><h3>Linked accounts</h3><span class="muted small">${accts.length}</span></div><div class="card-b">${accts.length ? `<div class="tw"><table><thead><tr><th>Person</th><th>Family</th><th>Roles</th><th></th></tr></thead><tbody>${accts.map(acctRow).join("")}</tbody></table></div>` : `<div class="empty">No accounts linked yet.</div>`}</div></div>
+  <div class="card"><div class="card-h"><h3>Who still needs to join</h3></div><div class="card-b">
+    <p class="small muted" style="margin-top:0">Share this page with each person as an Editor from the Share menu, then approve their request here.</p>
+    <div class="row" style="margin-bottom:10px"><button class="btn sm" data-act="copy" data-text="${esc(unlinkedEmails.join(", "))}">Copy ${unlinkedEmails.length} unlinked parent emails</button>${coachesUnlinked.length ? `<span class="small muted">Coaches not linked: ${esc(coachesUnlinked.map(c => c.name).join(", "))}</span>` : ""}</div>
+    <div class="tw"><table><thead><tr><th>Player</th><th>Parents</th></tr></thead><tbody>${fams}</tbody></table></div></div></div>`;
+}
+
+/* ============ modal + forms ============ */
+function closeModal() { const md = $("#modal"); md.hidden = true; md.innerHTML = ""; }
+function fieldHtml(f) {
+  const id = "f_" + f.id, v = f.value ?? "";
+  const hint = f.hint ? `<span class="hint">${esc(f.hint)}</span>` : "";
+  if (f.type === "textarea") return `<label for="${id}">${esc(f.label)}${hint}<textarea id="${id}" name="${f.id}" rows="${f.rows || 4}">${esc(v)}</textarea></label>`;
+  if (f.type === "select") return `<label for="${id}">${esc(f.label)}${hint}<select id="${id}" name="${f.id}">${f.options.map(o => { const ov = typeof o === "object" ? o.v : o, ol = typeof o === "object" ? o.l : o; return `<option value="${esc(ov)}" ${String(ov) === String(v) ? "selected" : ""}>${esc(ol)}</option>`; }).join("")}</select></label>`;
+  if (f.type === "checks") return `<fieldset style="border:0;padding:0;margin:0"><legend class="label" style="margin-bottom:6px">${esc(f.label)}</legend><div class="checks">${f.options.map(o => `<label><input type="checkbox" name="${f.id}" value="${esc(o.v)}" ${(v || []).includes(o.v) ? "checked" : ""}> ${esc(o.l)}</label>`).join("")}</div>${hint}</fieldset>`;
+  if (f.type === "two") return `<div class="two">${f.fields.map(fieldHtml).join("")}</div>`;
+  if (f.type === "note") return `<p class="small muted" style="margin:0">${esc(f.text)}</p>`;
+  return `<label for="${id}">${esc(f.label)}${hint}<input id="${id}" name="${f.id}" type="${f.type || "text"}" value="${esc(v)}" ${f.type === "number" ? 'step="any"' : ""} ${f.placeholder ? `placeholder="${esc(f.placeholder)}"` : ""}></label>`;
+}
+function openForm({ title, intro, fields, submit = "Save", onSubmit, onDelete, deleteLabel = "Delete" }) {
+  const md = $("#modal");
+  md.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mt"><div class="sheet-h"><h3 id="mt">${esc(title)}</h3><button class="icon-btn" type="button" data-act="closeModal" aria-label="Close">×</button></div>
+    ${intro ? `<p class="muted small" style="margin:0 18px 4px">${esc(intro)}</p>` : ""}
+    <form id="mf" class="form" novalidate>${fields.map(fieldHtml).join("")}<div class="form-actions">${onDelete ? `<button type="button" class="btn danger-ghost" id="mdel">${esc(deleteLabel)}</button>` : ""}<span class="spacer"></span><button type="button" class="btn ghost" data-act="closeModal">Cancel</button><button class="btn primary" type="submit">${esc(submit)}</button></div></form></div>`;
+  md.hidden = false;
+  const first = md.querySelector("input:not([type=checkbox]),textarea,select"); if (first) setTimeout(() => first.focus(), 30);
+  $("#mf").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const fd = new FormData(ev.target), vals = {};
+    const multi = new Set(fields.flatMap(f => f.type === "checks" ? [f.id] : []));
+    for (const [k, v] of fd.entries()) { if (multi.has(k)) (vals[k] = vals[k] || []).push(v); else vals[k] = typeof v === "string" ? v.trim() : v; }
+    multi.forEach(k => { if (!vals[k]) vals[k] = []; });
+    const btn = ev.target.querySelector('button[type="submit"]'); btn.disabled = true;
+    const ok = await onSubmit(vals);
+    if (ok !== false) closeModal(); else btn.disabled = false;
+  });
+  if (onDelete) {
+    const d = $("#mdel");
+    d.addEventListener("click", async () => {
+      if (!d.classList.contains("confirming")) { d.classList.add("confirming"); d.textContent = "Tap again to confirm"; return; }
+      d.disabled = true; await onDelete(); closeModal();
+    });
+  }
+}
+function openInfo(title, html) {
+  const md = $("#modal");
+  md.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mt"><div class="sheet-h"><h3 id="mt">${esc(title)}</h3><button class="icon-btn" type="button" data-act="closeModal" aria-label="Close">×</button></div><div class="inner">${html}</div></div>`;
+  md.hidden = false;
+}
+let toastT;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3400); }
+function copyText(text) {
+  const done = () => toast("Copied " + (text.length > 40 ? text.slice(0, 40) + "…" : text));
+  try { navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text)); } catch (e) { fallbackCopy(text); }
+}
+function fallbackCopy(text) {
+  openInfo("Copy this", `<textarea readonly style="width:100%;min-height:90px;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)" id="cpy">${esc(text)}</textarea><p class="small muted">Select it and copy.</p>`);
+  setTimeout(() => { const c = $("#cpy"); if (c) { c.focus(); c.select(); } }, 30);
+}
+
+/* ============ forms ============ */
+function personOptions() {
+  const linked = new Set(linkedAccounts().filter(([u]) => u !== V.id).map(([, a]) => a.person));
+  const opts = [{ v: "", l: "Choose…" }];
+  people().forEach(x => opts.push({ v: x.id, l: `${x.name} — ${x.type === "coach" ? "Coach" : pname(x.pid) + "'s parent"}${linked.has(x.id) ? " (already linked)" : ""}` }));
+  opts.push({ v: "other", l: "Someone else (staff or volunteer)" });
+  return opts;
+}
+function emailGuess() { if (!V.email) return ""; const p = people().find(x => x.email && norm(x.email) === norm(V.email)); return p ? p.id : ""; }
+function requestForm() {
+  if (!V.id) { toast("Sign in to claude.ai to link an account."); return; }
+  const guess = emailGuess();
+  openForm({
+    title: "Link my account", intro: guess ? "Your email matches the roster, so we picked you. Check it and send." : "Pick yourself from the team roster. The site admin approves it and assigns your role.", submit: "Send request",
+    fields: [{ id: "person", label: "I am", type: "select", options: personOptions(), value: guess }, { id: "otherName", label: "Your name (if someone else)" }, { id: "note", label: "Note for the admin (optional)", placeholder: "e.g. I'm the team's finance volunteer" }],
+    onSubmit: async v => {
+      if (!v.person) { toast("Choose who you are."); return false; }
+      const person = v.person === "other" ? (v.otherName ? "other:" + v.otherName : "") : v.person;
+      if (!person) { toast("Add your name."); return false; }
+      return writeMine(d => { d.request = { person, note: v.note || "", at: NOW() }; }, "Request sent. The site admin will approve it.");
+    }
+  });
+}
+function accountForm(u, ref, existing) {
+  const pe = people().find(x => x.id === ref);
+  const roles = existing ? existing.roles || [] : suggestedRoles(ref);
+  const famOpts = [{ v: "", l: "No family (staff only)" }, ...players().map(p => ({ v: p.id, l: `${p.first} ${p.last}` }))];
+  openForm({
+    title: existing ? "Change account" : "Approve account", intro: `${personName(ref)}${prof(u).email ? " · " + prof(u).email : ""}`,
+    submit: existing ? "Save" : "Approve",
+    fields: [
+      { id: "person", label: "Roster person", type: "select", options: personOptions().filter(o => o.v && o.v !== "other").concat(ref.startsWith("other:") ? [{ v: ref, l: personName(ref) + " (volunteer)" }] : []), value: ref },
+      { id: "pid", label: "Family", type: "select", options: famOpts, value: existing ? existing.pid : (pe && pe.pid) || "", hint: "Family rights apply to this player only" },
+      { id: "clubAdmin", label: "Club admin (all teams)", type: "select", options: [{ v: "", l: "No" }, { v: "1", l: "Yes — can create teams and has team-admin rights on every team" }], value: isClubAdmin(u) ? "1" : "" },
+      { id: "roles", label: "Roles on " + (team() || {}).name, type: "checks", options: ROLE_ORDER.map(r => ({ v: r, l: ROLES[r].label })), value: roles, hint: "Suggested from the kickoff notes. Parents need the Parent role to answer for their family." }],
+    onSubmit: async v => {
+      if (!v.roles.length) { toast("Pick at least one role."); return false; }
+      const pid = v.pid || personPid(v.person);
+      return saveAcct(u, { status: "active", person: v.person, pid, roles: v.roles, at: NOW(), by: V.id }, existing ? "Account updated" : "Approved — they now have access", { clubAdmin: v.clubAdmin === "1" });
+    },
+    onDelete: existing ? async () => saveAcct(u, { status: "removed", at: NOW(), by: V.id }, "Access removed from this team") : null, deleteLabel: "Remove from team"
+  });
+}
+function eventForm(e, type) {
+  const isT = (e ? e.type : type) === "tournament", st = set();
+  const pOpts = [{ v: "", l: "—" }, ...players().map(p => ({ v: p.id, l: p.first + " " + p.last }))];
+  const base = [{ id: "title", label: "Name", value: e?.title }, { type: "two", fields: [{ id: "date", label: "Start date", type: "date", value: e?.date }, { id: "endDate", label: "End date", type: "date", value: e?.endDate }] }];
+  const fields = isT ? [...base,
+    { type: "two", fields: [{ id: "travel", label: "Type", type: "select", options: [{ v: "", l: "Local" }, { v: "1", l: "Travel" }], value: e?.travel ? "1" : "" }, { id: "division", label: "Division", value: e?.division }] },
+    { type: "two", fields: [{ id: "city", label: "City", value: e?.city }, { id: "location", label: "Venue", value: e?.location }] },
+    { id: "website", label: "Tournament website", type: "url", value: e?.website },
+    { id: "parking", label: "Parking", value: e?.parking },
+    { type: "two", fields: [{ id: "waves", label: "Wave", value: e?.waves }, { id: "arrival", label: "Arrival time", value: e?.arrival }] },
+    { type: "two", fields: [{ id: "start", label: "First match", value: e?.start }, { id: "meet", label: "Where to meet", value: e?.meet }] },
+    { id: "uniforms", label: "Uniforms", type: "textarea", rows: 2, value: e?.uniforms, hint: "e.g. Saturday: navy long sleeve · Sunday: red sleeveless" },
+    { type: "two", fields: [{ id: "admissions", label: "Admission link", value: e?.admissions }, { id: "teamCode", label: "Team code", value: e?.teamCode || st.teamCode }] },
+    { id: "scheduleLink", label: "Match schedule link", value: e?.scheduleLink },
+    { id: "dutyPid", label: "Balls & cart family", type: "select", options: pOpts, value: e?.dutyPid },
+    { id: "foodPlan", label: "Food plan", type: "textarea", rows: 3, value: e?.foodPlan },
+    { id: "reservations", label: "Restaurant reservations", type: "textarea", rows: 2, value: e?.reservations },
+    { id: "notes", label: "Notes", type: "textarea", rows: 3, value: e?.notes }
+  ] : [...base,
+    { type: "two", fields: [{ id: "type", label: "Kind", type: "select", options: [{ v: "event", l: "Team event" }, { v: "deadline", l: "Deadline" }], value: e?.type || "event" }, { id: "time", label: "Time", value: e?.time, placeholder: "7:00 PM" }] },
+    { id: "location", label: "Location", value: e?.location },
+    { id: "notes", label: "Details", type: "textarea", rows: 3, value: e?.notes }];
+  openForm({
+    title: e ? "Edit " + (isT ? "tournament" : "event") : (isT ? "Add tournament" : "Add event"), fields,
+    onSubmit: async v => {
+      if (!v.title || !v.date) { toast("Add a name and a start date."); return false; }
+      const id = e ? e.id : uid(isT ? "t-" : "e-");
+      const data = { ...(e || {}), ...v, type: isT ? "tournament" : (v.type || "event") };
+      delete data.id; if (isT) data.travel = v.travel === "1"; if (!data.endDate) delete data.endDate;
+      return save("events/" + id, data, "Saved");
+    },
+    onDelete: e ? async () => { await remove("events/" + e.id, "Deleted"); if (UI.eventId === e.id) UI.eventId = null; } : null
+  });
+}
+function practiceEditor() {
+  const rules = set().practices || [], days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  openInfo("Practice times", `<p class="small muted" style="margin-top:0">Weekly practices repeat automatically and skip tournament weekends. Cancel a single date from the schedule.</p>
+    ${rules.map((r, i) => `<div class="li"><div style="flex:1"><b>${esc(r.label)}</b><div class="small muted">${days[r.dow]}s · ${esc(r.start ? r.start + (r.end ? " – " + r.end : "") : "time TBD")} · ${fmt(r.from, { month: "short", day: "numeric" })} to ${fmt(r.until, { month: "short", day: "numeric" })}${r.location ? " · " + esc(r.location) : ""}</div></div><button class="btn sm" data-act="editRule" data-i="${i}">Edit</button></div>`).join("")}
+    <div style="margin-top:12px"><button class="btn primary sm" data-act="editRule" data-i="-1">Add weekly practice</button></div>`);
+}
+function ruleForm(i) {
+  const st = set(), rules = [...(st.practices || [])], r = i >= 0 ? rules[i] : { id: uid("r"), dow: 6, from: TODAY, until: "2027-06-21" };
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  openForm({
+    title: i >= 0 ? "Edit practice" : "Add practice", fields: [
+      { id: "label", label: "Name", value: r.label }, { id: "dow", label: "Day", type: "select", options: days.map((d, k) => ({ v: k, l: d })), value: r.dow },
+      { type: "two", fields: [{ id: "start", label: "Start", value: r.start, placeholder: "7:30 AM" }, { id: "end", label: "End", value: r.end, placeholder: "10:00 AM" }] },
+      { type: "two", fields: [{ id: "from", label: "First date", type: "date", value: r.from }, { id: "until", label: "Last date", type: "date", value: r.until }] },
+      { id: "location", label: "Location", value: r.location }, { id: "note", label: "Note", value: r.note }],
+    onSubmit: async v => { const nr = { ...r, ...v, dow: Number(v.dow) }; if (i >= 0) rules[i] = nr; else rules.push(nr); return save("meta/settings", { ...st, practices: rules }, "Practice schedule updated"); },
+    onDelete: i >= 0 ? async () => { rules.splice(i, 1); await save("meta/settings", { ...st, practices: rules }, "Practice removed"); } : null
+  });
+}
+function mealForm(eid, x) {
+  const e = event(eid), days = [];
+  if (e) { let d = e.date; const end = e.endDate || e.date; let g = 0; while (d <= end && g++ < 10) { days.push({ v: d, l: fmt(d) }); d = addDays(d, 1); } }
+  const c = x ? mealClaim(x) : null;
+  openForm({
+    title: x ? "Edit meal" : "Add meal", fields: [
+      { type: "two", fields: [{ id: "day", label: "Day", type: "select", options: days.length ? days : [{ v: "", l: "—" }], value: x?.day }, { id: "meal", label: "Meal", type: "select", options: ["Breakfast", "Lunch", "Dinner", "Coach snacks & drinks", "Team snack"], value: x?.meal }] },
+      { type: "two", fields: [{ id: "time", label: "Time", value: x?.time, placeholder: "12:00 PM" }, { id: "cost", label: "Estimated cost ($)", type: "number", value: x?.cost }] },
+      { id: "plan", label: "Plan", type: "textarea", rows: 2, value: x?.plan, hint: "Where from, delivered where, who's picking up" },
+      { id: "claimedBy", label: "Assign to a family", type: "select", options: [{ v: "", l: c && !c.staff ? `Keep ${pname(c.pid)}'s sign-up` : "Open — families can claim it" }, ...players().map(p => ({ v: p.id, l: p.first + "'s family" }))], value: x?.claimedBy || "" }],
+    onSubmit: async v => save("meals/" + (x ? x.id : uid("m")), { ...(x || {}), ...v, eventId: eid, cost: v.cost ? Number(v.cost) : 0 }, "Meal saved"),
+    onDelete: x ? async () => remove("meals/" + x.id, "Meal removed") : null
+  });
+}
+function travelForm(pid, eid) {
+  const t = travelOf(pid, eid) || {}, e = event(eid);
+  openForm({
+    title: `${pname(pid)}'s travel`, intro: e ? `${e.title} · ${fmtRange(e.date, e.endDate)} · ${e.city || ""}` : "", fields: [
+      { type: "two", fields: [{ id: "mode", label: "Getting there", type: "select", options: ["Driving", "Flying", "Carpool", "Not attending"], value: t.mode }, { id: "flight", label: "Flight / carpool details", value: t.flight }] },
+      { type: "two", fields: [{ id: "hotel", label: "Hotel", value: t.hotel ?? e?.hotel }, { id: "conf", label: "Confirmation #", value: t.conf }] },
+      { type: "two", fields: [{ id: "arrive", label: "Arriving", value: t.arrive, placeholder: "Fri 4 PM" }, { id: "depart", label: "Leaving", value: t.depart, placeholder: "Sun after last match" }] },
+      { id: "notes", label: "Notes", type: "textarea", rows: 2, value: t.notes, hint: "Room share, extra seats, anything the coordinator should know" }],
+    onSubmit: async v => writeMine(d => { d.travel = d.travel || {}; d.travel[pid] = d.travel[pid] || {}; d.travel[pid][eid] = { ...v, at: NOW() }; }, "Travel plans saved"),
+    onDelete: travelOf(pid, eid) ? async () => writeMine(d => { d.travel = d.travel || {}; d.travel[pid] = d.travel[pid] || {}; d.travel[pid][eid] = { cleared: true, at: NOW() }; }, "Travel plans cleared") : null, deleteLabel: "Clear"
+  });
+}
+function entryForm(l) {
+  const x = l || {}, m = me();
+  const pOpts = [{ v: "", l: "— (none)" }, ...players().map(p => ({ v: p.id, l: p.first + " " + p.last }))];
+  openForm({
+    title: l ? "Edit entry" : "Add entry", fields: [
+      { type: "two", fields: [{ id: "kind", label: "Direction", type: "select", options: [{ v: "in", l: "Money in" }, { v: "out", l: "Money out" }], value: x.kind || "in" }, { id: "amount", label: "Amount ($)", type: "number", value: x.amount }] },
+      { type: "two", fields: [{ id: "date", label: "Date", type: "date", value: x.date || TODAY }, { id: "cat", label: "Category", type: "select", options: ["Dues", "Team meals", "Coach care", "Reimbursement", "Tournament costs", "Other"], value: x.cat || "Other" }] },
+      { id: "desc", label: "Description", value: x.desc },
+      { type: "two", fields: [{ id: "pid", label: "Family", type: "select", options: pOpts, value: x.pid }, { id: "payee", label: "Payee (if not a family)", value: x.payee }] }],
+    onSubmit: async v => {
+      const amt = Number(v.amount); if (!amt || amt <= 0) { toast("Enter an amount above $0."); return false; }
+      if (!v.desc) { toast("Add a description."); return false; }
+      const data = { ...(l || {}), ...v, amount: amt, status: (l && l.status) || "confirmed", by: (l && l.by) || (m ? m.name : ""), at: (l && l.at) || NOW() }; delete data.id;
+      return save("ledger/" + (l ? l.id : uid("l")), data, "Saved to the ledger");
+    },
+    onDelete: l ? async () => remove("ledger/" + l.id, "Entry deleted") : null
+  });
+}
+function uniformForm(pid) {
+  const items = set().uniformItems || [], s = uniformOf(pid), p = player(pid);
+  const sizes = ["", "YM", "YL", "XS", "S", "M", "L", "XL", "2XL", "N/A"];
+  openForm({
+    title: `${pname(pid)}'s uniform sizes`, intro: p && p.shirt ? `Shirt size on file: ${p.shirt}` : "",
+    fields: items.map((it, i) => ({ id: "s" + i, label: it, type: "select", options: sizes.map(z => ({ v: z, l: z || "—" })), value: s[i] || "" })),
+    onSubmit: async v => { const out = {}; items.forEach((_, i) => { if (v["s" + i]) out[i] = v["s" + i]; }); return writeMine(d => { d.uniform = d.uniform || {}; d.uniform[pid] = { sizes: out, at: NOW() }; }, "Sizes saved"); }
+  });
+}
+function playerForm(p) {
+  const par = (p && p.parents) || [];
+  const pf = i => [{ type: "two", fields: [{ id: `pn${i}`, label: `Parent ${i + 1} name`, value: par[i]?.name }, { id: `pc${i}`, label: "Cell", value: par[i]?.cell }] }, { id: `pe${i}`, label: "Email", type: "email", value: par[i]?.email }];
+  openForm({
+    title: p ? `Edit ${p.first}` : "Add player", fields: [
+      { type: "two", fields: [{ id: "first", label: "First name", value: p?.first }, { id: "last", label: "Last name", value: p?.last }] },
+      { type: "two", fields: [{ id: "jersey", label: "Jersey #", value: p?.jersey }, { id: "shirt", label: "Shirt size", value: p?.shirt }] },
+      { type: "two", fields: [{ id: "refTeam", label: "Ref job group", type: "select", options: ["A", "B"], value: p?.refTeam || "A" }, { id: "town", label: "Town (for carpools)", value: p?.town }] },
+      { id: "allergies", label: "Food allergies", value: p?.allergies ?? "None" }, ...pf(0), ...pf(1)],
+    onSubmit: async v => {
+      if (!v.first) { toast("Add a first name."); return false; }
+      const parents = [0, 1].map(i => ({ name: v[`pn${i}`], cell: v[`pc${i}`], email: v[`pe${i}`] })).filter(x => x.name);
+      const data = { ...(p || {}), first: v.first, last: v.last, jersey: v.jersey, shirt: v.shirt, refTeam: v.refTeam, town: v.town, allergies: v.allergies, parents, order: p?.order ?? S.players.length + 1 };
+      delete data.id;
+      return save("players/" + (p ? p.id : uid("p")), data, "Player saved");
+    },
+    onDelete: p ? async () => remove("players/" + p.id, "Player removed") : null, deleteLabel: "Remove player"
+  });
+}
+function settingsForm() {
+  const st = set();
+  openForm({
+    title: "Team settings", intro: "Roles are assigned on the Access tab.", fields: [
+      { type: "two", fields: [{ id: "teamName", label: "Team name", value: st.teamName }, { id: "season", label: "Season", value: st.season }] },
+      { id: "age", label: "Age group / division", value: (team() || {}).age, placeholder: "13U" },
+      { type: "two", fields: [{ id: "c0n", label: "Coach 1", value: st.coaches?.[0]?.name }, { id: "c0p", label: "Phone", value: st.coaches?.[0]?.phone }] },
+      { type: "two", fields: [{ id: "c1n", label: "Coach 2", value: st.coaches?.[1]?.name }, { id: "c1p", label: "Phone", value: st.coaches?.[1]?.phone }] },
+      { type: "two", fields: [{ id: "duesAmount", label: "Dues per family ($)", type: "number", value: st.dues?.amount }, { id: "duesDue", label: "Dues due", type: "date", value: st.dues?.due }] },
+      { id: "teamCode", label: "Team code", value: st.teamCode },
+      { id: "checklist", label: "What-to-bring checklist", type: "textarea", rows: 6, value: (st.checklist || []).join("\n"), hint: "One item per line" },
+      { id: "uniformItems", label: "Uniform order items", type: "textarea", rows: 6, value: (st.uniformItems || []).join("\n"), hint: "One item per line" }],
+    onSubmit: async v => (await save("teams/" + UI.teamId, { ...(({ id, ...r }) => r)(team() || {}), name: v.teamName, season: v.season, age: v.age, coaches: [v.c0n, v.c1n].filter(Boolean) })) && save("meta/settings", {
+      ...st, teamName: v.teamName, season: v.season,
+      coaches: [{ name: v.c0n, phone: v.c0p }, { name: v.c1n, phone: v.c1p }].filter(c => c.name),
+      dues: { ...(st.dues || {}), amount: Number(v.duesAmount) || 0, due: v.duesDue }, teamCode: v.teamCode,
+      checklist: v.checklist.split("\n").map(s => s.trim()).filter(Boolean),
+      uniformItems: v.uniformItems.split("\n").map(s => s.trim()).filter(Boolean)
+    }, "Settings saved")
+  });
+}
+function rsvpDetail(key) {
+  const it = allItems().find(i => i.key === key), staff = can("attendance") && it && it.end >= TODAY && !it.cancelled;
+  const grp = { yes: [], maybe: [], no: [], none: [] };
+  players().forEach(p => grp[rsvpOf(p.id, key) || "none"].push(p));
+  const sec = (k, l, cls) => `<div style="margin-bottom:12px"><div class="label">${l} · ${grp[k].length}</div><div class="chips" style="margin-top:6px">${grp[k].map(p => `<span class="pill ${cls}" title="${esc(rsvpBy(p.id, key) ? "Marked by " + rsvpBy(p.id, key) : "")}">${esc(p.first)} #${esc(p.jersey)}</span>`).join("") || '<span class="small muted">Nobody</span>'}</div></div>`;
+  const staffGrid = staff ? `<div class="label" style="margin:6px 0">Mark for each player</div>${players().map(p => `<div class="li"><b style="flex:1">${esc(p.first)} <span class="muted tn">#${esc(p.jersey)}</span></b>${rsvpButtons(it, p.id)}</div>`).join("")}` : "";
+  openInfo(it ? it.title : "Availability", `<p class="small muted" style="margin-top:0">${it ? esc(fmt(it.date, { weekday: "long", month: "long", day: "numeric" })) + (it.time && it.kind !== "tournament" ? " · " + esc(it.time) : "") : ""}</p>${staff ? staffGrid : sec("yes", "In", "p-ok") + sec("maybe", "Maybe", "p-warn") + sec("no", "Out", "p-bad") + sec("none", "No reply", "p-mute")}`);
+  UI.rsvpOpen = key;
+}
+
+/* ============ actions ============ */
+document.addEventListener("click", async ev => {
+  const md = $("#modal");
+  if (ev.target === md) { closeModal(); return; }
+  const el = ev.target.closest("[data-act]"); if (!el) return;
+  const a = el.dataset.act, d = el.dataset, m = me();
+  if (el.tagName === "SELECT") return;
+  const confirmTwice = label => { if (!el.classList.contains("confirming")) { el.classList.add("confirming"); el.textContent = label; return true; } return false; };
+  switch (a) {
+    case "tab": UI.tab = d.tab; UI.eventId = null; if (d.sub) UI.sub = d.sub; else if (d.tab === "roster") UI.sub = "roster"; else if (d.tab === "info") UI.sub = "handbook"; closeModal(); render(); window.scrollTo(0, 0); break;
+    case "openTeam": setTeam(d.id); break;
+    case "newTeam": createTeamForm(); break;
+    case "who": UI.tab = "access"; UI.eventId = null; render(); window.scrollTo(0, 0); break;
+    case "closeModal": closeModal(); break;
+    case "copy": copyText(d.text || ""); break;
+    case "requestLink": requestForm(); break;
+    case "cancelRequest": await writeMine(x => { delete x.request; }, "Request cancelled"); break;
+    case "linkSelf": {
+      const guess = emailGuess();
+      openForm({ title: "Link my own account", intro: "As the owner you're a site admin. Pick yourself on the roster so your family entries count.", fields: [{ id: "person", label: "I am", type: "select", options: personOptions(), value: guess }, { id: "otherName", label: "Your name (if someone else)" }], submit: "Link",
+        onSubmit: async v => { const person = v.person === "other" ? (v.otherName ? "other:" + v.otherName : "") : v.person; if (!person) { toast("Choose who you are."); return false; } const roles = [...new Set(["admin", ...suggestedRoles(person)])]; return saveAcct(V.id, { status: "active", person, pid: personPid(person), roles, at: NOW(), by: V.id }, "Linked", { clubAdmin: true }); } });
+      break;
+    }
+    case "approve": { const r = mineOf(d.u).request; if (r) accountForm(d.u, r.person, null); break; }
+    case "decline": if (confirmTwice("Tap again to decline")) return; await saveAcct(d.u, { status: "declined", at: NOW(), by: V.id }, "Declined"); break;
+    case "editAcct": { const x = acctOf(d.u); if (x) accountForm(d.u, x.person, x); break; }
+    case "rsvp": {
+      if (!canAnswer(d.pid)) { toast("Only this player's family or the coaches can answer."); return; }
+      const cur = rsvpOf(d.pid, d.key), v = cur === d.val ? "" : d.val;
+      await writeMine(x => { x.rsvp = x.rsvp || {}; x.rsvp[d.pid] = x.rsvp[d.pid] || {}; x.rsvp[d.pid][d.key] = { v, at: NOW() }; });
+      if (UI.rsvpOpen && !$("#modal").hidden) rsvpDetail(UI.rsvpOpen);
+      break;
+    }
+    case "rsvpDetail": rsvpDetail(d.key); break;
+    case "openEvent": UI.tab = "tournaments"; UI.eventId = d.id; UI.sub = d.sub || "gameday"; closeModal(); render(); window.scrollTo(0, 0); break;
+    case "back": UI.eventId = null; render(); break;
+    case "sub": case "rsub": case "isub": UI.sub = d.sub; render(); break;
+    case "schedFilter": UI.schedFilter = d.v; render(); break;
+    case "schedRange": UI.schedRange = d.v; render(); break;
+    case "addEvent": eventForm(null, d.type || "event"); break;
+    case "editEvent": { const e = event(d.id); if (e) eventForm(e); break; }
+    case "editPractices": practiceEditor(); break;
+    case "editRule": ruleForm(Number(d.i)); break;
+    case "togglePractice": { const st = set(), c = new Set(st.cancelled || []); c.has(d.key) ? c.delete(d.key) : c.add(d.key); await save("meta/settings", { ...st, cancelled: [...c] }, c.has(d.key) ? "Practice cancelled" : "Practice restored"); break; }
+    case "postAnn": openForm({ title: "Post an announcement", fields: [{ id: "text", label: "Message", type: "textarea", rows: 5 }, { id: "pinned", label: "Pin to top", type: "select", options: [{ v: "", l: "No" }, { v: "1", l: "Yes" }] }], submit: "Post", onSubmit: async v => { if (!v.text) { toast("Write a message first."); return false; } return save("announcements/" + uid("a"), { text: v.text, pinned: v.pinned === "1", by: m ? m.name : "", at: NOW() }, "Posted"); } }); break;
+    case "pinAnn": { const x = S.announcements.find(y => y.id === d.id); if (x) { const { id, ...rest } = x; await save("announcements/" + id, { ...rest, pinned: !x.pinned }); } break; }
+    case "delAnn": if (confirmTwice("Confirm delete")) return; await remove("announcements/" + d.id, "Deleted"); break;
+    case "addMeal": mealForm(d.eid); break;
+    case "editMeal": { const x = S.meals.find(y => y.id === d.id); if (x) mealForm(x.eventId, x); break; }
+    case "claimMeal": if (m && m.pid) await writeMine(x => { x.claims = x.claims || {}; x.claims[d.id] = { pid: m.pid, at: NOW() }; }, "Thanks! It's yours."); break;
+    case "unclaimMeal": await writeMine(x => { if (x.claims) delete x.claims[d.id]; }, "Meal released"); break;
+    case "staffRelease": { const x = S.meals.find(y => y.id === d.id); if (x) { const { id, ...rest } = x; await save("meals/" + id, { ...rest, claimedBy: "", resetAt: NOW() }, "Meal reopened"); } break; }
+    case "editTravel": travelForm(d.pid, d.eid); break;
+    case "editHotel": { const e = event(d.id); if (!e) break; openForm({ title: "Team hotel", fields: [{ id: "hotel", label: "Hotel", value: e.hotel }, { id: "hotelLink", label: "Booking link", value: e.hotelLink }, { type: "two", fields: [{ id: "hotelCode", label: "Group / reservation code", value: e.hotelCode }, { id: "hotelBy", label: "Book by", value: e.hotelBy }] }], onSubmit: async v => { const { id, ...rest } = e; return save("events/" + id, { ...rest, ...v }, "Hotel info saved"); } }); break; }
+    case "refAuto": {
+      const jobs = ["Book", "Score", "Libero", "Lines", "Lines", "Off"], assign = {};
+      ["A", "B"].forEach(g => { const ps = players().filter(p => (p.refTeam || "A") === g); ps.forEach((p, i) => { assign[p.id] = {}; ["s1", "s2", "s3"].forEach((s, si) => { assign[p.id][s] = jobs[(i + si * 2) % ps.length] || "Off"; }); }); });
+      await save("refjobs/" + d.eid, { assign }, "Ref jobs filled by rotation"); break;
+    }
+    case "refClear": if (confirmTwice("Tap again to clear")) return; await save("refjobs/" + d.eid, { assign: {} }, "Ref jobs cleared"); break;
+    case "refTeams": openForm({ title: "Ref job groups", intro: "Split the team into two groups that work courts separately.", fields: players().map(p => ({ id: p.id, label: `${p.first} ${p.last}`, type: "select", options: ["A", "B"], value: p.refTeam || "A" })), onSubmit: async v => { for (const p of S.players) { if (v[p.id] && v[p.id] !== p.refTeam) { const { id, ...rest } = p; await save("players/" + id, { ...rest, refTeam: v[p.id] }); } } toast("Groups saved"); } }); break;
+    case "addAgenda": {
+      const ag = S.agenda[d.eid] || { days: [] };
+      openForm({ title: "Add agenda item", fields: [{ id: "day", label: "Day", placeholder: "Saturday – April 17", hint: ag.days.length ? "Existing: " + ag.days.map(x => x.label).join(" / ") : "" }, { id: "what", label: "When / what", placeholder: "9:00 AM Meet in hotel lobby" }, { id: "where", label: "Where", type: "textarea", rows: 2 }, { id: "who", label: "Who's responsible" }], onSubmit: async v => {
+        if (!v.day || !v.what) { toast("Add a day and what's happening."); return false; }
+        const days = clone(ag.days || []); let day = days.find(x => norm(x.label) === norm(v.day)); if (!day) { day = { label: v.day, items: [] }; days.push(day); }
+        day.items.push({ what: v.what, where: v.where, who: v.who });
+        return save("agenda/" + d.eid, { ...ag, days }, "Added to the agenda");
+      } });
+      break;
+    }
+    case "delAgenda": { const ag = clone(S.agenda[d.eid] || { days: [] }); ag.days[+d.di].items.splice(+d.ii, 1); if (!ag.days[+d.di].items.length) ag.days.splice(+d.di, 1); await save("agenda/" + d.eid, ag, "Removed"); break; }
+    case "payDues": {
+      if (!m || !m.pid || !m.can("family")) { toast("Link your account to your family first."); return; }
+      const st = set(), due = duesFor(m.pid), left = Math.max(0, ((st.dues || {}).amount || 0) - due.paid - due.pending);
+      openForm({ title: "Record a payment", intro: `For ${pname(m.pid)}'s family. Finance marks it received once the money arrives.`, submit: "Record payment",
+        fields: [{ type: "two", fields: [{ id: "amount", label: "Amount ($)", type: "number", value: left || "" }, { id: "date", label: "Date sent", type: "date", value: TODAY }] }, { id: "desc", label: "How you paid", value: "Team fund deposit", hint: "e.g. Venmo to coordinator, check #1042" }],
+        onSubmit: async v => { const amt = Number(v.amount); if (!amt || amt <= 0) { toast("Enter an amount above $0."); return false; } return writeMine(x => { x.payments = x.payments || {}; x.payments[uid("p")] = { kind: "in", cat: "Dues", pid: m.pid, amount: amt, date: v.date, desc: v.desc || "Team fund deposit", at: NOW() }; }, "Recorded. Finance will confirm it."); } });
+      break;
+    }
+    case "reimb": {
+      if (!m || !m.can("reimb")) { toast("Link your account first."); return; }
+      openForm({ title: "Request reimbursement", intro: "Keep your receipt. Finance marks it paid once you've been paid back.", submit: "Send request",
+        fields: [{ type: "two", fields: [{ id: "amount", label: "Amount ($)", type: "number" }, { id: "date", label: "Date of purchase", type: "date", value: TODAY }] }, { id: "desc", label: "What was it for?", placeholder: "Coach snacks & drinks – Southern Power" }],
+        onSubmit: async v => { const amt = Number(v.amount); if (!amt || amt <= 0 || !v.desc) { toast("Add an amount and what it was for."); return false; } return writeMine(x => { x.payments = x.payments || {}; x.payments[uid("r")] = { kind: "out", cat: "Reimbursement", pid: m.pid || "", amount: amt, date: v.date, desc: v.desc, at: NOW() }; }, "Request sent to finance"); } });
+      break;
+    }
+    case "withdrawPay": await writeMine(x => { if (x.payments) delete x.payments[d.id]; }, "Withdrawn"); break;
+    case "confirmPay": case "declinePay": {
+      if (a === "declinePay" && confirmTwice("Tap again to decline")) return;
+      const p = pendingPayments().find(x => x.src === d.src); if (!p) break;
+      await save("ledger/l-" + p.src.replace(/[^A-Za-z0-9_-]/g, "-"), { kind: p.kind, cat: p.cat, pid: p.pid || "", payee: p.kind === "out" ? p.who : "", amount: +p.amount, date: p.date, desc: p.desc, src: p.src, status: a === "confirmPay" ? "confirmed" : "declined", by: m ? m.name : "", at: NOW() }, a === "confirmPay" ? "Confirmed and added to the ledger" : "Declined");
+      break;
+    }
+    case "addEntry": entryForm(null); break;
+    case "editEntry": { const l = S.ledger.find(x => x.id === d.id); if (l) entryForm(l); break; }
+    case "editPlayer": playerForm(d.id ? player(d.id) : null); break;
+    case "editUniform": uniformForm(d.pid); break;
+    case "editSettings": settingsForm(); break;
+    case "editSection": {
+      const hb = S.meta.handbook || { sections: [] }, secs = [...(hb.sections || [])], i = Number(d.i), s = i >= 0 ? secs[i] : { t: "", b: "" };
+      openForm({ title: i >= 0 ? "Edit section" : "Add section", fields: [{ id: "t", label: "Heading", value: s.t }, { id: "b", label: "Text", type: "textarea", rows: 10, value: s.b }], onSubmit: async v => { if (!v.t) { toast("Add a heading."); return false; } if (i >= 0) secs[i] = v; else secs.push(v); return save("meta/handbook", { ...hb, sections: secs }, "Handbook updated"); }, onDelete: i >= 0 ? async () => { secs.splice(i, 1); await save("meta/handbook", { ...hb, sections: secs }, "Section removed"); } : null });
+      break;
+    }
+    case "editTask": {
+      const t = S.tasks.find(x => x.id === d.id);
+      openForm({ title: t ? "Edit task" : "Add task", fields: [{ id: "title", label: "Task", value: t?.title }, { id: "desc", label: "How / notes", type: "textarea", rows: 2, value: t?.desc }, { type: "two", fields: [{ id: "owner", label: "Owner", value: t?.owner }, { id: "status", label: "Status", type: "select", options: ["To do", "In progress", "Done", "N/A"], value: t?.status || "To do" }] }], onSubmit: async v => { if (!v.title) { toast("Name the task."); return false; } const base = t ? (({ id, ...r }) => r)(t) : { order: S.tasks.length + 1 }; return save("tasks/" + (t ? t.id : uid("k")), { ...base, ...v }, "Task saved"); }, onDelete: t ? async () => remove("tasks/" + t.id, "Task deleted") : null });
+      break;
+    }
+    case "cycleTask": { const t = S.tasks.find(x => x.id === d.id); if (t) { const order = ["To do", "In progress", "Done", "N/A"], nx = order[(order.indexOf(t.status || "To do") + 1) % order.length]; const { id, ...rest } = t; await save("tasks/" + id, { ...rest, status: nx }); } break; }
+  }
+});
+document.addEventListener("change", async ev => {
+  const el = ev.target;
+  if (el.dataset.act === "ref" && can("refjobs")) {
+    const d = el.dataset, cur = clone(S.refjobs[d.eid] || { assign: {} });
+    cur.assign = cur.assign || {}; cur.assign[d.pid] = { ...(cur.assign[d.pid] || {}), [d.set]: el.value };
+    S.refjobs[d.eid] = cur;
+    await save("refjobs/" + d.eid, cur);
+  }
+  if (el.dataset.calc) { UI.calc[el.dataset.calc] = el.value; const o = $("#calcOut"); if (o) o.innerHTML = calcOut(); }
+});
+document.addEventListener("input", ev => { const el = ev.target; if (el.dataset && el.dataset.calc) { UI.calc[el.dataset.calc] = el.value; const o = $("#calcOut"); if (o) o.innerHTML = calcOut(); } });
+document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !$("#modal").hidden) closeModal(); });
+
+render();
+connect();
+})();
+</script>

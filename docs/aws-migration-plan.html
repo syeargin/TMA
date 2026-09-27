@@ -1,0 +1,540 @@
+<title>Team Hub AWS Migration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#F1F4F8; --surface:#FFFFFF; --surface-2:#F6F8FB; --sunken:#E6EBF2;
+  --ink:#0F1B2E; --ink-2:#46536B; --ink-3:#6D7990; --line:#D4DBE6; --line-2:#E5EAF1;
+  --navy:#15294D; --accent:#C8323E; --accent-soft:#FBE6E8;
+  --self:#A0620A; --self-soft:#FBF0DA; --owner:#C8323E; --owner-soft:#FBE6E8; --editor:#15294D; --editor-soft:#E3E9F4;
+  --ok:#17744A; --ok-soft:#DFF2E8;
+  --code-bg:#F3F6FA;
+  --f-display:"Big Shoulders Display","Arial Narrow",sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0A111E; --surface:#111A2B; --surface-2:#142036; --sunken:#0D1524;
+    --ink:#E6EBF3; --ink-2:#A6B2C7; --ink-3:#7E8BA3; --line:#26344B; --line-2:#1C2839;
+    --navy:#A9C1EE; --accent:#F0616B; --accent-soft:#3A161A;
+    --self:#E6B552; --self-soft:#30240C; --owner:#F0616B; --owner-soft:#3A161A; --editor:#A9C1EE; --editor-soft:#1C2A44;
+    --ok:#56C893; --ok-soft:#0F2E20; --code-bg:#0E1726;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A111E; --surface:#111A2B; --surface-2:#142036; --sunken:#0D1524;
+  --ink:#E6EBF3; --ink-2:#A6B2C7; --ink-3:#7E8BA3; --line:#26344B; --line-2:#1C2839;
+  --navy:#A9C1EE; --accent:#F0616B; --accent-soft:#3A161A;
+  --self:#E6B552; --self-soft:#30240C; --owner:#F0616B; --owner-soft:#3A161A; --editor:#A9C1EE; --editor-soft:#1C2A44;
+  --ok:#56C893; --ok-soft:#0F2E20; --code-bg:#0E1726;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--navy)}
+h1,h2,h3,h4{margin:0;text-wrap:balance}
+code,.mono{font-family:var(--f-mono);font-size:.88em}
+code{background:var(--code-bg);border:1px solid var(--line-2);border-radius:4px;padding:1px 5px;white-space:nowrap}
+.tn{font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-2)}
+.small{font-size:13.5px}
+.label{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.masthead{background:var(--navy);color:#F3F6FA;position:relative}
+:root[data-theme="dark"] .masthead{background:#0E1A31}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .masthead{background:#0E1A31}}
+.masthead::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--accent)}
+.mh-in{max-width:1180px;margin:0 auto;padding:28px 16px 30px;display:grid;gap:10px}
+.masthead .eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#A8B6CF}
+.masthead h1{font-family:var(--f-display);font-weight:900;font-size:clamp(38px,6vw,60px);line-height:.92;text-transform:uppercase;letter-spacing:.01em}
+.masthead p{margin:0;max-width:70ch;color:#D5DDEB}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px 20px;font-family:var(--f-mono);font-size:12.5px;color:#A8B6CF;margin-top:6px}
+.meta-row b{color:#F3F6FA;font-weight:500}
+
+.layout{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:24px 80px;display:grid;grid-template-columns:200px minmax(0,1fr);gap:36px}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.toc{display:none}}
+.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 18px);align-self:start;display:flex;flex-direction:column;gap:2px;font-size:13.5px}
+.toc a{display:block;padding:6px 10px;border-left:2px solid var(--line);color:var(--ink-2);text-decoration:none}
+.toc a:hover{color:var(--ink);border-left-color:var(--ink-3)}
+.toc .label{padding:0 10px 8px}
+
+main{min-width:0}
+section{padding-block:10px 34px;border-bottom:1px solid var(--line)}
+section:last-child{border-bottom:0}
+.sh{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:18px 0 12px}
+.sh .num{font-family:var(--f-mono);font-size:13px;color:var(--accent);font-weight:600}
+.sh h2{font-family:var(--f-display);font-weight:800;font-size:34px;line-height:1;text-transform:uppercase;letter-spacing:.01em}
+p{max-width:74ch}
+h3{font-size:17px;font-weight:700;margin:22px 0 8px}
+
+.principles{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:14px}
+.pr{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.pr b{display:block;margin-bottom:4px}
+.pr p{margin:0;font-size:14px;color:var(--ink-2)}
+
+figure{margin:16px 0 8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+figure .scroll{overflow-x:auto}
+figure svg{display:block;width:100%;height:auto;min-width:720px;color:var(--ink)}
+figcaption{font-size:13.5px;color:var(--ink-2);margin-top:10px;max-width:none}
+
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line-2);vertical-align:top}
+th{font-family:var(--f-mono);font-weight:500;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td code{white-space:normal;word-break:break-word}
+
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px}
+.chip{appearance:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font:inherit;font-size:13.5px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--navy);color:var(--surface);border-color:var(--navy)}
+.rule{display:inline-block;border-radius:5px;padding:1px 8px;font-family:var(--f-mono);font-size:11.5px;font-weight:600;white-space:nowrap}
+.r-owner{background:var(--owner-soft);color:var(--owner)}
+.r-self{background:var(--self-soft);color:var(--self)}
+.r-editor{background:var(--editor-soft);color:var(--editor)}
+.r-scope{background:var(--sunken);color:var(--ink-2)}
+
+.coll-grid{display:grid;gap:14px}
+.coll{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.coll-h{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--line-2);align-items:start}
+.coll-h .path{font-family:var(--f-mono);font-weight:600;font-size:15px;word-break:break-all}
+.coll-h p{margin:4px 0 0;font-size:14px;color:var(--ink-2)}
+.coll-h .tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.coll-stats{display:flex;gap:18px;flex-wrap:wrap;padding:8px 16px;background:var(--surface-2);border-bottom:1px solid var(--line-2);font-size:13px;color:var(--ink-2)}
+.coll-stats b{color:var(--ink);font-weight:600}
+.coll-b{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+@media (max-width:860px){.coll-b{grid-template-columns:minmax(0,1fr)}}
+.coll-b .fields{border-right:1px solid var(--line-2);overflow-x:auto}
+@media (max-width:860px){.coll-b .fields{border-right:0;border-bottom:1px solid var(--line-2)}}
+.coll-b table{font-size:13.5px}
+.coll-b td:first-child{font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+.coll-b td:nth-child(2){font-family:var(--f-mono);font-size:12px;color:var(--navy);white-space:nowrap}
+pre{margin:0;padding:14px 16px;font-family:var(--f-mono);font-size:12px;line-height:1.55;background:var(--code-bg);overflow-x:auto;color:var(--ink);white-space:pre}
+.example{min-width:0}
+.example .label{display:block;padding:10px 16px 0;background:var(--code-bg)}
+
+.callout{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--surface);border-radius:8px;padding:12px 16px;margin:14px 0;max-width:80ch}
+.callout p{margin:4px 0 0}
+.recs{display:grid;gap:10px}
+.rec{display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.pri{font-family:var(--f-mono);font-weight:600;font-size:13px;border-radius:6px;text-align:center;padding:4px 0;height:max-content}
+.p1{background:var(--owner-soft);color:var(--owner)}
+.p2{background:var(--self-soft);color:var(--self)}
+.p3{background:var(--editor-soft);color:var(--editor)}
+.rec h4{font-size:15.5px;margin-bottom:4px}
+.rec p{margin:4px 0 0;font-size:14px;color:var(--ink-2);max-width:none}
+
+@media print{
+  body{background:#fff;font-size:12px}
+  .toc,.chips{display:none}
+  .layout{display:block;padding:0}
+  .coll,figure,.rec,.pr,table,tr{break-inside:avoid}
+  section{break-before:auto}
+  .coll[hidden]{display:block!important}
+  figure svg{min-width:0}
+}
+@media (prefers-reduced-motion:no-preference){.toc a,.chip{transition:color .15s,border-color .15s}}
+</style>
+<style>
+.decisions{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
+.dec{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:10px;padding:12px 16px}
+.dec .label{display:block;margin-bottom:4px}
+.dec b{font-size:16px}
+.dec p{margin:4px 0 0;font-size:13.5px;color:var(--ink-2)}
+.phases{display:grid;gap:12px}
+.phase{display:grid;grid-template-columns:120px minmax(0,1fr);background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+@media (max-width:640px){.phase{grid-template-columns:minmax(0,1fr)}}
+.phase .ph-l{background:var(--navy);color:#F3F6FA;padding:14px;display:flex;flex-direction:column;gap:4px}
+:root[data-theme="dark"] .phase .ph-l{background:#1A2A48}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .phase .ph-l{background:#1A2A48}}
+.phase .ph-n{font-family:var(--f-display);font-weight:900;font-size:34px;line-height:1}
+.phase .ph-d{font-family:var(--f-mono);font-size:12px;color:#C8D3E6}
+.phase .ph-b{padding:12px 16px}
+.phase h4{font-size:16px;margin:0 0 6px}
+.phase ul{margin:0;padding-left:18px;font-size:14px}
+.phase li{margin:2px 0}
+.exit{margin-top:8px;font-size:13.5px;color:var(--ok)}
+.exit b{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase}
+pre.block{border:1px solid var(--line);border-radius:10px;margin:10px 0}
+.two-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.meth{display:inline-block;font-family:var(--f-mono);font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;min-width:52px;text-align:center}
+.m-get{background:var(--ok-soft);color:var(--ok)}
+.m-put,.m-post{background:var(--editor-soft);color:var(--editor)}
+.m-del{background:var(--owner-soft);color:var(--owner)}
+</style>
+
+<header class="masthead">
+  <div class="mh-in">
+    <div class="eyebrow">Build plan · GitHub → AWS</div>
+    <h1>Team Hub AWS Migration</h1>
+    <p>How the club hub moves from claude.ai to your own AWS account: an AWS SAM stack, email-and-password sign-in with Cognito, a role-checking API over DynamoDB, and live updates pushed over WebSockets, all deployed from GitHub.</p>
+    <div class="meta-row"><span>Infra <b>AWS SAM</b></span><span>Sign-in <b>Cognito · email + password</b></span><span>Live updates <b>API Gateway WebSocket</b></span><span>Data <b>DynamoDB single table</b></span><span>Estimate <b>~3 weeks, 1 engineer</b></span></div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Contents">
+    <div class="label">Contents</div>
+    <a href="#decisions">Decisions</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#stack">SAM stack</a>
+    <a href="#auth">Sign-in</a>
+    <a href="#api">API contract</a>
+    <a href="#realtime">WebSocket push</a>
+    <a href="#frontend">Front end</a>
+    <a href="#repo">Repo &amp; CI/CD</a>
+    <a href="#migration">Data migration</a>
+    <a href="#phases">Phases</a>
+    <a href="#risks">Risks</a>
+    <a href="#cost">Cost</a>
+    <a href="#open">Open items</a>
+  </nav>
+  <main>
+
+  <section id="decisions">
+    <div class="sh"><span class="num">01</span><h2>Decisions</h2></div>
+    <div class="decisions">
+      <div class="dec"><span class="label">Infrastructure</span><b>AWS SAM</b><p>One <code>template.yaml</code> for the whole stack; <code>sam build</code> bundles TypeScript with esbuild; <code>samconfig.toml</code> holds dev and prod.</p></div>
+      <div class="dec"><span class="label">Sign-in</span><b>Email + password</b><p>Cognito user pool with email as the username, verified email, and self sign-up limited to invited addresses.</p></div>
+      <div class="dec"><span class="label">Live updates</span><b>WebSocket push</b><p>DynamoDB Streams notify a fan-out function, which tells every open browser on that team what changed.</p></div>
+      <div class="dec"><span class="label">Carried over</span><b>Single-table DynamoDB</b><p>The <code>TeamHub</code> key design from <code>teamhub-dynamodb/</code>, now defined in SAM, plus two new item types for invites and connections.</p></div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <div class="sh"><span class="num">02</span><h2>Architecture</h2></div>
+    <p>The browser talks to four AWS front doors: CloudFront for the page, Cognito to sign in, the HTTP API to read and write, and the WebSocket API to hear about changes. Only the API function writes team data, so every role rule is enforced on the server.</p>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1000 560" role="img" aria-label="Architecture: browser loads the site from CloudFront and S3, signs in with Cognito, calls the HTTP API which runs the API Lambda against DynamoDB, and holds a WebSocket connection. DynamoDB Streams trigger a fan-out Lambda that posts change notices back through the WebSocket API. GitHub Actions deploys everything through an OIDC role.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+          <marker id="arA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker>
+        </defs>
+        <g font-family="IBM Plex Mono, monospace" font-size="12.5">
+          <!-- browser -->
+          <rect x="20" y="200" width="150" height="120" rx="10" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.5"/>
+          <text x="95" y="240" text-anchor="middle" font-weight="600" fill="currentColor">Browser</text>
+          <text x="95" y="262" text-anchor="middle" fill="var(--ink-2)" font-size="11">Team Hub app</text>
+          <text x="95" y="280" text-anchor="middle" fill="var(--ink-2)" font-size="11">JWT in memory</text>
+          <!-- column 2 front doors -->
+          <rect x="300" y="30" width="200" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="400" y="54" text-anchor="middle" font-weight="600" fill="currentColor">CloudFront + S3</text>
+          <text x="400" y="73" text-anchor="middle" fill="var(--ink-2)" font-size="11">static site · OAC</text>
+          <rect x="300" y="130" width="200" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="400" y="154" text-anchor="middle" font-weight="600" fill="currentColor">Cognito user pool</text>
+          <text x="400" y="173" text-anchor="middle" fill="var(--ink-2)" font-size="11">email + password</text>
+          <rect x="300" y="250" width="200" height="56" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="400" y="274" text-anchor="middle" font-weight="600" fill="currentColor">HTTP API</text>
+          <text x="400" y="293" text-anchor="middle" fill="var(--ink-2)" font-size="11">JWT authorizer</text>
+          <rect x="300" y="390" width="200" height="56" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="400" y="414" text-anchor="middle" font-weight="600" fill="currentColor">WebSocket API</text>
+          <text x="400" y="433" text-anchor="middle" fill="var(--ink-2)" font-size="11">$connect · subscribe</text>
+          <!-- column 3 compute -->
+          <rect x="580" y="130" width="170" height="56" rx="8" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="665" y="154" text-anchor="middle" font-weight="600" fill="currentColor">Auth triggers</text>
+          <text x="665" y="173" text-anchor="middle" fill="var(--ink-2)" font-size="11">pre-sign-up · confirm</text>
+          <rect x="580" y="250" width="170" height="56" rx="8" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="665" y="274" text-anchor="middle" font-weight="600" fill="currentColor">ApiFunction</text>
+          <text x="665" y="293" text-anchor="middle" fill="var(--ink-2)" font-size="11">router · role checks</text>
+          <rect x="580" y="390" width="170" height="56" rx="8" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="665" y="414" text-anchor="middle" font-weight="600" fill="currentColor">Ws functions</text>
+          <text x="665" y="433" text-anchor="middle" fill="var(--ink-2)" font-size="11">auth · connect · sub</text>
+          <rect x="580" y="480" width="170" height="56" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="665" y="504" text-anchor="middle" font-weight="600" fill="currentColor">FanoutFunction</text>
+          <text x="665" y="523" text-anchor="middle" fill="var(--ink-2)" font-size="11">stream consumer</text>
+          <!-- db -->
+          <rect x="830" y="250" width="150" height="130" rx="10" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.5"/>
+          <text x="905" y="290" text-anchor="middle" font-weight="600" fill="currentColor">DynamoDB</text>
+          <text x="905" y="310" text-anchor="middle" fill="var(--ink-2)" font-size="11">TeamHub table</text>
+          <text x="905" y="328" text-anchor="middle" fill="var(--ink-2)" font-size="11">GSI1 · GSI2</text>
+          <text x="905" y="346" text-anchor="middle" fill="var(--ink-2)" font-size="11">+ connections</text>
+          <!-- github -->
+          <rect x="580" y="30" width="170" height="56" rx="8" fill="none" stroke="currentColor" stroke-dasharray="5 4" stroke-width="1.2"/>
+          <text x="665" y="54" text-anchor="middle" font-weight="600" fill="currentColor">GitHub Actions</text>
+          <text x="665" y="73" text-anchor="middle" fill="var(--ink-2)" font-size="11">OIDC deploy role</text>
+        </g>
+        <g font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="var(--ink-2)" stroke-width="1.4">
+          <polyline points="170,215 240,215 240,58 296,58" fill="none" stroke="currentColor" marker-end="url(#ar)"/><text x="248" y="110">loads page</text>
+          <polyline points="170,240 260,240 260,158 296,158" fill="none" stroke="currentColor" marker-end="url(#ar)"/><text x="234" y="194" text-anchor="end">sign in → JWT</text>
+          <line x1="170" y1="278" x2="296" y2="278" stroke="currentColor" marker-end="url(#ar)"/><text x="233" y="270" text-anchor="middle">REST + JWT</text>
+          <polyline points="170,305 240,305 240,410 296,410" fill="none" stroke="currentColor" marker-end="url(#ar)"/><text x="248" y="370">connect(token)</text>
+          <polyline points="296,432 220,432 220,318 174,318" fill="none" stroke="var(--accent)" marker-end="url(#arA)"/><text x="180" y="460" fill="var(--accent)">push: "events changed"</text>
+          <line x1="500" y1="158" x2="576" y2="158" stroke="currentColor" marker-end="url(#ar)"/>
+          <line x1="500" y1="278" x2="576" y2="278" stroke="currentColor" marker-end="url(#ar)"/>
+          <line x1="500" y1="418" x2="576" y2="418" stroke="currentColor" marker-end="url(#ar)"/>
+          <line x1="750" y1="278" x2="826" y2="290" stroke="currentColor" marker-end="url(#ar)"/><text x="788" y="272" text-anchor="middle">read / write</text>
+          <polyline points="750,158 800,158 800,262 826,262" fill="none" stroke="currentColor" marker-end="url(#ar)"/><text x="806" y="200">link invites</text>
+          <polyline points="750,418 790,418 790,360 826,360" fill="none" stroke="currentColor" marker-end="url(#ar)"/><text x="796" y="410">CONN items</text>
+          <polyline points="905,380 905,508 754,508" fill="none" stroke="var(--accent)" marker-end="url(#arA)"/><text x="912" y="460" fill="var(--accent)">stream</text>
+          <polyline points="620,480 620,462 452,462 452,450" fill="none" stroke="var(--accent)" marker-end="url(#arA)"/><text x="536" y="478" text-anchor="middle" fill="var(--accent)">postToConnection</text>
+          <line x1="580" y1="58" x2="504" y2="58" stroke="currentColor" stroke-dasharray="4 4" marker-end="url(#ar)"/><text x="542" y="50" text-anchor="middle">deploys</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption>Red marks the push path: a write lands in DynamoDB, the stream wakes the fan-out function, and it sends a small "this changed" notice to every browser subscribed to that team. Browsers then re-read through the API, so the API's permission checks decide what each person sees.</figcaption>
+    </figure>
+  </section>
+
+  <section id="stack">
+    <div class="sh"><span class="num">03</span><h2>SAM stack</h2></div>
+    <p>Two stacks. A one-time <b>bootstrap</b> stack creates the GitHub OIDC trust and deploy roles. The <b>app</b> stack (<code>template.yaml</code>) holds everything else and is deployed once per environment.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Logical resource</th><th>Type</th><th>Key settings</th></tr></thead>
+      <tbody>
+        <tr><td><code>TeamHubTable</code></td><td>AWS::DynamoDB::Table</td><td>Keys and GSIs from <code>teamhub-dynamodb</code>; on-demand; stream NEW_AND_OLD_IMAGES; PITR; TTL <code>ttl</code>; <code>DeletionPolicy: Retain</code></td></tr>
+        <tr><td><code>UserPool</code></td><td>AWS::Cognito::UserPool</td><td>Username = email; auto-verify email; password ≥ 10 chars with mixed case and a number; optional TOTP MFA; email via SES</td></tr>
+        <tr><td><code>UserPoolClient</code></td><td>AWS::Cognito::UserPoolClient</td><td>Public client (no secret); SRP and refresh-token flows; 60-min ID/access tokens; 30-day refresh; prevent user-existence errors</td></tr>
+        <tr><td><code>PreSignUpFunction</code></td><td>AWS::Serverless::Function</td><td>Rejects sign-up unless the email has an <code>INVITE#</code> item</td></tr>
+        <tr><td><code>PostConfirmationFunction</code></td><td>AWS::Serverless::Function</td><td>Turns that email's invites into <code>MEMBER#sub</code> items with the pre-set roles and family</td></tr>
+        <tr><td><code>HttpApi</code></td><td>AWS::Serverless::HttpApi</td><td>Cognito JWT authorizer; CORS limited to the site domain; throttling 50 rps burst 100</td></tr>
+        <tr><td><code>ApiFunction</code></td><td>AWS::Serverless::Function</td><td>Node.js 20, arm64, esbuild; one router for all REST routes; table read/write policy</td></tr>
+        <tr><td><code>WebSocketApi</code> + stage</td><td>AWS::ApiGatewayV2::Api</td><td>Routes <code>$connect</code>, <code>$disconnect</code>, <code>subscribe</code>, <code>ping</code>; selection <code>$request.body.action</code></td></tr>
+        <tr><td><code>WsAuthorizerFunction</code></td><td>AWS::Serverless::Function</td><td>Verifies the Cognito JWT passed as <code>?token=</code> on connect</td></tr>
+        <tr><td><code>WsConnectFunction</code>, <code>WsDisconnectFunction</code>, <code>WsSubscribeFunction</code></td><td>AWS::Serverless::Function</td><td>Store and remove <code>CONN#</code> items; subscribe checks team membership first</td></tr>
+        <tr><td><code>FanoutFunction</code></td><td>AWS::Serverless::Function</td><td>Stream event source with a filter that skips <code>Connection</code> items; batch 100; bisect on error; <code>execute-api:ManageConnections</code></td></tr>
+        <tr><td><code>SiteBucket</code> + <code>SiteDistribution</code></td><td>S3 bucket, CloudFront distribution</td><td>Private bucket with origin access control; HTTPS only; security-headers policy; SPA fallback to <code>index.html</code></td></tr>
+        <tr><td><code>Certificate</code>, DNS record</td><td>ACM, Route 53 (conditional)</td><td>Only when a <code>DomainName</code> parameter is given; certificate in us-east-1</td></tr>
+        <tr><td>Alarms + <code>Budget</code></td><td>CloudWatch, AWS Budgets</td><td>API 5xx, Lambda errors, stream iterator age, DynamoDB throttles; monthly budget email</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small muted">If you already ran <code>create-table.sh</code>, bring that table into the stack with a CloudFormation resource import instead of creating a second one. Outputs (<code>UserPoolId</code>, <code>ClientId</code>, <code>ApiUrl</code>, <code>WsUrl</code>, <code>SiteBucket</code>, <code>DistributionId</code>) feed the site's <code>config.json</code> at deploy time.</p>
+  </section>
+
+  <section id="auth">
+    <div class="sh"><span class="num">04</span><h2>Sign-in</h2></div>
+    <p>Email and password, with invitations standing in for today's "Link my account" approvals. Coaches and admins invite people by email with a role and family already attached, so a parent is ready to go the moment they verify their email.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Step</th><th>What happens</th><th>Data</th></tr></thead>
+      <tbody>
+        <tr><td>1. Invite</td><td>An admin invites an email to a team (the roster emails can be bulk-invited)</td><td><code>INVITE#email</code> / <code>TEAM#t</code> with person, pid, roles</td></tr>
+        <tr><td>2. Sign up</td><td>The person opens the site, enters that email and a password. The pre-sign-up check refuses emails with no invite.</td><td>Cognito user created, unconfirmed</td></tr>
+        <tr><td>3. Verify</td><td>Cognito emails a 6-digit code, and the person enters it</td><td>—</td></tr>
+        <tr><td>4. Link</td><td>The post-confirmation trigger turns each invite into a membership and deletes the invite</td><td><code>MEMBER#sub</code> + <code>GSI1 USER#sub</code></td></tr>
+        <tr><td>5. Sessions</td><td>The page keeps tokens in memory and renews them with the refresh token; "Forgot password" uses Cognito's reset code</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small muted">People already approved on claude.ai become invites during migration, so nobody waits for a second approval. Roles live only in DynamoDB, never in Cognito groups, so role changes take effect on the next API call without a new sign-in.</p>
+  </section>
+
+  <section id="api">
+    <div class="sh"><span class="num">05</span><h2>API contract</h2></div>
+    <p>All routes require a valid token. The router loads the caller's <code>MEMBER#sub</code> item for the team and checks it against a <code>permissions.ts</code> module that the page also imports, so the server and the screens share one role table.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Route</th><th>Who</th><th>DynamoDB</th></tr></thead>
+      <tbody>
+        <tr><td><span class="meth m-get">GET</span> <code>/me</code></td><td>Anyone signed in</td><td>Query GSI1 <code>USER#sub</code> → teams and roles; get club-admin flag</td></tr>
+        <tr><td><span class="meth m-get">GET</span> <code>/teams</code> · <span class="meth m-post">POST</span> <code>/teams</code></td><td>All · club admin</td><td>Query <code>CLUB#c</code> · put team, settings and handbook in one transaction</td></tr>
+        <tr><td><span class="meth m-get">GET</span> <code>/teams/{t}</code></td><td>Members</td><td>Query <code>TEAM#t</code>, trimmed by role (contacts and ledger only for permitted roles)</td></tr>
+        <tr><td><span class="meth m-put">PUT</span> <code>/teams/{t}/settings</code> · <code>/handbook</code></td><td>Coordinator, admin, coach (handbook)</td><td>Put <code>META#…</code></td></tr>
+        <tr><td><span class="meth m-put">PUT</span>/<span class="meth m-del">DEL</span> <code>/teams/{t}/players/{pid}</code></td><td>Coordinator, admin</td><td>Player + contacts items</td></tr>
+        <tr><td><span class="meth m-put">PUT</span>/<span class="meth m-del">DEL</span> <code>/teams/{t}/events/{eid}</code></td><td>Coach, coordinator, admin</td><td><code>EVENT#eid</code> with GSI2 calendar keys</td></tr>
+        <tr><td><span class="meth m-put">PUT</span> <code>/teams/{t}/events/{eid}/refjobs</code> · <code>/agenda</code></td><td>Coach, coordinator (agenda also food)</td><td><code>EVENT#eid#REFJOBS</code> · <code>#AGENDA</code></td></tr>
+        <tr><td><span class="meth m-put">PUT</span>/<span class="meth m-del">DEL</span> <code>/teams/{t}/meals/{mid}</code></td><td>Food, coordinator, admin</td><td><code>EVENT#eid#MEAL#mid</code></td></tr>
+        <tr><td><span class="meth m-post">POST</span> <code>/teams/{t}/meals/{mid}/claim</code> · <span class="meth m-del">DEL</span> same</td><td>Parent (own family)</td><td>Conditional update: <code>attribute_not_exists(claimedBy)</code></td></tr>
+        <tr><td><span class="meth m-put">PUT</span> <code>/teams/{t}/family/{pid}</code></td><td>Parent of pid; coach/coordinator for RSVPs</td><td>Update <code>USER#sub</code> / <code>FAMILY#t</code> map paths</td></tr>
+        <tr><td><span class="meth m-get">GET</span> <code>/teams/{t}/family</code></td><td>Members</td><td>Query GSI1 <code>TEAM#t</code> <code>FAMILY#</code>; server merges newest answer per player</td></tr>
+        <tr><td><span class="meth m-post">POST</span> <code>/teams/{t}/payments</code> · <span class="meth m-del">DEL</span> <code>/payments/{id}</code></td><td>Parent; any member for reimbursements</td><td><code>USER#sub</code> / <code>PAYMENT#t#id</code>, status pending</td></tr>
+        <tr><td><span class="meth m-post">POST</span> <code>/teams/{t}/payments/{uid}/{id}/confirm</code> · <code>/decline</code></td><td>Finance, coordinator, admin</td><td>Transaction: put <code>LEDGER#</code> if absent + update payment status and GSI1SK</td></tr>
+        <tr><td><span class="meth m-put">PUT</span>/<span class="meth m-del">DEL</span> <code>/teams/{t}/ledger/{lid}</code></td><td>Finance, coordinator, admin</td><td><code>LEDGER#lid</code>, amounts in cents</td></tr>
+        <tr><td><span class="meth m-put">PUT</span>/<span class="meth m-del">DEL</span> <code>/teams/{t}/announcements/{id}</code> · <code>/tasks/{id}</code></td><td>Coach, coordinator · coordinator</td><td><code>ANN#</code> · <code>TASK#</code></td></tr>
+        <tr><td><span class="meth m-get">GET</span>/<span class="meth m-post">POST</span> <code>/teams/{t}/invites</code> · <span class="meth m-del">DEL</span> one</td><td>Team admin, club admin</td><td><code>INVITE#email</code> / <code>TEAM#t</code></td></tr>
+        <tr><td><span class="meth m-put">PUT</span>/<span class="meth m-del">DEL</span> <code>/teams/{t}/members/{sub}</code></td><td>Team admin, club admin</td><td><code>MEMBER#sub</code>; the server refuses to remove the last admin</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small muted">Role approval moves from "site owner only" to team admins and club admins. The server enforces it, so it no longer needs to rest on a single owner.</p>
+  </section>
+
+  <section id="realtime">
+    <div class="sh"><span class="num">06</span><h2>WebSocket push</h2></div>
+    <p>Pushes carry what changed, never the data itself. The browser then re-reads through the API, so someone without permission to see the ledger never receives ledger numbers over the socket.</p>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 40 1000 170" role="img" aria-label="Sequence: a parent marks availability, the API updates DynamoDB, the stream triggers the fan-out function, which looks up connections for the team and posts a change notice, and the coach's browser re-reads family data and updates counts.">
+        <defs><marker id="sq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker></defs>
+        <g font-family="IBM Plex Mono, monospace" font-size="12">
+          <rect x="10" y="60" width="150" height="70" rx="8" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="85" y="88" text-anchor="middle" font-weight="600" fill="currentColor">Parent taps In</text>
+          <text x="85" y="108" text-anchor="middle" fill="var(--ink-2)" font-size="11">PUT /family/p12</text>
+          <rect x="210" y="60" width="150" height="70" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.2"/>
+          <text x="285" y="88" text-anchor="middle" font-weight="600" fill="currentColor">ApiFunction</text>
+          <text x="285" y="108" text-anchor="middle" fill="var(--ink-2)" font-size="11">role check → update</text>
+          <rect x="410" y="60" width="150" height="70" rx="8" fill="var(--editor-soft)" stroke="var(--editor)" stroke-width="1.2"/>
+          <text x="485" y="88" text-anchor="middle" font-weight="600" fill="currentColor">DynamoDB</text>
+          <text x="485" y="108" text-anchor="middle" fill="var(--ink-2)" font-size="11">FAMILY item + stream</text>
+          <rect x="610" y="60" width="160" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.2"/>
+          <text x="690" y="88" text-anchor="middle" font-weight="600" fill="currentColor">FanoutFunction</text>
+          <text x="690" y="108" text-anchor="middle" fill="var(--ink-2)" font-size="11">Query TEAM#t CONN#</text>
+          <rect x="820" y="60" width="170" height="70" rx="8" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.2"/>
+          <text x="905" y="88" text-anchor="middle" font-weight="600" fill="currentColor">Coach's browser</text>
+          <text x="905" y="108" text-anchor="middle" fill="var(--ink-2)" font-size="11">GET /family → counts</text>
+        </g>
+        <g font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="var(--ink-2)" stroke-width="1.4">
+          <line x1="160" y1="95" x2="206" y2="95" stroke="currentColor" marker-end="url(#sq)"/>
+          <line x1="360" y1="95" x2="406" y2="95" stroke="currentColor" marker-end="url(#sq)"/>
+          <line x1="560" y1="95" x2="606" y2="95" stroke="currentColor" marker-end="url(#sq)"/>
+          <line x1="770" y1="95" x2="816" y2="95" stroke="var(--accent)" marker-end="url(#sq)"/>
+          <text x="793" y="150" text-anchor="middle" fill="var(--accent)">{"team":"a5-13tom","changed":"family"}</text>
+          <text x="583" y="150" text-anchor="middle">~1 s</text>
+          <text x="500" y="190" text-anchor="middle">End to end, typically 1–2 seconds</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption>The same path serves every change type. The fan-out reads the item's <code>type</code> and team key, then sends one notice per affected collection (events, family, meals, ledger, members and so on).</figcaption>
+    </figure>
+    <div class="two-col">
+      <div class="tw"><table>
+        <thead><tr><th>Connection item</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Key</td><td><code>PK=TEAM#t</code>, <code>SK=CONN#connId</code></td></tr>
+          <tr><td>Reverse lookup</td><td><code>GSI1PK=CONN#connId</code> (clean-up on disconnect)</td></tr>
+          <tr><td>Fields</td><td><code>type=Connection</code>, <code>sub</code>, <code>connectedAt</code></td></tr>
+          <tr><td>Expiry</td><td><code>ttl</code> = now + 3 h (connections last at most 2 h)</td></tr>
+        </tbody>
+      </table></div>
+      <div class="tw"><table>
+        <thead><tr><th>Client rule</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Send <code>ping</code> every 5 min</td><td>API Gateway drops idle sockets after 10 min</td></tr>
+          <tr><td>Reconnect with backoff (1s → 30s)</td><td>Sockets end at 2 h, on network change, or on deploy</td></tr>
+          <tr><td>Re-subscribe on team switch</td><td>One team per connection keeps fan-out simple</td></tr>
+          <tr><td>Refetch everything after a reconnect</td><td>Notices sent while offline are not replayed</td></tr>
+          <tr><td>Coalesce notices for 300 ms</td><td>A ref-job rotation fires many writes at once</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <section id="frontend">
+    <div class="sh"><span class="num">07</span><h2>Front end</h2></div>
+    <p>The screens stay as they are. Four modules replace what claude.ai used to provide:</p>
+    <div class="tw"><table>
+      <thead><tr><th>Module</th><th>Replaces</th><th>Does</th></tr></thead>
+      <tbody>
+        <tr><td><code>auth.ts</code></td><td><code>claude.use("user")</code></td><td>Sign-up, verify-code, sign-in, forgot-password screens; token refresh (via <code>aws-amplify/auth</code>)</td></tr>
+        <tr><td><code>api.ts</code></td><td><code>db.doc().set/delete</code></td><td>Typed <code>fetch</code> wrapper adding the token; maps each current save() call to its route</td></tr>
+        <tr><td><code>store.ts</code></td><td><code>db.collection().onSnapshot</code></td><td>Loads a team once, holds the <code>S</code> state the screens already read, and refetches a collection when a push arrives</td></tr>
+        <tr><td><code>realtime.ts</code></td><td>Platform live sync</td><td>WebSocket connect, subscribe, ping, reconnect</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small muted">Build with Vite: the current single HTML file is split into modules, TypeScript is added gradually, and hashed assets are cached for a year at CloudFront. The Access tab becomes Invites &amp; Members. Everything else keeps its current layout.</p>
+  </section>
+
+  <section id="repo">
+    <div class="sh"><span class="num">08</span><h2>Repo &amp; CI/CD</h2></div>
+    <div class="two-col">
+<pre class="block">team-hub/
+├── template.yaml          # app stack (SAM)
+├── samconfig.toml         # dev / prod
+├── bootstrap/
+│   └── github-oidc.yaml   # one-time deploy roles
+├── api/src/
+│   ├── router.ts          # REST routes
+│   ├── permissions.ts     # shared role table
+│   ├── db/keys.ts         # PK/SK builders
+│   ├── ws/                # authorizer, connect, subscribe
+│   ├── fanout.ts          # stream consumer
+│   └── auth-triggers/     # pre-sign-up, post-confirm
+├── api/test/              # Vitest + DynamoDB Local
+├── web/                   # Vite app (current hub)
+├── scripts/
+│   ├── export-claude.json # snapshot of current data
+│   └── migrate.ts         # transform + load
+└── .github/workflows/
+    ├── ci.yml
+    └── deploy.yml</pre>
+      <div class="tw"><table>
+        <thead><tr><th>Workflow</th><th>Runs</th></tr></thead>
+        <tbody>
+          <tr><td><code>ci.yml</code> · pull request</td><td>Lint, type-check, unit tests with DynamoDB Local, <code>sam validate --lint</code>, web build</td></tr>
+          <tr><td><code>deploy.yml</code> · push to main</td><td>OIDC → dev role; <code>sam build</code> + <code>sam deploy --config-env dev</code>; write <code>config.json</code> from outputs; build web; <code>s3 sync</code>; CloudFront invalidation; smoke test</td></tr>
+          <tr><td><code>deploy.yml</code> · release tag</td><td>Same steps with the prod role, behind a GitHub environment that needs your approval</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <p class="small muted">No AWS keys are stored in GitHub. Each environment's IAM role trusts only this repository and branch (<code>repo:&lt;org&gt;/team-hub:ref:refs/heads/main</code>, or the prod environment).</p>
+  </section>
+
+  <section id="migration">
+    <div class="sh"><span class="num">09</span><h2>Data migration</h2></div>
+    <div class="tw"><table>
+      <thead><tr><th>Current (claude.ai)</th><th>DynamoDB item</th><th>Transform</th></tr></thead>
+      <tbody>
+        <tr><td><code>teams/{t}</code></td><td><code>CLUB#a5</code> / <code>TEAM#t</code></td><td>As is</td></tr>
+        <tr><td><code>teams/{t}/meta/*</code>, <code>players</code>, <code>events</code>, <code>tasks</code>, <code>announcements</code></td><td><code>TEAM#t</code> / typed SK</td><td>Split parent contacts into <code>#CONTACTS</code>; add GSI2 keys</td></tr>
+        <tr><td><code>refjobs</code>, <code>agenda</code>, <code>meals</code></td><td><code>TEAM#t</code> / <code>EVENT#eid#…</code></td><td>Meals moved under their event; <code>cost</code> → <code>costCents</code></td></tr>
+        <tr><td><code>ledger</code></td><td><code>TEAM#t</code> / <code>LEDGER#lid</code></td><td><code>amount</code> → <code>amountCents</code></td></tr>
+        <tr><td><code>accounts/{uid}</code></td><td><code>INVITE#email</code> / <code>TEAM#t</code></td><td>claude.ai ids can't carry over; approved people become pre-approved invites keyed by roster email</td></tr>
+        <tr><td><code>mine/{uid}</code></td><td>Family, payment and meal-claim items</td><td>Re-keyed to the person's new id when they first sign in; pending payments become ledger decisions before cutover</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Steps:</b> freeze edits on the claude.ai hub → export every collection to JSON (I can run this) → <code>migrate.ts --dry-run</code> prints item counts per type → load into dev and click through → load into prod → switch invites on → put a banner on the old hub pointing to the new address.</p>
+  </section>
+
+  <section id="phases">
+    <div class="sh"><span class="num">10</span><h2>Phases</h2></div>
+    <div class="phases">
+      <div class="phase"><div class="ph-l"><span class="ph-n">0</span><span class="ph-d">1–2 days</span></div><div class="ph-b"><h4>Foundation</h4><ul><li>Create GitHub repo, branch protection, <code>dev</code> and <code>prod</code> environments</li><li>Deploy the bootstrap stack (OIDC provider, deploy roles)</li><li>SAM skeleton: table, bucket, CloudFront, placeholder page; CI and deploy workflows</li></ul><div class="exit"><b>Done when</b> a merge to main deploys a page to the dev CloudFront URL with no manual steps.</div></div></div>
+      <div class="phase"><div class="ph-l"><span class="ph-n">1</span><span class="ph-d">2 days</span></div><div class="ph-b"><h4>Sign-in</h4><ul><li>User pool, client, SES sender identity and production-access request</li><li>Pre-sign-up and post-confirmation triggers with the invite model</li><li>Sign-up, verify, sign-in and reset screens</li></ul><div class="exit"><b>Done when</b> an invited email can sign up, verify and land on the hub; an uninvited email is refused.</div></div></div>
+      <div class="phase"><div class="ph-l"><span class="ph-n">2</span><span class="ph-d">4–5 days</span></div><div class="ph-b"><h4>API</h4><ul><li>Router, shared <code>permissions.ts</code>, key builders</li><li>All routes in the API contract, with transactions for confirm, approve and claim</li><li>Tests per route and role against DynamoDB Local</li></ul><div class="exit"><b>Done when</b> each route passes the role matrix tests (allowed roles succeed, others get 403).</div></div></div>
+      <div class="phase"><div class="ph-l"><span class="ph-n">3</span><span class="ph-d">2–3 days</span></div><div class="ph-b"><h4>WebSocket push</h4><ul><li>WebSocket API, authorizer, connect, disconnect and subscribe functions</li><li>Fan-out with stream filter, GoneException clean-up, and alarms</li><li>Client <code>realtime.ts</code> with ping, reconnect and coalescing</li></ul><div class="exit"><b>Done when</b> a change in one browser shows in another within 2 seconds, and a dropped connection recovers by itself.</div></div></div>
+      <div class="phase"><div class="ph-l"><span class="ph-n">4</span><span class="ph-d">3–4 days</span></div><div class="ph-b"><h4>Front end on the API</h4><ul><li>Vite build; split the page into modules; <code>auth</code>, <code>api</code>, <code>store</code></li><li>Replace every <code>save()</code> and <code>onSnapshot</code> with API and push equivalents</li><li>Access tab becomes Invites &amp; Members</li></ul><div class="exit"><b>Done when</b> every screen works on dev for each role (coach, coordinator, food, finance, parent).</div></div></div>
+      <div class="phase"><div class="ph-l"><span class="ph-n">5</span><span class="ph-d">2 days</span></div><div class="ph-b"><h4>Migration &amp; user testing</h4><ul><li>Export, transform, dry run, load into dev</li><li>Coaches, the coordinator and two parents test on dev</li><li>Fix-up pass</li></ul><div class="exit"><b>Done when</b> record counts match the export and testers sign off.</div></div></div>
+      <div class="phase"><div class="ph-l"><span class="ph-n">6</span><span class="ph-d">1 day</span></div><div class="ph-b"><h4>Cutover</h4><ul><li>Freeze the claude.ai hub, final export, load into prod</li><li>Domain and certificate live; send invites to the roster</li><li>Old hub shows a "we've moved" banner</li></ul><div class="exit"><b>Done when</b> most families have signed in within a week, with no data lost.</div></div></div>
+    </div>
+  </section>
+
+  <section id="risks">
+    <div class="sh"><span class="num">11</span><h2>Risks</h2></div>
+    <div class="tw"><table>
+      <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>Cognito's built-in email sends only a few messages a day</td><td>Configure SES and request production access in Phase 1, since approval can take a day</td></tr>
+        <tr><td>Parents don't finish sign-up</td><td>Pre-approved invites, clear verification email copy, and a coordinator view of who hasn't joined</td></tr>
+        <tr><td>WebSocket drops (2 h limit, 10 min idle, phone sleep)</td><td>Ping, backoff reconnect, full refetch on reconnect</td></tr>
+        <tr><td>Fan-out loops on its own connection writes</td><td>Stream event filter excludes <code>type = Connection</code></td></tr>
+        <tr><td>A stale connection blocks fan-out</td><td>Delete the connection on <code>GoneException</code>; TTL removes the rest</td></tr>
+        <tr><td>Cold starts slow the first click</td><td>arm64, esbuild bundles, minimal dependencies (typically well under a second)</td></tr>
+        <tr><td>Deploy mistakes reach prod</td><td>Prod behind an approval environment; <code>DeletionPolicy: Retain</code> on the table and user pool</td></tr>
+        <tr><td>Data drift during cutover</td><td>Freeze edits, then compare counts per type before and after</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="cost">
+    <div class="sh"><span class="num">12</span><h2>Cost</h2></div>
+    <p>A rough monthly estimate for one club of about 30 active adults. AWS pricing and free tiers change, so check the pricing pages before committing.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Service</th><th>Expected use</th><th class="num">Est. / month</th></tr></thead>
+      <tbody>
+        <tr><td>Route 53</td><td>1 hosted zone (plus domain registration, about $15 a year)</td><td class="num">$0.50</td></tr>
+        <tr><td>DynamoDB</td><td>Under 1 GB, low on-demand traffic, PITR</td><td class="num">&lt; $1</td></tr>
+        <tr><td>Lambda + API Gateway (HTTP and WebSocket)</td><td>Tens of thousands of requests and messages</td><td class="num">&lt; $1</td></tr>
+        <tr><td>Cognito</td><td>Well under the free monthly-active-user allowance</td><td class="num">$0</td></tr>
+        <tr><td>CloudFront + S3</td><td>Small static site</td><td class="num">&lt; $1</td></tr>
+        <tr><td>SES, CloudWatch</td><td>Verification emails, logs kept 30 days</td><td class="num">&lt; $1</td></tr>
+        <tr><td><b>Total</b></td><td></td><td class="num"><b>≈ $2–5</b></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="open">
+    <div class="sh"><span class="num">13</span><h2>Open items</h2></div>
+    <div class="tw"><table>
+      <thead><tr><th>Decide</th><th>Needed by</th><th>Suggestion</th></tr></thead>
+      <tbody>
+        <tr><td>GitHub owner and repo name</td><td>Phase 0</td><td><code>team-hub</code> under your account or a club organization</td></tr>
+        <tr><td>AWS account and region</td><td>Phase 0</td><td>A dedicated account; us-east-1 keeps the CloudFront certificate in the same region</td></tr>
+        <tr><td>Domain</td><td>Phase 0 (optional until Phase 6)</td><td>e.g. <code>hub.&lt;club domain&gt;</code>; the CloudFront URL works in the meantime</td></tr>
+        <tr><td>Email sender address</td><td>Phase 1</td><td>An address on that domain, verified in SES</td></tr>
+        <tr><td>Who approves prod deploys</td><td>Phase 0</td><td>You, as the GitHub environment reviewer</td></tr>
+        <tr><td>MFA</td><td>Phase 1</td><td>Optional for families, required for club admins</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  </main>
+</div>
