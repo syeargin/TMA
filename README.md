@@ -127,11 +127,33 @@ docker run -p 8000:8000 amazon/dynamodb-local     # or: pip install "moto[server
 cd api && npm test
 ```
 
+## Live updates (Phase 3)
+
+Changes one person makes appear for everyone else on the team page within a second or two, with no reload.
+
+```
+browser ──wss://…/live?token=<access token>──► API Gateway WebSocket ──► authorizer (Cognito access token)
+   ▲  {"action":"subscribe","teamId":"a5-13tom"}                          ├─ $connect / $disconnect
+   │                                                                       └─ subscribe / ping  (membership checked)
+   │ {"type":"changed","collections":["members"]}
+   └──────────── FanoutFunction ◄── DynamoDB stream (TEAM# and INVITE# keys only)
+```
+
+- The socket only says *what kind* of thing changed. The page then re-reads through the REST API, so a notice never carries data the viewer isn't allowed to see.
+- The page pings every 5 minutes, reconnects with backoff (1 s up to 30 s), and refetches after any reconnect to catch changes it missed.
+- A change is held back while someone is typing or has ticked a box. The status pill then shows **New changes · Show**. Open "Change" panels stay open through a refresh.
+- If someone is removed from a team while viewing it, the next notice sends them back to their team list.
+- Deploys check that a WebSocket handshake without a valid token is refused (401/403).
+- Alarms: `tma-<env>-fanout-lag` fires when updates are more than a minute behind; `tma-<env>-fanout-errors` fires on repeated fan-out failures.
+
+Try it on dev: open the team page in two browsers (or one normal window and one private window) signed in as two admins. Change a member's roles in one and watch the other update. Turn Wi-Fi off and on in one window: the pill shows *Reconnecting…*, then *Live*, and the page catches up.
+
 ## Local development
 
 ```bash
 cd web && npm install && npm run dev      # site on http://localhost:5173
-cd api && npm install && npm test         # unit tests for the Lambda code
+cd api && npm install && npm test         # unit and integration tests for the Lambda code
+cd web && npm test                         # live-update client (fake WebSocket, no browser)
 npm install -g esbuild                     # needed once for sam build
 sam validate --lint && sam build          # check and build the stack
 ```

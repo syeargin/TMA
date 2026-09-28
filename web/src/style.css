@@ -52,3 +52,17 @@ h3 { font-size: 15px; margin: 22px 0 8px; text-transform: uppercase; letter-spac
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn.danger, .link.confirm { color: var(--bad); border-color: var(--bad); }
+
+/* Live-update status pill (team screen) */
+.badges { display: flex; gap: 8px; align-items: center; }
+.live:empty { display: none; }
+.live { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/1 system-ui, sans-serif; padding: 6px 9px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.live.live-on { color: var(--ok); border-color: var(--ok); }
+.live.live-on::before { background: var(--ok); }
+.live.live-wait::before { animation: pulse 1.2s ease-in-out infinite; }
+.live .link { font: inherit; color: var(--navy); padding: 0; }
+@keyframes pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .live.live-wait::before { animation: none; } }
+.fresh { animation: fresh 1.4s ease-out; }
+@keyframes fresh { from { box-shadow: 0 0 0 3px var(--ok-soft); } to { box-shadow: 0 0 0 0 transparent; } }

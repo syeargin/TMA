@@ -416,6 +416,321 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
 
+  # ---------- Realtime: WebSocket push (Phase 3) ----------
+  # Browsers connect to wss://.../live?token=<Cognito access token> and send {"action":"subscribe","teamId":...}.
+  # When anything in a team's partition changes, the stream fan-out sends that team's sockets a short
+  # {"type":"changed","collections":[...]} notice; browsers then re-read through the REST API, so every
+  # permission check stays in one place and no team data travels over the socket.
+  WebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "${AppPrefix}-${Env}-ws"
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+
+  WsAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref WebSocketApi
+      Name: cognito-access-token
+      AuthorizerType: REQUEST
+      IdentitySource: [route.request.querystring.token]
+      AuthorizerUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsAuthorizerFunction.Arn}/invocations"
+
+  WsAuthorizerPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WsAuthorizerFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/authorizers/${WsAuthorizer}"
+
+  WsConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsConnectFunction.Arn}/invocations"
+
+  WsConnectPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WsConnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*"
+
+  WsDisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsDisconnectFunction.Arn}/invocations"
+
+  WsDisconnectPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WsDisconnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*"
+
+  WsMessagesIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsMessagesFunction.Arn}/invocations"
+
+  WsMessagesPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref WsMessagesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*"
+
+  WsConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: "$connect"
+      AuthorizationType: CUSTOM
+      AuthorizerId: !Ref WsAuthorizer
+      Target: !Sub "integrations/${WsConnectIntegration}"
+
+  WsDisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: "$disconnect"
+      AuthorizationType: NONE
+      Target: !Sub "integrations/${WsDisconnectIntegration}"
+
+  WsSubscribeRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: "subscribe"
+      AuthorizationType: NONE
+      Target: !Sub "integrations/${WsMessagesIntegration}"
+
+  WsPingRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: "ping"
+      AuthorizationType: NONE
+      Target: !Sub "integrations/${WsMessagesIntegration}"
+
+  WsDefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: "$default"
+      AuthorizationType: NONE
+      Target: !Sub "integrations/${WsMessagesIntegration}"
+
+  WebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref WebSocketApi
+      StageName: live
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
+
+  WsAuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/realtime/authorizer.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Checks the Cognito access token on WebSocket connect.
+      CodeUri: api/
+      Handler: authorizer.handler
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
+          USER_POOL_CLIENT_ID: !Ref UserPoolClient
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+
+  WsAuthorizerFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${WsAuthorizerFunction}"
+      RetentionInDays: 30
+
+  WsConnectFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/realtime/connect.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Records a new WebSocket connection.
+      CodeUri: api/
+      Handler: connect.handler
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+
+  WsConnectFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${WsConnectFunction}"
+      RetentionInDays: 30
+
+  WsDisconnectFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/realtime/disconnect.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Forgets a closed WebSocket connection.
+      CodeUri: api/
+      Handler: disconnect.handler
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+
+  WsDisconnectFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${WsDisconnectFunction}"
+      RetentionInDays: 30
+
+  WsMessagesFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/realtime/messages.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Handles subscribe and ping messages on the WebSocket.
+      CodeUri: api/
+      Handler: messages.handler
+      Environment:
+        Variables:
+          CLUB_ID: !Ref ClubId
+          CLUB_ADMIN_EMAILS: !Ref ClubAdminEmails
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/live/POST/@connections/*"
+
+  WsMessagesFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${WsMessagesFunction}"
+      RetentionInDays: 30
+
+  FanoutFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/realtime/fanout.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Tells a team's open sockets which collections changed, from the table stream.
+      CodeUri: api/
+      Handler: fanout.handler
+      Environment:
+        Variables:
+          WS_ENDPOINT: !Sub "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/live"
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+        - Statement:
+            - Effect: Allow
+              Action: execute-api:ManageConnections
+              Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/live/POST/@connections/*"
+      Timeout: 60
+      Events:
+        TableStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt TeamHubTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 100
+            MaximumBatchingWindowInSeconds: 1
+            BisectBatchOnFunctionError: true
+            MaximumRetryAttempts: 3
+            MaximumRecordAgeInSeconds: 300
+            FilterCriteria:
+              Filters:
+                - Pattern: '{"dynamodb":{"Keys":{"PK":{"S":[{"prefix":"TEAM#"}]}}}}'
+                - Pattern: '{"dynamodb":{"Keys":{"PK":{"S":[{"prefix":"INVITE#"}]}}}}'
+
+  FanoutFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${FanoutFunction}"
+      RetentionInDays: 30
+
+  FanoutIteratorAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AppPrefix}-${Env}-fanout-lag"
+      AlarmDescription: Live updates are running more than a minute behind the table.
+      Namespace: AWS/Lambda
+      MetricName: IteratorAge
+      Dimensions: [{ Name: FunctionName, Value: !Ref FanoutFunction }]
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 60000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  FanoutErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AppPrefix}-${Env}-fanout-errors"
+      AlarmDescription: The live-update fan-out function is failing.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions: [{ Name: FunctionName, Value: !Ref FanoutFunction }]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
   # ---------- Cost guardrail ----------
   MonthlyBudget:
     Type: AWS::Budgets::Budget
@@ -450,3 +765,5 @@ Outputs:
     Value: !Ref UserPoolClient
   ApiUrl:
     Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  WsUrl:
+    Value: !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/live"

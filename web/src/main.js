@@ -3,11 +3,14 @@ import {
   PASSWORD_RULES, configureAuth, currentUser, createAccount, verifyEmail, resendCode,
   logIn, logOut, startReset, finishReset, explain
 } from "./auth.js";
-import { api, configureApi } from "./api.js";
+import { api, configureApi, accessToken } from "./api.js";
+import { createLive } from "./realtime.js";
 import { ROLES, ROLE_LABELS, can } from "../../api/src/shared/permissions.ts";
 
 const app = document.getElementById("app");
-const state = { cfg: {}, screen: "loading", email: "", user: null, me: null, team: null, invites: [], notice: "", error: "" };
+const state = { cfg: {}, screen: "loading", email: "", user: null, me: null, team: null, invites: [], notice: "", error: "", live: "off" };
+let live = null;          // WebSocket client, when this environment has one
+let pendingRefresh = false; // a change arrived while someone was mid-edit
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -23,7 +26,8 @@ async function loadConfig() {
 function go(screen, extra = {}) {
   Object.assign(state, { screen, error: "", notice: "" }, extra);
   render();
-  const first = app.querySelector("input:not([type=hidden])");
+  // Autofocus only the sign-in style forms; on the team page a focused field would hold back live updates.
+  const first = screen === "team" || screen === "home" ? null : app.querySelector("input:not([type=hidden])");
   if (first) first.focus();
 }
 
@@ -169,10 +173,70 @@ function render() {
   app.innerHTML = `
     <header class="top">
       <div><p class="eyebrow">A5 Volleyball</p><h1>Team Hub</h1></div>
-      ${env !== "prod" ? `<span class="env">${esc(env)}</span>` : ""}
+      <div class="badges">${liveBadge()}${env !== "prod" ? `<span class="env">${esc(env)}</span>` : ""}</div>
     </header>
     <section class="card">${(views[state.screen] || views.loading)()}</section>
     <footer class="foot muted">${state.cfg.commit ? `Build ${esc(state.cfg.commit.slice(0, 7))}` : ""}</footer>`;
+}
+
+// ---------- Live updates ----------
+const LIVE_TEXT = { live: "Live", connecting: "Connecting…", reconnecting: "Reconnecting…" };
+const REFRESH_ON = new Set(["*", "members", "invites", "players", "events", "settings"]);
+
+function liveBadge() {
+  if (state.screen !== "team" || state.live === "off") return `<span id="live" class="live"></span>`;
+  const cls = state.live === "live" ? "live-on" : "live-wait";
+  const inner = pendingRefresh
+    ? `<button class="link" data-act="refreshNow">New changes · Show</button>`
+    : esc(LIVE_TEXT[state.live]);
+  return `<span id="live" class="live ${cls}" role="status" title="Changes others make appear here automatically">${inner}</span>`;
+}
+const paintLive = () => { const el = document.getElementById("live"); if (el) el.outerHTML = liveBadge(); };
+
+// Someone is typing, has ticked a box, or has a field focused: don't redraw under them.
+function isEditing() {
+  const a = document.activeElement;
+  if (a && app.contains(a) && a.closest("form") && a.matches("input,select,textarea")) return true;
+  return [...app.querySelectorAll("form[data-form] input, form[data-form] textarea")].some((e) =>
+    e.type === "checkbox" || e.type === "radio" ? e.checked !== e.defaultChecked
+      : !["hidden", "submit", "button"].includes(e.type) && e.value !== e.defaultValue);
+}
+
+async function refreshTeam(collections, { force = false } = {}) {
+  if (state.screen !== "team" || !state.team) return;
+  if (!force && !collections.some((c) => REFRESH_ON.has(c))) return;
+  if (!force && isEditing()) { pendingRefresh = true; return paintLive(); }
+  pendingRefresh = false;
+  const id = state.team.teamId;
+  try {
+    const team = await api("GET", `/teams/${encodeURIComponent(id)}`);
+    const invites = can(team.you.roles, "accounts") ? (await api("GET", `/teams/${encodeURIComponent(id)}/invites`)).invites : [];
+    if (state.screen !== "team" || state.team?.teamId !== id) return;
+    const open = [...app.querySelectorAll("details[open] form[data-sub]")].map((f) => f.dataset.sub);
+    const scrollY = window.scrollY;
+    Object.assign(state, { team, invites });
+    render();
+    for (const sub of open) app.querySelector(`form[data-sub="${CSS.escape(sub)}"]`)?.closest("details")?.setAttribute("open", "");
+    window.scrollTo(0, scrollY);
+    app.querySelector(".card")?.classList.add("fresh");
+  } catch (err) {
+    if (err.status === 403 || err.status === 404) { live?.stop(); return showHome("You no longer have access to that team."); }
+    console.warn("Live refresh failed", err);
+  }
+}
+
+// Apply a held-back change once the person steps out of the form without leaving edits behind.
+app.addEventListener("focusout", () => setTimeout(() => { if (pendingRefresh && !isEditing()) refreshTeam(["*"]); }, 0));
+
+function startLive(cfg) {
+  if (!cfg.wsUrl || typeof WebSocket === "undefined") return;
+  live = createLive({
+    url: cfg.wsUrl,
+    getToken: accessToken,
+    onChange: (teamId, collections) => { if (state.team?.teamId === teamId) refreshTeam(collections); },
+    onStatus: (s) => { state.live = s; paintLive(); },
+    onDenied: (teamId) => { if (state.screen === "team" && state.team?.teamId === teamId) showHome("You no longer have access to that team."); }
+  });
 }
 
 async function busy(form, fn) {
@@ -193,6 +257,8 @@ async function busy(form, fn) {
 }
 
 async function showHome(notice = "") {
+  live?.stop();
+  pendingRefresh = false;
   state.user = await currentUser();
   if (!state.user) return go("signin", { notice });
   try {
@@ -223,7 +289,9 @@ async function openTeam(teamId, notice = "") {
   try {
     const team = await api("GET", `/teams/${encodeURIComponent(teamId)}`);
     const invites = can(team.you.roles, "accounts") ? (await api("GET", `/teams/${encodeURIComponent(teamId)}/invites`)).invites : [];
+    pendingRefresh = false;
     go("team", { team, invites, notice });
+    live?.watch(teamId);
   } catch (err) {
     go("home", { error: err.message });
   }
@@ -287,7 +355,8 @@ app.addEventListener("click", async (ev) => {
   if (el.dataset.team) return openTeam(el.dataset.team);
   if (el.dataset.go === "home" && state.user) return showHome();
   if (el.dataset.go) return go(el.dataset.go);
-  if (el.dataset.act === "signout") { await logOut(); return go("signin", { notice: "You've signed out.", user: null }); }
+  if (el.dataset.act === "refreshNow") return refreshTeam(["*"], { force: true });
+  if (el.dataset.act === "signout") { live?.stop(); await logOut(); return go("signin", { notice: "You've signed out.", user: null }); }
   if (el.dataset.act === "removeMember" || el.dataset.act === "cancelInvite") {
     if (!el.classList.contains("confirm")) { el.classList.add("confirm"); el.textContent = "Tap again to confirm"; return; }
     try {
@@ -310,5 +379,6 @@ app.addEventListener("click", async (ev) => {
   state.cfg = await loadConfig();
   if (!configureAuth(state.cfg)) return go("unconfigured");
   configureApi(state.cfg);
+  startLive(state.cfg);
   await showHome();
 })();

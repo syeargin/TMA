@@ -12,10 +12,15 @@ export class ApiError extends Error {
   }
 }
 
+/** The signed-in user's access token (refreshed by Amplify when needed; force to refresh now). */
+export async function accessToken(forceRefresh = false) {
+  const { tokens } = await fetchAuthSession({ forceRefresh });
+  return tokens?.accessToken?.toString();
+}
+
 export async function api(method, path, body) {
   if (!base) throw new ApiError(0, { message: "The API isn't set up for this environment." });
-  const { tokens } = await fetchAuthSession();
-  const token = tokens?.accessToken?.toString();
+  const token = await accessToken();
   if (!token) throw new ApiError(401, { message: "Sign in to continue." });
   let res;
   try {

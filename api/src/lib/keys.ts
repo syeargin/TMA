@@ -22,7 +22,10 @@ export const keys = {
   invite: (email: string, t: string) => ({ PK: `INVITE#${normEmail(email)}`, SK: `TEAM#${t}` }),
   inviteGsi: (email: string, t: string) => ({ GSI1PK: `TEAM#${t}`, GSI1SK: `INVITE#${normEmail(email)}` }),
   invitePrefix: (email: string) => `INVITE#${normEmail(email)}`,
-  profile: (sub: string) => ({ PK: `USER#${sub}`, SK: "PROFILE" })
+  profile: (sub: string) => ({ PK: `USER#${sub}`, SK: "PROFILE" }),
+  // Live-update connections. Kept outside TEAM# partitions so they never trigger change notices.
+  conn: (connectionId: string) => ({ PK: `CONN#${connectionId}`, SK: "META" }),
+  teamConn: (teamId: string, connectionId: string) => ({ PK: `TEAMCONN#${teamId}`, SK: `CONN#${connectionId}` })
 };
 
 export { ROLES, type Role } from "../shared/permissions.js";
