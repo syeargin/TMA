@@ -38,3 +38,17 @@ input:focus-visible, button:focus-visible { outline: 2px solid var(--red); outli
 .kv dd { margin: 0; overflow-wrap: anywhere; }
 .mono { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
 .foot { margin-top: 16px; font-size: 12px; text-align: center; }
+h3 { font-size: 15px; margin: 22px 0 8px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.small { font-size: 13px; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--ok-soft); color: var(--ok); font-weight: 600; font-size: 12px; }
+.list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rowbtn { width: 100%; display: flex; justify-content: space-between; gap: 12px; align-items: center; text-align: left; font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.rowbtn span { color: var(--muted); font-size: 13px; }
+.member { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.member details { width: 100%; }
+.member summary { cursor: pointer; color: var(--navy); font-size: 14px; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.checks label { flex-direction: row; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font-weight: 500; color: var(--ink); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn.danger, .link.confirm { color: var(--bad); border-color: var(--bad); }

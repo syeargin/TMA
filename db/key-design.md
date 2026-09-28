@@ -15,10 +15,10 @@ Both indexes project `ALL`. Billing is on-demand. Streams carry new and old imag
 | Partition | Who writes | Holds |
 |---|---|---|
 | `CLUB#<clubId>` | Site owner / club admins (via API) | Team directory, club admins |
-| `TEAM#<teamId>` | Staff roles (via API) | Settings, handbook, roster, contacts, events, ref jobs, agendas, meals, ledger, announcements, tasks, memberships |
-| `USER#<uid>` | That user only (IAM leading-key condition) | Family records, join requests, submitted payments |
+| `TEAM#<teamId>` | The API, by role | Settings, handbook, roster, contacts, events, ref jobs, agendas, meals, family records, payments, ledger, announcements, tasks, memberships |
+| `USER#<uid>` | The API, for that user | Profile |
 
-Putting everything a person may write under their own `USER#` partition lets IAM enforce "write only your own record" with `dynamodb:LeadingKeys`, the same guarantee the hosted version gets from its `{self}` rule. Memberships (roles) live in the team partition, so a user can never grant themselves a role.
+All writes go through the API, which checks the caller's membership (`TEAM#<t>` / `MEMBER#<sub>`) before touching the table. That lets family records and payments live in the team partition, keyed by player and payment id, so a single query loads a whole team. (An earlier draft kept them in `USER#` partitions so IAM leading-key conditions could guard direct browser writes; with the API in front, that's no longer needed.)
 
 ## Entities
 
@@ -38,11 +38,10 @@ Putting everything a person may write under their own `USER#` partition lets IAM
 | Announcement | `TEAM#<t>` | `ANN#<aid>` | | `TEAM#<t>#ANN` / `<at>#<aid>` |
 | Task | `TEAM#<t>` | `TASK#<kid>` | | |
 | Membership (roles) | `TEAM#<t>` | `MEMBER#<uid>` | `USER#<uid>` / `TEAM#<t>` | |
-| Family record | `USER#<uid>` | `FAMILY#<t>` | `TEAM#<t>` / `FAMILY#<uid>` | |
-| Join request | `USER#<uid>` | `REQUEST#<t>` | `TEAM#<t>` / `REQUEST#<at>#<uid>` | |
+| Family record | `TEAM#<t>` | `FAMILY#<pid>` | | |
 | Invite | `INVITE#<email>` | `TEAM#<t>` | `TEAM#<t>` / `INVITE#<email>` | |
 | User profile | `USER#<uid>` | `PROFILE` | | |
-| Payment | `USER#<uid>` | `PAYMENT#<t>#<payId>` | `TEAM#<t>` / `PAYMENT#<status>#<at>#<uid>` | |
+| Payment (family-submitted) | `TEAM#<t>` | `PAYMENT#<payId>` | | |
 
 ## Access patterns
 
@@ -58,13 +57,13 @@ Putting everything a person may write under their own `USER#` partition lets IAM
 | 8 | Announcements, newest first | Query GSI2 `GSI2PK = TEAM#t#ANN`, `ScanIndexForward=false` |
 | 9 | A user's teams and roles | Query GSI1 `GSI1PK = USER#uid`, `begins_with(GSI1SK, TEAM#)` |
 | 10 | A team's members | Query `PK = TEAM#t`, `begins_with(SK, MEMBER#)` |
-| 11 | All family records for a team (availability, travel, sizes, claims) | Query GSI1 `GSI1PK = TEAM#t`, `begins_with(GSI1SK, FAMILY#)` |
-| 12 | Pending join requests | Query GSI1 `GSI1PK = TEAM#t`, `begins_with(GSI1SK, REQUEST#)` |
-| 13 | Payments waiting for finance | Query GSI1 `GSI1PK = TEAM#t`, `begins_with(GSI1SK, PAYMENT#pending#)` |
-| 14 | Everything one person has submitted | Query `PK = USER#uid` |
-| 15 | Mark availability / travel / sizes | UpdateItem `USER#uid` / `FAMILY#t` with `SET rsvp.#k = :v` (client, own partition) |
-| 16 | Approve a member | TransactWriteItems: Put `MEMBER#uid` + Delete `REQUEST#t` |
-| 17 | Confirm a payment | TransactWriteItems: Put `LEDGER#l-uid-payId` (`attribute_not_exists(PK)`) + Update payment `status`, `GSI1SK` → `PAYMENT#settled#…` |
+| 11 | All family records for a team (availability, travel, sizes) | Query `PK = TEAM#t`, `begins_with(SK, FAMILY#)` (part of pattern 3) |
+| 12 | Accept invites on sign-up or sign-in | Query `PK = INVITE#email`; TransactWriteItems: Put `MEMBER#sub` + Delete invite |
+| 13 | Payments waiting for finance | Query `PK = TEAM#t`, `begins_with(SK, PAYMENT#)`, filter `status = pending` |
+| 14 | A person's profile | GetItem `USER#sub` / `PROFILE` |
+| 15 | Mark availability / travel / sizes | UpdateItem `TEAM#t` / `FAMILY#pid` with `SET rsvp.#k = :v` (API checks parent-of-player or staff role) |
+| 16 | Change a member's roles | Put `TEAM#t` / `MEMBER#sub` (API refuses to remove the last team admin) |
+| 17 | Confirm a payment | TransactWriteItems: Update payment `status = confirmed` (`status = pending`) + Put `LEDGER#l-<payId>` (`attribute_not_exists(PK)`) |
 | 18 | Claim a meal (first family wins) | UpdateItem meal `SET claimedBy = :pid` with `attribute_not_exists(claimedBy) OR claimedBy = :null` |
 | 19 | Is this email invited? (sign-up check) | Query `PK = INVITE#email`, `begins_with(SK, TEAM#)`, limit 1 |
 | 20 | A team's pending invites | Query GSI1 `GSI1PK = TEAM#t`, `begins_with(GSI1SK, INVITE#)` |

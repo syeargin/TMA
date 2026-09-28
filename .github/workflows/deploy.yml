@@ -91,6 +91,7 @@ jobs:
             echo "url=$(get SiteUrl)"
             echo "user_pool=$(get UserPoolId)"
             echo "client=$(get UserPoolClientId)"
+            echo "api=$(get ApiUrl)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build site
@@ -98,11 +99,12 @@ jobs:
         env:
           USER_POOL_ID: ${{ steps.out.outputs.user_pool }}
           CLIENT_ID: ${{ steps.out.outputs.client }}
+          API_URL: ${{ steps.out.outputs.api }}
         run: |
           npm ci
           jq -n --arg env "$DEPLOY_ENV" --arg commit "$GITHUB_SHA" --arg region "$AWS_REGION" \
-                --arg pool "$USER_POOL_ID" --arg client "$CLIENT_ID" \
-                '{env: $env, commit: $commit, region: $region, userPoolId: $pool, userPoolClientId: $client}' > public/config.json
+                --arg pool "$USER_POOL_ID" --arg client "$CLIENT_ID" --arg api "$API_URL" \
+                '{env: $env, commit: $commit, region: $region, userPoolId: $pool, userPoolClientId: $client, apiUrl: $api}' > public/config.json
           cat public/config.json
           npm run build
 
