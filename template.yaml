@@ -366,13 +366,34 @@ Resources:
           NODE_OPTIONS: --enable-source-maps
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+      # One route per method (not ANY): browsers send CORS preflight OPTIONS requests without a
+      # token, and an ANY route would send them to the JWT authorizer and fail. With no OPTIONS
+      # route, API Gateway answers preflights itself from CorsConfiguration.
       Events:
-        Api:
+        ApiGet:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
             Path: /{proxy+}
-            Method: ANY
+            Method: GET
+        ApiPost:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: POST
+        ApiPut:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: PUT
+        ApiDelete:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: DELETE
 
   ApiFunctionLogs:
     Type: AWS::Logs::LogGroup
