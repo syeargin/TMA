@@ -144,13 +144,13 @@ const views = {
       <ul class="list">${t.members.map((m) => `
         <li class="member">
           <div><b>${esc(m.email || m.person || m.sub)}</b><div class="muted small">${m.roles.map((r) => esc(ROLE_LABELS[r] || r)).join(", ")}${m.pid ? ` · family ${esc(m.pid)}` : ""}</div></div>
-          <details><summary>Change</summary>
+          ${m.sub ? `<details><summary>Change</summary>
             <form data-form="member" data-sub="${esc(m.sub)}" novalidate>
               ${roleChecks("roles", m.roles)}
               ${field("pid", "Family (player id)", "text", `value="${esc(m.pid || "")}"`)}
               <div class="row"><button class="btn primary" type="submit">Save</button><button class="btn danger" type="button" data-act="removeMember" data-sub="${esc(m.sub)}">Remove from team</button></div>
             </form>
-          </details>
+          </details>` : ""}
         </li>`).join("") || `<li class="muted">No members yet.</li>`}</ul>
       <h3>Invites</h3>
       <ul class="list">${state.invites.map((i) => `<li class="member"><div><b>${esc(i.email)}</b><div class="muted small">${(i.roles || []).map((r) => esc(ROLE_LABELS[r] || r)).join(", ")}${i.pid ? ` · family ${esc(i.pid)}` : ""}</div></div><button class="link" data-act="cancelInvite" data-email="${esc(i.email)}">Cancel</button></li>`).join("") || `<li class="muted">No pending invites.</li>`}</ul>
