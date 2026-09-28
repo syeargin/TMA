@@ -6,6 +6,8 @@ import type { DynamoDBStreamEvent } from "aws-lambda";
 import { freshTable } from "../api/harness.js";
 
 process.env.WS_ENDPOINT = "https://ws.example.com/live";
+// Own table: vitest runs test files in parallel, and the API tests drop and recreate TeamHub-test.
+process.env.TABLE_NAME = "TeamHub-test-realtime";
 
 const { ddb, TABLE } = await import("../../src/lib/db.js");
 const { keys } = await import("../../src/lib/keys.js");

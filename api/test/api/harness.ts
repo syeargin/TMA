@@ -1,4 +1,4 @@
-import { CreateTableCommand, DeleteTableCommand, DynamoDBClient, waitUntilTableExists } from "@aws-sdk/client-dynamodb";
+import { CreateTableCommand, DeleteTableCommand, DynamoDBClient, waitUntilTableExists, waitUntilTableNotExists } from "@aws-sdk/client-dynamodb";
 import type { APIGatewayProxyEventV2WithJWTAuthorizer } from "aws-lambda";
 
 export const ENDPOINT = process.env.DYNAMODB_ENDPOINT ?? "http://127.0.0.1:8000";
@@ -9,7 +9,10 @@ const raw = new DynamoDBClient({ endpoint: ENDPOINT, region: "us-east-1", creden
 /** Same keys and indexes as template.yaml. */
 export async function freshTable() {
   const TableName = process.env.TABLE_NAME!;
-  try { await raw.send(new DeleteTableCommand({ TableName })); } catch { /* not there */ }
+  try {
+    await raw.send(new DeleteTableCommand({ TableName }));
+    await waitUntilTableNotExists({ client: raw, maxWaitTime: 30, minDelay: 1 }, { TableName });
+  } catch { /* not there */ }
   const S = "S" as const;
   await raw.send(new CreateTableCommand({
     TableName, BillingMode: "PAY_PER_REQUEST",
