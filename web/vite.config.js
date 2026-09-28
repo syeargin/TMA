@@ -5,5 +5,7 @@ export default defineConfig({
     outDir: "dist",
     assetsDir: "assets",
     sourcemap: true
-  }
+  },
+  // The site imports the shared role table from ../api/src/shared.
+  server: { fs: { allow: [".."] } }
 });

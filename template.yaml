@@ -306,6 +306,95 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${PostConfirmationFunction}"
       RetentionInDays: 30
 
+  # ---------- API (Phase 2) ----------
+  ApiAccessLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/${AppPrefix}-${Env}-api"
+      RetentionInDays: 30
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      Auth:
+        DefaultAuthorizer: CognitoJwt
+        Authorizers:
+          CognitoJwt:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              audience: [!Ref UserPoolClient]
+      CorsConfiguration:
+        AllowOrigins:
+          - !Sub "https://${SiteDistribution.DomainName}"
+          - !If [IsProd, !Ref AWS::NoValue, "http://localhost:5173"]
+        AllowHeaders: [authorization, content-type]
+        AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
+        MaxAge: 600
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiAccessLogs.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","time":"$context.requestTime","method":"$context.httpMethod","path":"$context.path","status":"$context.status","latencyMs":"$context.responseLatency","sub":"$context.authorizer.claims.sub","error":"$context.authorizer.error"}'
+      Tags:
+        app: team-hub
+        env: !Ref Env
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/api/handler.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Team Hub REST API. Checks the caller's team roles before every read and write.
+      CodeUri: api/
+      Handler: handler.handler
+      MemorySize: 512
+      Environment:
+        Variables:
+          CLUB_ID: !Ref ClubId
+          CLUB_ADMIN_EMAILS: !Ref ClubAdminEmails
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+
+  ApiFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ApiFunction}"
+      RetentionInDays: 30
+
+  ApiErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AppPrefix}-${Env}-api-5xx"
+      AlarmDescription: The Team Hub API returned server errors.
+      Namespace: AWS/ApiGateway
+      MetricName: 5xx
+      Dimensions: [{ Name: ApiId, Value: !Ref HttpApi }, { Name: Stage, Value: $default }]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
   # ---------- Cost guardrail ----------
   MonthlyBudget:
     Type: AWS::Budgets::Budget
@@ -338,3 +427,5 @@ Outputs:
     Value: !Ref UserPool
   UserPoolClientId:
     Value: !Ref UserPoolClient
+  ApiUrl:
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
