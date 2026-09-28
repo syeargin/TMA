@@ -82,8 +82,10 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     else if (sk.startsWith("ANN#")) out.announcements.push({ aid: sk.slice(4), ...c });
     else if (sk.startsWith("TASK#")) out.tasks.push({ kid: sk.slice(5), ...c });
     else if (sk.startsWith("MEMBER#")) {
+      // The member id always comes from the key: memberships written at sign-up in Phase 1 have no "sub" attribute.
       const { email, invitedBy, ...pub } = c as Record<string, unknown>;
-      out.members.push(accounts ? { ...pub, email, invitedBy } : pub);
+      const withId = { ...pub, sub: sk.slice(7) };
+      out.members.push(accounts ? { ...withId, email, invitedBy } : withId);
     }
   }
   for (const p of out.players) {

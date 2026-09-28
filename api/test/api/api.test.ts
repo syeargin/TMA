@@ -237,6 +237,18 @@ describe("invites and members", () => {
     expect((await call("DELETE", `/teams/${T}/members/u-new`, CLUB)).status).toBe(204);
   });
 
+  it("manages Phase 1 memberships that have no sub attribute", async () => {
+    const legacy = "u-legacy";
+    await ddb.send(new PutCommand({ TableName: TABLE, Item: {
+      ...keys.member(T, legacy), GSI1PK: `USER#${legacy}`, GSI1SK: `TEAM#${T}`, type: "Membership", status: "active",
+      email: "legacy@example.com", roles: ["parent"], pid: "p2", person: "", invitedBy: "", at: "2026-09-27T20:00:00Z" } }));
+    const members = (await call("GET", `/teams/${T}`, ROLE_SUBS.admin)).body.members;
+    expect(members.find((m: any) => m.email === "legacy@example.com")?.sub).toBe(legacy);
+    expect((await call("GET", `/teams/${T}/members`, ROLE_SUBS.admin)).body.members.find((m: any) => m.email === "legacy@example.com")?.sub).toBe(legacy);
+    expect((await call("PUT", `/teams/${T}/members/${legacy}`, ROLE_SUBS.admin, { roles: ["parent", "food"] })).status).toBe(200);
+    expect((await call("DELETE", `/teams/${T}/members/${legacy}`, ROLE_SUBS.admin)).status).toBe(204);
+  });
+
   it("/me for a configured club-admin email creates the admin record", async () => {
     const me = await call("GET", "/me", "u-club2", undefined, "club@example.com");
     expect(me.body.clubAdmin).toBe(true);

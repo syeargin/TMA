@@ -21,7 +21,10 @@ async function activeMembers(teamId: string) {
   return (await queryAll({
     KeyConditionExpression: "PK = :p AND begins_with(SK, :m)",
     ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":m": "MEMBER#" }
-  })).filter((m) => m.status === "active");
+  }))
+    .filter((m) => m.status === "active")
+    // Memberships written at sign-up in Phase 1 have no "sub" attribute; the key always has it.
+    .map((m): Record<string, unknown> => ({ ...m, sub: String(m.SK).slice("MEMBER#".length) }));
 }
 
 export function peopleRoutes(r: Router) {
@@ -80,7 +83,7 @@ export function peopleRoutes(r: Router) {
       const admins = (await activeMembers(a.teamId)).filter((m) => (m.roles as string[]).includes("admin"));
       if (admins.length <= 1) throw conflict("A team needs at least one team admin. Make someone else an admin first.");
     }
-    await putItem({ ...existing, roles: b.roles, person: b.person ?? existing.person ?? "", pid: b.pid ?? existing.pid ?? "", updatedAt: now(), updatedBy: caller.sub });
+    await putItem({ ...existing, sub, roles: b.roles, person: b.person ?? existing.person ?? "", pid: b.pid ?? existing.pid ?? "", updatedAt: now(), updatedBy: caller.sub });
     return json(200, { sub });
   });
 
