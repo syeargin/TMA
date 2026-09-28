@@ -133,5 +133,21 @@ jobs:
           done
           echo "Site did not serve this build" >&2; exit 1
 
+      - name: API preflight check
+        env:
+          URL: ${{ steps.out.outputs.url }}
+          API: ${{ steps.out.outputs.api }}
+        run: |
+          # Browsers send this before every API call; it must succeed without a token.
+          headers=$(curl -s -o /dev/null -D - -X OPTIONS "$API/me" \
+            -H "Origin: $URL" -H "Access-Control-Request-Method: GET" \
+            -H "Access-Control-Request-Headers: authorization")
+          echo "$headers" | head -1
+          echo "$headers" | grep -qi "access-control-allow-origin: $URL" || { echo "CORS preflight failed for $URL" >&2; exit 1; }
+          # A call without a token must be refused, not served.
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$API/me")
+          [ "$code" = "401" ] || { echo "Expected 401 without a token, got $code" >&2; exit 1; }
+          echo "API preflight and auth OK"
+
       - name: Summary
         run: echo "### Deployed to $DEPLOY_ENV → ${{ steps.out.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
