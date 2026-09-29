@@ -36,7 +36,14 @@
         <div class="dn tn">{{ pd(it.date).getDate() }}</div>
       </div>
       <div>
-        <div class="ev-t"><span class="t">{{ it.title }}</span> <th-kind-pill [item]="it" /></div>
+        <div class="ev-t">
+          @if (it.kind === 'tournament') {
+            <a class="t" [routerLink]="['/teams', store.teamId(), 'tournaments', it.key]">{{ it.title }}</a>
+          } @else {
+            <span class="t">{{ it.title }}</span>
+          }
+          <th-kind-pill [item]="it" />
+        </div>
         <div class="meta">
           <span class="sr-only">{{ fmt(it.date, { weekday: 'long', month: 'long', day: 'numeric' }) }}</span>
           @if (when(it)) { <span>{{ when(it) }}</span> }

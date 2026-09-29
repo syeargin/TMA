@@ -3,7 +3,7 @@ import { z } from "zod";
 import { ddb, TABLE } from "../../lib/db.js";
 import { keys } from "../../lib/keys.js";
 import { loadAccess } from "../context.js";
-import { conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
+import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { cents, checkId, date, deleteItem, deleteMany, getItem, now, optStr, putItem, queryAll, str } from "../util.js";
 
@@ -28,6 +28,7 @@ const eventSchema = z.object({
   checklist: z.array(str(200)).max(60).optional()
 });
 
+const refGroupsSchema = z.object({ groups: z.record(z.enum(["A", "B"])) });
 const refjobsSchema = z.object({
   assign: z.record(z.object({ s1: optStr(20), s2: optStr(20), s3: optStr(20) }))
 });
@@ -89,6 +90,27 @@ export function contentRoutes(r: Router) {
     });
     await deleteMany([keys.event(a.teamId, eid), ...(children as { PK: string; SK: string }[])]);
     return json(204, undefined);
+  });
+
+  /** Split the roster into ref job groups A and B. Only touches each player's refTeam. */
+  r.on("PUT", "/teams/{teamId}/refgroups", async ({ caller, params, body }) => {
+    const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.require("refjobs");
+    const { groups } = parseBody(refGroupsSchema, body);
+    const entries = Object.entries(groups);
+    if (entries.length > 40) throw badRequest("Too many players.");
+    for (const [pid, group] of entries) {
+      checkId(pid, "player");
+      try {
+        await ddb.send(new UpdateCommand({
+          TableName: TABLE, Key: keys.player(a.teamId, pid),
+          UpdateExpression: "SET refTeam = :g, updatedAt = :at, updatedBy = :by",
+          ConditionExpression: "attribute_exists(PK)",
+          ExpressionAttributeValues: { ":g": group, ":at": now(), ":by": caller.sub }
+        }));
+      } catch (e) { mapDbError(e, `Player ${pid} isn't on this team.`); }
+    }
+    return json(200, { groups });
   });
 
   r.on("PUT", "/teams/{teamId}/events/{eid}/refjobs", async ({ caller, params, body }) => {

@@ -4,7 +4,7 @@ import { firstValueFrom, from, switchMap, throwError } from 'rxjs';
 import type { Role } from '@shared/permissions';
 import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
-import type { ClubTeam, Invite, Me, Practice, Rsvp, TeamBundle, TeamEvent } from './models';
+import type { Agenda, ClubTeam, Invite, Me, Meal, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
   constructor(readonly status: number, body?: { message?: string; error?: string } | null) {
@@ -76,4 +76,19 @@ export class ApiService {
     return this.call('PUT', `/teams/${enc(teamId)}/announcements/${enc(aid)}`, a);
   }
   deleteAnnouncement(teamId: string, aid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/announcements/${enc(aid)}`); }
+
+  saveRefJobs(teamId: string, eid: string, assign: RefAssign) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/refjobs`, { assign }); }
+  setRefGroups(teamId: string, groups: Record<string, 'A' | 'B'>) { return this.call('PUT', `/teams/${enc(teamId)}/refgroups`, { groups }); }
+  saveAgenda(teamId: string, eid: string, agenda: Agenda) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/agenda`, agenda); }
+  saveMeal(teamId: string, m: Meal) {
+    const { eid, mid, ...body } = m;
+    return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}`, body);
+  }
+  deleteMeal(teamId: string, eid: string, mid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}`); }
+  claimMeal(teamId: string, eid: string, mid: string, pid: string) { return this.call('POST', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}/claim`, { pid }); }
+  releaseMeal(teamId: string, eid: string, mid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}/claim`); }
+  /** One family's travel for one tournament; null clears it. */
+  setTravel(teamId: string, pid: string, eid: string, travel: Travel | null) {
+    return this.call('PUT', `/teams/${enc(teamId)}/family/${enc(pid)}`, { travel: { [eid]: travel } });
+  }
 }

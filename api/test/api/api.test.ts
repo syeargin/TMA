@@ -73,6 +73,7 @@ describe("role matrix: each route allows exactly the roles in the permission tab
     { perm: "schedule", method: "PUT", path: (i) => `/teams/${T}/events/ex${i}`, body: { kind: "event", title: "Party", date: "2026-12-01" } },
     { perm: "schedule", method: "PUT", path: () => `/teams/${T}/practices`, body: { practices: [{ id: "tue", label: "Practice", dow: 2, start: "7:00 PM", from: "2026-11-03" }] } },
     { perm: "schedule", method: "PUT", path: (i) => `/teams/${T}/practices/cancelled/pr-tue-2026-11-${String(i % 28 + 1).padStart(2, "0")}`, body: undefined },
+    { perm: "refjobs", method: "PUT", path: () => `/teams/${T}/refgroups`, body: { groups: { p1: "A", p2: "B" } } },
     { perm: "refjobs", method: "PUT", path: () => `/teams/${T}/events/e1/refjobs`, body: { assign: { p1: { s1: "Book" } } } },
     { perm: "meals", method: "PUT", path: (i) => `/teams/${T}/events/e1/meals/mx${i}`, body: { meal: "Dinner" } },
     { perm: "announce", method: "PUT", path: (i) => `/teams/${T}/announcements/a${i}`, body: { text: "Hello" } },
@@ -159,6 +160,22 @@ describe("practices", () => {
     const s = (await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.settings;
     expect(s.practices).toEqual([P]);
     expect(s.cancelled).toContain("pr-wed-2026-11-18");
+  });
+});
+
+describe("ref groups", () => {
+  it("coaches split players into A and B without touching anything else", async () => {
+    expect((await call("PUT", `/teams/${T}/refgroups`, ROLE_SUBS.coach, { groups: { p1: "B", p2: "A" } })).status).toBe(200);
+    const players = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.players;
+    const p1 = players.find((p: any) => p.pid === "p1");
+    expect(p1.refTeam).toBe("B");
+    expect(p1.first).toBe("P1");
+    expect(p1.parents).toEqual([{ name: "Mom", cell: "555" }]);
+    expect(players.find((p: any) => p.pid === "p2").refTeam).toBe("A");
+  });
+  it("refuses unknown players and bad groups", async () => {
+    expect((await call("PUT", `/teams/${T}/refgroups`, ROLE_SUBS.coach, { groups: { nobody: "A" } })).status).toBe(409);
+    expect((await call("PUT", `/teams/${T}/refgroups`, ROLE_SUBS.coach, { groups: { p1: "C" } })).status).toBe(400);
   });
 });
 

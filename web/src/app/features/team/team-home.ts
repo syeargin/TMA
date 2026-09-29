@@ -9,7 +9,7 @@ import { Sheet } from '../../shared/sheet';
 import { roleLabel } from '../../shared/roles';
 import { KindPill, RsvpButtons, RsvpCounts, RsvpStatus } from '../schedule/rsvp';
 
-interface Todo { title: string; sub: string; link: string; tone?: 'warn' | 'ok' }
+interface Todo { title: string; sub: string; link: string | string[]; tone?: 'warn' | 'ok' }
 interface Contact { name: string; role: string; phone?: string }
 
 @Component({
@@ -51,6 +51,29 @@ export class TeamHome {
         sub: `${soon.length} practice${soon.length > 1 ? 's and events' : ' or event'} in the next 2 weeks need${soon.length > 1 ? '' : 's'} a reply`,
         link: 'schedule'
       });
+    }
+    const t0 = today();
+    if (pid) {
+      const need = this.store.tournaments().filter((e) => e.travel && e.date >= t0 && daysUntil(e.date) <= 150 && !this.store.travelOf(pid, e.eid));
+      if (need.length) out.push({
+        title: `Add travel plans for ${need[0].title}`,
+        sub: `${fmtRange(need[0].date, need[0].endDate)}${need[0].city ? ' · ' + need[0].city : ''}${need.length > 1 ? ` · plus ${need.length - 1} more trip${need.length > 2 ? 's' : ''}` : ''}`,
+        link: ['tournaments', need[0].eid, 'travel'], tone: 'warn'
+      });
+    }
+    if (pid || this.store.can('meals')) {
+      const upcomingIds = new Set(this.store.tournaments().filter((e) => (e.endDate || e.date) >= t0).map((e) => e.eid));
+      const open = this.store.meals().filter((m) => !m.claimedBy && upcomingIds.has(m.eid));
+      if (open.length) {
+        const first = this.store.tournaments().find((e) => e.eid === open[0].eid)!;
+        out.push({ title: `${open.length} team meal${open.length > 1 ? 's' : ''} need a family`, sub: `Starting with ${first.title}`, link: ['tournaments', first.eid, 'meals'], tone: 'warn' });
+      }
+    }
+    if (this.store.can('refjobs')) {
+      const nt = this.store.tournaments().find((e) => (e.endDate || e.date) >= t0);
+      if (nt && !Object.keys(this.store.refjobs()[nt.eid]?.assign ?? {}).length && this.store.players().length) {
+        out.push({ title: `Assign ref jobs for ${nt.title}`, sub: fmtRange(nt.date, nt.endDate), link: ['tournaments', nt.eid, 'ref'], tone: 'ok' });
+      }
     }
     if (this.store.can('schedule') && !this.store.settings()?.practices?.length) {
       out.push({ title: 'Add practice times', sub: 'Weekly practices fill the schedule for the season', link: 'schedule', tone: 'ok' });

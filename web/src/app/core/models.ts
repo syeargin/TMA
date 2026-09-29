@@ -28,12 +28,30 @@ export interface TeamEvent {
   eid: string; kind: EventKind; title: string; date: string; endDate?: string;
   time?: string; location?: string; city?: string; division?: string; website?: string;
   travel?: boolean; notes?: string;
+  // Game day (tournaments)
+  parking?: string; waves?: string; arrival?: string; start?: string; meet?: string; uniforms?: string;
+  admissions?: string; teamCode?: string; scheduleLink?: string; ticketHelp?: string; dutyPid?: string;
+  foodPlan?: string; reservations?: string; checklist?: string[];
+  // Team hotel (travel tournaments)
+  hotel?: string; hotelLink?: string; hotelCode?: string; hotelBy?: string;
   [key: string]: unknown;
 }
+
+export type RefSet = 's1' | 's2' | 's3';
+export type RefAssign = Record<string, Partial<Record<RefSet, string>>>;
+export interface RefJobs { assign: RefAssign }
+export interface AgendaItem { what: string; where?: string; who?: string }
+export interface Agenda { note?: string; days: { label: string; items: AgendaItem[] }[] }
+export interface Meal {
+  eid: string; mid: string; meal: string; day?: string; time?: string; plan?: string; costCents?: number;
+  claimedBy?: string | null;
+}
+export interface Travel { mode?: string; flight?: string; hotel?: string; conf?: string; arrive?: string; depart?: string; notes?: string; at?: string }
 export type Rsvp = 'yes' | 'maybe' | 'no';
 export interface FamilyRecord {
   pid?: string;
   rsvp?: Record<string, { v: Rsvp; at?: string; by?: string }>;
+  travel?: Record<string, Travel>;
   [key: string]: unknown;
 }
 export interface Announcement { aid: string; text: string; pinned?: boolean; by?: string; at?: string }
@@ -48,5 +66,8 @@ export interface TeamBundle {
   family: Record<string, FamilyRecord>;
   announcements: Announcement[];
   members: Member[];
+  meals: Meal[];
+  refjobs: Record<string, RefJobs>;
+  agenda: Record<string, Agenda>;
   [key: string]: unknown;
 }
