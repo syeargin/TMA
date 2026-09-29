@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { addDays, fmt, fmtRange, pd, today } from '../../core/dates';
 import type { EventKind, TeamEvent } from '../../core/models';
 import { ScheduleItem } from '../../core/schedule';
@@ -12,7 +13,7 @@ type Range = '8w' | 'season';
 
 @Component({
   selector: 'th-schedule',
-  imports: [EventForm, PracticesForm, KindPill, RsvpButtons, RsvpCounts],
+  imports: [RouterLink, EventForm, PracticesForm, KindPill, RsvpButtons, RsvpCounts],
   templateUrl: './schedule.html'
 })
 export class Schedule {

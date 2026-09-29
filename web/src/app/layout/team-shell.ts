@@ -18,6 +18,7 @@ import { AvailabilitySheet } from '../features/schedule/availability-sheet';
         <a class="tab" routerLink="/" title="All your teams">‹ Teams</a>
         <a class="tab" routerLink="." routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Home</a>
         <a class="tab" routerLink="schedule" routerLinkActive="active" ariaCurrentWhenActive="page">Schedule</a>
+        <a class="tab" routerLink="tournaments" routerLinkActive="active" ariaCurrentWhenActive="page">Tournaments</a>
         @if (store.can('accounts')) {
           <a class="tab" routerLink="members" routerLinkActive="active" ariaCurrentWhenActive="page">Members</a>
         }

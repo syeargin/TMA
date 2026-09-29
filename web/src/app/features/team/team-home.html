@@ -22,6 +22,7 @@
           <div class="row">
             @if (pid()) { <th-rsvp [item]="n" [pid]="pid()" /> }
             <th-counts [item]="n" />
+            @if (n.kind === 'tournament') { <a class="btn sm" [routerLink]="['tournaments', n.key]">Game-day details</a> }
           </div>
         </div>
       </section>
@@ -58,7 +59,7 @@
           <div class="li">
             <div class="label when">{{ fmt(i.date, { weekday: 'short', day: 'numeric' }) }}</div>
             <div class="grow">
-              <b [style.text-decoration]="i.cancelled ? 'line-through' : null">{{ i.title }}</b>
+              @if (i.kind === 'tournament') { <a [routerLink]="['tournaments', i.key]"><b>{{ i.title }}</b></a> } @else { <b [style.text-decoration]="i.cancelled ? 'line-through' : null">{{ i.title }}</b> }
               @if (i.cancelled) { <span class="pill p-bad">Cancelled</span> }
               <div class="small muted">{{ whenOf(i) }}@if (i.location) { · {{ i.location }}}</div>
             </div>

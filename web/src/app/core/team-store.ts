@@ -4,7 +4,7 @@ import { Permission, can as roleCan } from '@shared/permissions';
 import { ApiError, ApiService } from './api.service';
 import { explain } from './errors';
 import { LiveService } from './live.service';
-import type { Announcement, Member, Player, Practice, Rsvp, TeamBundle, TeamEvent } from './models';
+import type { Agenda, Announcement, Meal, Member, Player, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
 import { ScheduleItem, buildItems, countsFor, rsvpOf } from './schedule';
 import { ToastService } from './toast.service';
 
@@ -41,6 +41,11 @@ export class TeamStore implements OnDestroy {
   readonly announcements = computed<Announcement[]>(() => [...(this.bundle()?.announcements ?? [])].sort((a, b) =>
     Number(!!b.pinned) - Number(!!a.pinned) || String(b.at ?? '').localeCompare(String(a.at ?? ''))));
   readonly items = computed(() => buildItems(this.events(), this.settings()));
+  readonly meals = computed<Meal[]>(() => this.bundle()?.meals ?? []);
+  readonly refjobs = computed(() => this.bundle()?.refjobs ?? {});
+  readonly agenda = computed(() => this.bundle()?.agenda ?? {});
+  /** Tournaments, soonest first. */
+  readonly tournaments = computed(() => this.events().filter((e) => e.kind === 'tournament').sort((a, b) => a.date.localeCompare(b.date)));
   readonly teamName = computed(() => this.settings()?.teamName || this.teamId());
   /** The player this account answers for (parents), if linked. */
   readonly myPid = computed(() => (this.can('family') ? this.you().pid || '' : ''));
@@ -149,6 +154,19 @@ export class TeamStore implements OnDestroy {
     return this.save(done, (t) => this.api.saveAnnouncement(t, aid, a));
   }
   deleteAnnouncement(aid: string) { return this.save('Announcement deleted', (t) => this.api.deleteAnnouncement(t, aid)); }
+
+  event(eid: string) { return this.events().find((e) => e.eid === eid) ?? null; }
+  travelOf(pid: string, eid: string): Travel | null { return this.family()[pid]?.travel?.[eid] ?? null; }
+  saveRefJobs(eid: string, assign: RefAssign, done = '') { return this.save(done, (t) => this.api.saveRefJobs(t, eid, assign)); }
+  setRefGroups(groups: Record<string, 'A' | 'B'>) { return this.save('Groups saved', (t) => this.api.setRefGroups(t, groups)); }
+  saveAgenda(eid: string, agenda: Agenda, done: string) { return this.save(done, (t) => this.api.saveAgenda(t, eid, agenda)); }
+  saveMeal(m: Meal, isNew: boolean) { return this.save(isNew ? 'Meal added' : 'Meal saved', (t) => this.api.saveMeal(t, m)); }
+  deleteMeal(m: Meal) { return this.save('Meal removed', (t) => this.api.deleteMeal(t, m.eid, m.mid)); }
+  claimMeal(m: Meal, pid: string) { return this.save("Thanks! It's yours.", (t) => this.api.claimMeal(t, m.eid, m.mid, pid)); }
+  releaseMeal(m: Meal) { return this.save('Meal reopened', (t) => this.api.releaseMeal(t, m.eid, m.mid)); }
+  setTravel(pid: string, eid: string, travel: Travel | null) {
+    return this.save(travel ? 'Travel plans saved' : 'Travel plans cleared', (t) => this.api.setTravel(t, pid, eid, travel));
+  }
 
   /** Who wrote something, as this viewer can see them. */
   authorName(sub?: string): string {

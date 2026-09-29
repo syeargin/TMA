@@ -2,8 +2,6 @@ import { Routes } from '@angular/router';
 import { signedInGuard, signedOutGuard } from './core/guards';
 import { Forgot, Reset, SignIn, SignUp, Unconfigured, Verify } from './features/auth/auth-pages';
 import { Home } from './features/home/home';
-import { Schedule } from './features/schedule/schedule';
-import { Members } from './features/team/members';
 import { TeamHome } from './features/team/team-home';
 import { Narrow } from './layout/narrow';
 import { TeamShell } from './layout/team-shell';
@@ -15,8 +13,11 @@ export const routes: Routes = [
     path: 'teams/:teamId', component: TeamShell, canActivate: [signedInGuard],
     children: [
       { path: '', component: TeamHome, title: T('Home') },
-      { path: 'schedule', component: Schedule, title: T('Schedule') },
-      { path: 'members', component: Members, title: T('Members') }
+      { path: 'schedule', loadComponent: () => import('./features/schedule/schedule').then((m) => m.Schedule), title: T('Schedule') },
+      { path: 'tournaments', loadComponent: () => import('./features/tournaments/tournaments').then((m) => m.Tournaments), title: T('Tournaments') },
+      { path: 'tournaments/:eid', loadComponent: () => import('./features/tournaments/tournament').then((m) => m.Tournament), title: T('Tournament') },
+      { path: 'tournaments/:eid/:section', loadComponent: () => import('./features/tournaments/tournament').then((m) => m.Tournament), title: T('Tournament') },
+      { path: 'members', loadComponent: () => import('./features/team/members').then((m) => m.Members), title: T('Members') }
     ]
   },
   {
