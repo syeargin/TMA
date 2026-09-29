@@ -17,6 +17,8 @@ Both indexes project `ALL`. Billing is on-demand. Streams carry new and old imag
 | `CLUB#<clubId>` | Site owner / club admins (via API) | Team directory, club admins |
 | `TEAM#<teamId>` | The API, by role | Settings, handbook, roster, contacts, events, ref jobs, agendas, meals, family records, payments, ledger, announcements, tasks, memberships |
 | `USER#<uid>` | The API, for that user | Profile |
+| `CONN#<connectionId>` | WebSocket functions | One open live-update socket: who it is and which team it follows |
+| `TEAMCONN#<teamId>` | WebSocket functions | The sockets following a team, read by the stream fan-out |
 
 All writes go through the API, which checks the caller's membership (`TEAM#<t>` / `MEMBER#<sub>`) before touching the table. That lets family records and payments live in the team partition, keyed by player and payment id, so a single query loads a whole team. (An earlier draft kept them in `USER#` partitions so IAM leading-key conditions could guard direct browser writes; with the API in front, that's no longer needed.)
 
@@ -42,6 +44,14 @@ All writes go through the API, which checks the caller's membership (`TEAM#<t>` 
 | Invite | `INVITE#<email>` | `TEAM#<t>` | `TEAM#<t>` / `INVITE#<email>` | |
 | User profile | `USER#<uid>` | `PROFILE` | | |
 | Payment (family-submitted) | `TEAM#<t>` | `PAYMENT#<payId>` | | |
+| Live connection | `CONN#<connId>` | `META` (`sub`, `teamId`, `ttl`) | | |
+| Team subscriber | `TEAMCONN#<t>` | `CONN#<connId>` (`sub`, `ttl`) | | |
+
+### Live updates (Phase 3)
+
+Connection items sit outside `TEAM#` partitions on purpose. The stream fan-out only looks at `TEAM#` and `INVITE#` keys (a Lambda event filter), so connecting and disconnecting never cause a notice. Both items carry a 3-hour `ttl`. API Gateway ends sockets after 2 hours, so any item a missed `$disconnect` leaves behind expires on its own. The fan-out also deletes a connection when a send to it returns 410 Gone.
+
+The fan-out maps each changed key to a collection name (`PLAYER#p1#CONTACTS` → `players`, `EVENT#e1#MEAL#m1` → `meals`, `INVITE#…/TEAM#t` → `invites`, and so on). It sends each team one `{type:"changed", teamId, collections}` notice per stream batch. Notices carry no team data, and browsers re-read through the API, so permissions are checked in one place.
 
 ## Access patterns
 

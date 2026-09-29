@@ -92,6 +92,7 @@ jobs:
             echo "user_pool=$(get UserPoolId)"
             echo "client=$(get UserPoolClientId)"
             echo "api=$(get ApiUrl)"
+            echo "ws=$(get WsUrl)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build site
@@ -100,11 +101,12 @@ jobs:
           USER_POOL_ID: ${{ steps.out.outputs.user_pool }}
           CLIENT_ID: ${{ steps.out.outputs.client }}
           API_URL: ${{ steps.out.outputs.api }}
+          WS_URL: ${{ steps.out.outputs.ws }}
         run: |
           npm ci
           jq -n --arg env "$DEPLOY_ENV" --arg commit "$GITHUB_SHA" --arg region "$AWS_REGION" \
-                --arg pool "$USER_POOL_ID" --arg client "$CLIENT_ID" --arg api "$API_URL" \
-                '{env: $env, commit: $commit, region: $region, userPoolId: $pool, userPoolClientId: $client, apiUrl: $api}' > public/config.json
+                --arg pool "$USER_POOL_ID" --arg client "$CLIENT_ID" --arg api "$API_URL" --arg ws "$WS_URL" \
+                '{env: $env, commit: $commit, region: $region, userPoolId: $pool, userPoolClientId: $client, apiUrl: $api, wsUrl: $ws}' > public/config.json
           cat public/config.json
           npm run build
 
@@ -148,6 +150,20 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' "$API/me")
           [ "$code" = "401" ] || { echo "Expected 401 without a token, got $code" >&2; exit 1; }
           echo "API preflight and auth OK"
+
+      - name: Live updates check
+        env:
+          WS: ${{ steps.out.outputs.ws }}
+        run: |
+          # A WebSocket handshake with no token, or a bad one, must be refused.
+          https="${WS/wss:/https:}"
+          for q in "" "?token=not-a-real-token"; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --http1.1 --max-time 15 "$https$q" \
+              -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Sec-WebSocket-Version: 13" \
+              -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==") || true
+            [ "$code" = "401" ] || [ "$code" = "403" ] || { echo "Expected 401/403 for handshake '$q', got $code" >&2; exit 1; }
+          done
+          echo "WebSocket auth OK: $WS"
 
       - name: Summary
         run: echo "### Deployed to $DEPLOY_ENV → ${{ steps.out.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
