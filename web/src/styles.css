@@ -21,7 +21,7 @@ h2 { font-size: 22px; margin: 0 0 8px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
 form { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
 label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 14px; color: var(--muted); }
-input { font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+input { width: 100%; min-width: 0; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
 input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
 .hint { margin: -8px 0 0; font-size: 13px; color: var(--muted); }
 .btn { font: inherit; font-weight: 600; padding: 10px 16px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
@@ -49,8 +49,11 @@ a.rowbtn { text-decoration: none; }
 .member details { width: 100%; }
 .member summary { cursor: pointer; color: var(--navy); font-size: 14px; }
 .checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.checks input { width: auto; }
 .checks label { flex-direction: row; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font-weight: 500; color: var(--ink); }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* minmax(0, 1fr): let columns shrink below a text box's built-in width instead of overflowing the card. */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.two > label { min-width: 0; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn.danger, .link.confirm { color: var(--bad); border-color: var(--bad); }
 
