@@ -1,0 +1,143 @@
+@if (needsLink()) {
+  <div class="banner info"><p><b>Your account isn’t linked to a player yet.</b> Ask your team admin to link you to your player so you can mark availability for your family.</p></div>
+}
+
+<div class="grid g-home ordered">
+  <div class="stack">
+    @if (next(); as n) {
+      <section class="card nextup o-next" aria-label="Next up">
+        <div class="dateblock" aria-hidden="true">
+          <div class="dow">{{ fmt(n.date, { weekday: 'long' }) }}</div>
+          <div class="dnum tn">{{ pd(n.date).getDate() }}</div>
+          <div class="mon">{{ fmt(n.date, { month: 'short' }) }}</div>
+        </div>
+        <div class="body">
+          <div class="label">Next up · {{ until(n.date) }}</div>
+          <h3>{{ n.title }}</h3>
+          <div class="meta">
+            <span>{{ fmt(n.date, { weekday: 'long', month: 'long', day: 'numeric' }) }}@if (whenOf(n)) { · {{ whenOf(n) }}}</span>
+            @if (n.location) { <span>{{ n.location }}</span> }
+            <th-kind-pill [item]="n" />
+          </div>
+          <div class="row">
+            @if (pid()) { <th-rsvp [item]="n" [pid]="pid()" /> }
+            <th-counts [item]="n" />
+          </div>
+        </div>
+      </section>
+    } @else {
+      <div class="card empty o-next">Nothing on the calendar yet.@if (store.can('schedule')) { <a routerLink="schedule">Add practice times or events.</a> }</div>
+    }
+
+    <div class="stats o-stats">
+      <div class="card stat">
+        <div class="label">Next tournament</div>
+        @if (nextTournament(); as t) {
+          <div class="v tn">{{ daysUntil(t.date) }}<small> days</small></div>
+          <div class="s">{{ t.title }} · {{ fmtRange(t.date, t.end) }}</div>
+        } @else {
+          <div class="v">—</div><div class="s">None scheduled</div>
+        }
+      </div>
+      <div class="card stat">
+        <div class="label">Next 7 days</div>
+        <div class="v tn">{{ weekCount() }}</div>
+        <div class="s">practice{{ weekCount() === 1 ? '' : 's' }} and events</div>
+      </div>
+      <div class="card stat">
+        <div class="label">Roster</div>
+        <div class="v tn">{{ store.players().length }}</div>
+        <div class="s">players · {{ store.members().length }} account{{ store.members().length === 1 ? '' : 's' }}</div>
+      </div>
+    </div>
+
+    <section class="card o-week">
+      <div class="card-h"><h2>Next 7 days</h2><span class="spacer"></span><a class="link-btn small" routerLink="schedule">Full schedule</a></div>
+      <div class="card-b">
+        @for (i of week(); track i.key) {
+          <div class="li">
+            <div class="label when">{{ fmt(i.date, { weekday: 'short', day: 'numeric' }) }}</div>
+            <div class="grow">
+              <b [style.text-decoration]="i.cancelled ? 'line-through' : null">{{ i.title }}</b>
+              @if (i.cancelled) { <span class="pill p-bad">Cancelled</span> }
+              <div class="small muted">{{ whenOf(i) }}@if (i.location) { · {{ i.location }}}</div>
+            </div>
+            @if (pid() && !i.cancelled && i.kind !== 'deadline') { <th-status [value]="store.rsvp(pid(), i.key)" /> }
+          </div>
+        } @empty {
+          <div class="empty">Nothing this week.</div>
+        }
+      </div>
+    </section>
+
+    <section class="card o-ann">
+      <div class="card-h"><h2>Announcements</h2><span class="spacer"></span>
+        @if (store.can('announce')) { <button class="btn sm primary" type="button" (click)="postAnnouncement()">Post</button> }
+      </div>
+      <div class="card-b">
+        @for (a of store.announcements(); track a.aid) {
+          <article class="ann">
+            @if (a.pinned) { <div class="pin">Pinned</div> }
+            <p class="txt">{{ a.text }}</p>
+            <div class="row small muted" style="margin-top:6px">
+              <span>{{ store.authorName(a.by) }}@if (annDate(a)) { · {{ annDate(a) }}}</span>
+              @if (store.can('announce')) {
+                <span class="spacer"></span>
+                <button class="link-btn small" type="button" (click)="togglePin(a)">{{ a.pinned ? 'Unpin' : 'Pin' }}</button>
+                <button class="link-btn small" type="button" [class.confirm]="confirmDelete() === a.aid" (click)="deleteAnnouncement(a)">
+                  {{ confirmDelete() === a.aid ? 'Tap again to delete' : 'Delete' }}
+                </button>
+              }
+            </div>
+          </article>
+        } @empty {
+          <div class="empty">No announcements yet.</div>
+        }
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card o-todo">
+      <div class="card-h"><h2>For you</h2><span class="muted small">{{ store.you().roles.length ? '' : 'No roles yet' }}</span></div>
+      <div class="card-b stack" style="gap:8px">
+        @for (t of todos(); track t.title) {
+          <a class="todo" [routerLink]="t.link">
+            <span class="dot" [class.warn]="t.tone === 'warn'" [class.ok]="t.tone === 'ok'"></span>
+            <span class="t"><b>{{ t.title }}</b><span class="muted small">{{ t.sub }}</span></span>
+            <span class="go" aria-hidden="true">›</span>
+          </a>
+        } @empty {
+          <div class="empty">You’re all caught up.</div>
+        }
+      </div>
+    </section>
+
+    <section class="card o-contacts">
+      <div class="card-h"><h2>Key contacts</h2></div>
+      <div class="card-b">
+        @for (c of contacts(); track c.name + c.role) {
+          <div class="li">
+            <div class="grow"><b>{{ c.name }}</b><div class="small muted">{{ c.role }}</div></div>
+            @if (c.phone) { <a class="copy tn" [href]="'tel:' + c.phone">{{ c.phone }}</a> }
+          </div>
+        } @empty {
+          <div class="empty">Coaches and coordinators appear here.</div>
+        }
+      </div>
+    </section>
+  </div>
+</div>
+
+@if (store.can('announce')) {
+<th-sheet heading="Post an announcement" [open]="annOpen()" (closed)="annOpen.set(false)">
+  <form [formGroup]="annForm" (ngSubmit)="submitAnnouncement()" novalidate>
+    <label>Message<textarea formControlName="text" rows="5" placeholder="Practice moves to Court 3 this week."></textarea></label>
+    <label class="checks" style="flex-direction:row"><input type="checkbox" formControlName="pinned"> Pin to the top</label>
+    <div class="form-actions">
+      <button class="btn primary" type="submit" [disabled]="annBusy() || !annForm.controls.text.value.trim()">{{ annBusy() ? 'Posting…' : 'Post' }}</button>
+      <button class="btn ghost" type="button" (click)="annOpen.set(false)">Cancel</button>
+    </div>
+  </form>
+</th-sheet>
+}
