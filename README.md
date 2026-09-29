@@ -9,11 +9,11 @@ This repo moves the hub from its claude.ai prototype to AWS. The plan lives in [
 | Layer | Service |
 |---|---|
 | Infrastructure | AWS SAM (`template.yaml`), deployed from GitHub Actions through OIDC |
-| Site | Vite build → private S3 bucket → CloudFront |
+| Site | Angular 22 (standalone components, signals, zoneless) → private S3 bucket → CloudFront |
 | Data | DynamoDB single table `TeamHub-<env>` (streams, PITR, TTL) |
 | Sign-in | Cognito user pool, email and password, invite-only sign-up |
 | API | HTTP API (Cognito JWT authorizer) + one Lambda that checks team roles on every call |
-| Live updates *(Phase 3)* | WebSocket API fed by DynamoDB Streams |
+| Live updates | WebSocket API fed by DynamoDB Streams |
 
 ## Repository layout
 
@@ -25,7 +25,7 @@ bootstrap/github-oidc.yaml  one-time: GitHub OIDC trust, deploy roles, artifact 
 .github/workflows/deploy.yml main → dev; release → prod (with approval)
 api/                        Lambda code (TypeScript, bundled by SAM with esbuild) and tests
 scripts/invite.sh           add a team invite from the command line
-web/                        site: sign-in and a team admin panel now; the hub moves here in Phase 4
+web/                        Angular site (see "Site structure" below); the hub's screens arrive through Phase 4
 db/                         DynamoDB key design and example items
 docs/                       migration plan and data model
 legacy/claude-hub.html      current claude.ai hub, source for Phase 4
@@ -148,15 +148,36 @@ browser ──wss://…/live?token=<access token>──► API Gateway WebSocket
 
 Try it on dev: open the team page in two browsers (or one normal window and one private window) signed in as two admins. Change a member's roles in one and watch the other update. Turn Wi-Fi off and on in one window: the pill shows *Reconnecting…*, then *Live*, and the page catches up.
 
+## Site structure (Angular)
+
+```
+web/src/main.ts                   reads /config.json (written by the deploy), then starts the app
+web/src/app/app.ts                shell: header, Live pill, env badge
+web/src/app/app.routes.ts         /, /teams/:teamId, /signin, /signup, /verify, /forgot, /reset
+web/src/app/core/                 services shared by every screen
+  auth.service.ts                   Cognito sign-in through Amplify
+  api.service.ts                    typed REST calls; interceptor adds the access token (API calls only)
+  live-client.ts / live.service.ts  WebSocket live updates (framework-free client + Angular wrapper)
+  guards.ts, flash.service.ts       signed-in/out routing, one-time messages between screens
+web/src/app/features/             one folder per area: auth, home, team (more arrive in Phase 4)
+web/src/app/shared/               small UI pieces and the role checkbox helpers
+```
+
+The site imports the API's role table directly (`@shared/permissions` → `api/src/shared/permissions.ts`), so the buttons a person sees always match what the API allows.
+
 ## Local development
 
+Node 24 is required (Angular 22 needs 22.22.3+ or 24).
+
 ```bash
-cd web && npm install && npm run dev      # site on http://localhost:5173
+cd web && npm install && npm start        # site on http://localhost:4200
+cd web && npm test                         # unit tests (Vitest): live client, API service, messages
 cd api && npm install && npm test         # unit and integration tests for the Lambda code
-cd web && npm test                         # live-update client (fake WebSocket, no browser)
 npm install -g esbuild                     # needed once for sam build
 sam validate --lint && sam build          # check and build the stack
 ```
+
+To run the site locally against dev, copy the dev site's `/config.json` into `web/public/config.json` (don't commit it; the committed copy only says `{"env":"local"}`). The dev API accepts calls from `http://localhost:4200`.
 
 ## Notes
 

@@ -1,0 +1,81 @@
+<a class="link" routerLink="/">‹ Your teams</a>
+@if (team(); as t) {
+  <div class="teambody" [class.fresh]="fresh()" (focusout)="onFocusOut()">
+    <h2>{{ title() }}</h2>
+    <th-messages [error]="error()" [notice]="notice()" />
+    <p class="muted small">Your roles: {{ roleList(t.you.roles) || 'none' }}</p>
+    <dl class="kv">
+      <dt>Players</dt><dd>{{ t.players.length }}</dd>
+      <dt>Events</dt><dd>{{ t.events.length }}</dd>
+      <dt>Members</dt><dd>{{ t.members.length }}</dd>
+    </dl>
+    <p class="muted small">The rest of the team pages arrive in the next Phase 4 steps. This screen manages who's on the team.</p>
+
+    @if (manage()) {
+      <h3>Members</h3>
+      <ul class="list">
+        @for (m of t.members; track m.sub ?? m.email) {
+          <li class="member">
+            <div>
+              <b>{{ m.email || m.person || m.sub }}</b>
+              <div class="muted small">{{ roleList(m.roles) }}@if (m.pid) { · family {{ m.pid }}}</div>
+            </div>
+            @if (m.sub && memberForms().get(m.sub); as f) {
+              <details>
+                <summary>Change</summary>
+                <form (ngSubmit)="saveMember(m.sub)" novalidate>
+                  <div class="checks">
+                    @for (r of roles; track r) {
+                      <label><input type="checkbox" [formControl]="f.roles.controls[r]"> {{ roleLabel(r) }}</label>
+                    }
+                  </div>
+                  <label>Family (player id)<input type="text" [formControl]="f.pid"></label>
+                  <div class="row">
+                    <button class="btn primary" type="submit" [disabled]="busy()">Save</button>
+                    <button class="btn danger" type="button" [disabled]="busy()" (click)="removeMember(m.sub)">
+                      {{ confirming() === 'member:' + m.sub ? 'Tap again to confirm' : 'Remove from team' }}
+                    </button>
+                  </div>
+                </form>
+              </details>
+            }
+          </li>
+        } @empty {
+          <li class="muted">No members yet.</li>
+        }
+      </ul>
+
+      <h3>Invites</h3>
+      <ul class="list">
+        @for (i of invites(); track i.email) {
+          <li class="member">
+            <div>
+              <b>{{ i.email }}</b>
+              <div class="muted small">{{ roleList(i.roles) }}@if (i.pid) { · family {{ i.pid }}}</div>
+            </div>
+            <button class="link" type="button" [class.confirm]="confirming() === 'invite:' + i.email" (click)="cancelInvite(i.email)">
+              {{ confirming() === 'invite:' + i.email ? 'Tap again to confirm' : 'Cancel' }}
+            </button>
+          </li>
+        } @empty {
+          <li class="muted">No pending invites.</li>
+        }
+      </ul>
+
+      <form [formGroup]="inviteForm" (ngSubmit)="sendInvite()" novalidate>
+        <label for="inviteEmail">Email to invite<input id="inviteEmail" type="email" formControlName="email" required autocomplete="off"></label>
+        <div class="checks" formGroupName="roles">
+          @for (r of roles; track r) {
+            <label><input type="checkbox" [formControlName]="r"> {{ roleLabel(r) }}</label>
+          }
+        </div>
+        <label for="invitePid">Family (player id, for parents)<input id="invitePid" type="text" formControlName="pid" placeholder="p12"></label>
+        <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Send invite' }}</button>
+      </form>
+      <p class="muted small">Invites don't send an email yet. Tell the person to create an account at this site with that address.</p>
+    }
+  </div>
+} @else {
+  <th-messages [error]="error()" [notice]="notice()" />
+  <p class="muted">Loading…</p>
+}
