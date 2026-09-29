@@ -1,0 +1,58 @@
+<h2>Your teams</h2>
+<th-messages [error]="error()" [notice]="notice()" />
+@if (me(); as me) {
+  <p class="muted small">
+    Signed in as <b>{{ user()?.email }}</b>
+    @if (me.clubAdmin) { · <span class="pill">Club admin</span> }
+  </p>
+  @if (me.teams.length) {
+    <ul class="list">
+      @for (t of me.teams; track t.teamId) {
+        <li>
+          <a class="rowbtn" [routerLink]="['/teams', t.teamId]">
+            <b>{{ t.name || t.teamId }}</b>
+            <span>@for (r of t.roles; track r; let last = $last) {{{ roleLabel(r) }}@if (!last) { · }}</span>
+          </a>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="muted">
+      You're not on a team yet.
+      {{ me.clubAdmin ? 'Create one below, or open any team from the list.' : 'Ask your coordinator for an invite.' }}
+    </p>
+  }
+
+  @if (me.clubAdmin) {
+    <h3>All club teams</h3>
+    @if (clubTeams(); as teams) {
+      @if (teams.length) {
+        <ul class="list">
+          @for (t of teams; track t.teamId) {
+            <li>
+              <a class="rowbtn" [routerLink]="['/teams', t.teamId]">
+                <b>{{ t.name }}</b><span>{{ t.teamId }}@if (t.age) { · {{ t.age }}}</span>
+              </a>
+            </li>
+          }
+        </ul>
+      } @else { <p class="muted small">No teams yet.</p> }
+    } @else {
+      <p class="muted small">{{ clubTeamsError() || 'Loading…' }}</p>
+    }
+
+    <h3>Create a team</h3>
+    <form [formGroup]="createForm" (ngSubmit)="createTeam()" novalidate>
+      <label for="teamId">Team id<input id="teamId" type="text" formControlName="teamId" required placeholder="a5-13tom" pattern="[a-z0-9-]+"></label>
+      <label for="name">Team name<input id="name" type="text" formControlName="name" required placeholder="A5 13 Tom"></label>
+      <div class="two">
+        <label for="season">Season<input id="season" type="text" formControlName="season" placeholder="2026-27"></label>
+        <label for="age">Age group<input id="age" type="text" formControlName="age" placeholder="13U"></label>
+      </div>
+      <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Create team' }}</button>
+    </form>
+  }
+} @else {
+  <p class="muted">Loading…</p>
+}
+<div class="links"><button class="link" type="button" (click)="signOut()">Sign out</button></div>

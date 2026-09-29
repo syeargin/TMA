@@ -328,7 +328,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins:
           - !Sub "https://${SiteDistribution.DomainName}"
-          - !If [IsProd, !Ref AWS::NoValue, "http://localhost:5173"]
+          - !If [IsProd, !Ref AWS::NoValue, "http://localhost:4200"]
         AllowHeaders: [authorization, content-type]
         AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
         MaxAge: 600
