@@ -4,7 +4,7 @@ import { firstValueFrom, from, switchMap, throwError } from 'rxjs';
 import type { Role } from '@shared/permissions';
 import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
-import type { ClubTeam, Invite, Me, TeamBundle } from './models';
+import type { ClubTeam, Invite, Me, Practice, Rsvp, TeamBundle, TeamEvent } from './models';
 
 export class ApiError extends Error {
   constructor(readonly status: number, body?: { message?: string; error?: string } | null) {
@@ -58,4 +58,22 @@ export class ApiService {
   cancelInvite(teamId: string, email: string) { return this.call('DELETE', `/teams/${enc(teamId)}/invites/${enc(email)}`); }
   updateMember(teamId: string, sub: string, v: { roles: Role[]; pid?: string }) { return this.call('PUT', `/teams/${enc(teamId)}/members/${enc(sub)}`, v); }
   removeMember(teamId: string, sub: string) { return this.call('DELETE', `/teams/${enc(teamId)}/members/${enc(sub)}`); }
+
+  saveEvent(teamId: string, e: TeamEvent) {
+    const { eid, ...body } = e;
+    return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}`, body);
+  }
+  deleteEvent(teamId: string, eid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}`); }
+  savePractices(teamId: string, practices: Practice[]) { return this.call('PUT', `/teams/${enc(teamId)}/practices`, { practices }); }
+  setPracticeCancelled(teamId: string, key: string, cancelled: boolean) {
+    return this.call(cancelled ? 'PUT' : 'DELETE', `/teams/${enc(teamId)}/practices/cancelled/${enc(key)}`);
+  }
+  /** Availability for one player; '' clears an answer. */
+  setRsvp(teamId: string, pid: string, answers: Record<string, Rsvp | ''>) {
+    return this.call('PUT', `/teams/${enc(teamId)}/family/${enc(pid)}`, { rsvp: answers });
+  }
+  saveAnnouncement(teamId: string, aid: string, a: { text: string; pinned: boolean }) {
+    return this.call('PUT', `/teams/${enc(teamId)}/announcements/${enc(aid)}`, a);
+  }
+  deleteAnnouncement(teamId: string, aid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/announcements/${enc(aid)}`); }
 }

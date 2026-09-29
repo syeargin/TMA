@@ -71,6 +71,8 @@ describe("role matrix: each route allows exactly the roles in the permission tab
     { perm: "handbook", method: "PUT", path: () => `/teams/${T}/handbook`, body: { sections: [{ t: "Attendance", b: "Be there." }] } },
     { perm: "roster", method: "PUT", path: (i) => `/teams/${T}/players/px${i}`, body: { first: "Test" } },
     { perm: "schedule", method: "PUT", path: (i) => `/teams/${T}/events/ex${i}`, body: { kind: "event", title: "Party", date: "2026-12-01" } },
+    { perm: "schedule", method: "PUT", path: () => `/teams/${T}/practices`, body: { practices: [{ id: "tue", label: "Practice", dow: 2, start: "7:00 PM", from: "2026-11-03" }] } },
+    { perm: "schedule", method: "PUT", path: (i) => `/teams/${T}/practices/cancelled/pr-tue-2026-11-${String(i % 28 + 1).padStart(2, "0")}`, body: undefined },
     { perm: "refjobs", method: "PUT", path: () => `/teams/${T}/events/e1/refjobs`, body: { assign: { p1: { s1: "Book" } } } },
     { perm: "meals", method: "PUT", path: (i) => `/teams/${T}/events/e1/meals/mx${i}`, body: { meal: "Dinner" } },
     { perm: "announce", method: "PUT", path: (i) => `/teams/${T}/announcements/a${i}`, body: { text: "Hello" } },
@@ -124,6 +126,39 @@ describe("family answers", () => {
   });
   it("refuses unknown players", async () => {
     expect((await call("PUT", `/teams/${T}/family/zz`, ROLE_SUBS.coach, { rsvp: { e1: "yes" } })).status).toBe(404);
+  });
+});
+
+describe("practices", () => {
+  const P = { id: "wed", label: "Wednesday practice", dow: 3, start: "6:30 PM", end: "8:30 PM", from: "2026-11-04", until: "2027-03-31", location: "A5 Gym" };
+  it("coaches set practice times; cancel and restore single dates", async () => {
+    expect((await call("PUT", `/teams/${T}/practices`, ROLE_SUBS.coach, { practices: [P] })).status).toBe(200);
+    expect((await call("PUT", `/teams/${T}/practices/cancelled/pr-wed-2026-11-11`, ROLE_SUBS.coach)).status).toBe(200);
+    expect((await call("PUT", `/teams/${T}/practices/cancelled/pr-wed-2026-11-18`, ROLE_SUBS.coordinator)).status).toBe(200);
+    let s = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.settings;
+    expect(s.practices).toEqual([P]);
+    expect(s.cancelled).toEqual(expect.arrayContaining(["pr-wed-2026-11-11", "pr-wed-2026-11-18"]));
+    expect((await call("DELETE", `/teams/${T}/practices/cancelled/pr-wed-2026-11-11`, ROLE_SUBS.coach)).status).toBe(200);
+    s = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.settings;
+    expect(s.cancelled).not.toContain("pr-wed-2026-11-11");
+    expect(s.cancelled).toContain("pr-wed-2026-11-18");
+  });
+  it("parents can't change practices, and keys must be practice dates", async () => {
+    expect((await call("PUT", `/teams/${T}/practices/cancelled/pr-wed-2026-11-25`, ROLE_SUBS.parent)).status).toBe(403);
+    expect((await call("PUT", `/teams/${T}/practices/cancelled/e1`, ROLE_SUBS.coach)).status).toBe(400);
+  });
+  it("cancelling at the same time from two screens keeps both", async () => {
+    const keysToCancel = ["pr-wed-2026-12-02", "pr-wed-2026-12-09", "pr-wed-2026-12-16", "pr-wed-2026-12-23"];
+    const rs = await Promise.all(keysToCancel.map((k) => call("PUT", `/teams/${T}/practices/cancelled/${k}`, ROLE_SUBS.coach)));
+    expect(rs.map((r) => r.status)).toEqual([200, 200, 200, 200]);
+    const s = (await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.settings;
+    expect(s.cancelled).toEqual(expect.arrayContaining(keysToCancel));
+  });
+  it("saving team settings without practices keeps them", async () => {
+    expect((await call("PUT", `/teams/${T}/settings`, ROLE_SUBS.admin, { teamName: "A5 13 Test", season: "2026-27", age: "13U", coaches: [{ name: "Coach Tom" }] })).status).toBe(200);
+    const s = (await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.settings;
+    expect(s.practices).toEqual([P]);
+    expect(s.cancelled).toContain("pr-wed-2026-11-18");
   });
 });
 

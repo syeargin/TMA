@@ -101,7 +101,8 @@ Every call needs a Cognito access token (`Authorization: Bearer …`). The API l
 | `GET /me` | Anyone signed in (also accepts invites waiting for their email) |
 | `GET /teams` · `POST /teams` | Anyone · club admins |
 | `GET /teams/{t}` | Members (contacts, ledger, payments and member emails trimmed by role) |
-| `PUT /teams/{t}/settings` | Coordinator, team admin |
+| `PUT /teams/{t}/settings` | Coordinator, team admin (practices and cancellations are kept if left out) |
+| `PUT /teams/{t}/practices` · `PUT·DELETE …/practices/cancelled/{pr-id-date}` | Coach, coordinator, team admin |
 | `PUT /teams/{t}/handbook` | Coach, coordinator, team admin |
 | `PUT·DELETE /teams/{t}/players/{pid}` | Coordinator, team admin |
 | `PUT·DELETE /teams/{t}/events/{eid}` | Coach, coordinator, team admin |
@@ -153,13 +154,16 @@ Try it on dev: open the team page in two browsers (or one normal window and one 
 ```
 web/src/main.ts                   reads /config.json (written by the deploy), then starts the app
 web/src/app/app.ts                shell: header, Live pill, env badge
-web/src/app/app.routes.ts         /, /teams/:teamId, /signin, /signup, /verify, /forgot, /reset
+web/src/app/app.routes.ts         /, /teams/:id (Home), /teams/:id/schedule, /teams/:id/members, sign-in screens
 web/src/app/core/                 services shared by every screen
   auth.service.ts                   Cognito sign-in through Amplify
   api.service.ts                    typed REST calls; interceptor adds the access token (API calls only)
   live-client.ts / live.service.ts  WebSocket live updates (framework-free client + Angular wrapper)
   guards.ts, flash.service.ts       signed-in/out routing, one-time messages between screens
-web/src/app/features/             one folder per area: auth, home, team (more arrive in Phase 4)
+web/src/app/layout/               app shell pieces: narrow card (sign-in, your teams), team shell (tabs)
+web/src/app/core/team-store.ts    the open team's data for every tab; live refreshes, held while editing
+web/src/app/core/schedule.ts      events + weekly practices → schedule rows; availability counts
+web/src/app/features/             one folder per area: auth, home, team (home, members), schedule
 web/src/app/shared/               small UI pieces and the role checkbox helpers
 ```
 

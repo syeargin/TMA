@@ -1,9 +1,9 @@
-import { TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { TransactWriteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
 import { ddb, TABLE } from "../../lib/db.js";
 import { keys } from "../../lib/keys.js";
 import { CLUB_ID, loadAccess } from "../context.js";
-import { forbidden, json, mapDbError, parseBody } from "../http.js";
+import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { checkId, clean, getItem, now, optStr, putItem, queryAll, str } from "../util.js";
 
@@ -21,11 +21,15 @@ const settingsSchema = z.object({
   teamCode: optStr(40),
   dues: z.object({ amountCents: z.number().int().min(0).max(10_000_00), due: optStr(10), label: optStr(100) }).partial().default({}),
   budget: z.record(z.number()).default({}),
-  practices: z.array(practice).max(20).default([]),
-  cancelled: z.array(str(80)).max(500).default([]),
+  // Left out = keep what's saved (coaches manage these through the /practices routes).
+  practices: z.array(practice).max(20).optional(),
+  cancelled: z.array(str(80)).max(500).optional(),
   checklist: z.array(str(200)).max(60).default([]),
   uniformItems: z.array(str(200)).max(60).default([])
 });
+
+const practicesSchema = z.object({ practices: z.array(practice).max(20) });
+const MAX_CANCELLED = 500;
 
 const handbookSchema = z.object({ sections: z.array(z.object({ t: str(200), b: str(10_000) })).max(60) });
 
@@ -155,15 +159,64 @@ export function teamRoutes(r: Router) {
     access.require("settings");
     const b = parseBody(settingsSchema, body);
     const at = now();
+    const saved = await getItem(keys.settings(access.teamId));
+    const practices = b.practices ?? (saved?.practices as unknown[] | undefined) ?? [];
+    const cancelled = b.cancelled ?? (saved?.cancelled as unknown[] | undefined) ?? [];
     const dir = (await getItem(keys.teamDir(CLUB_ID(), access.teamId))) ?? { ...keys.teamDir(CLUB_ID(), access.teamId), type: "Team", archived: false, createdAt: at };
     await ddb.send(new TransactWriteCommand({
       TransactItems: [
-        { Put: { TableName: TABLE, Item: { ...keys.settings(access.teamId), type: "Settings", ...b, updatedAt: at, updatedBy: caller.sub } } },
+        { Put: { TableName: TABLE, Item: { ...keys.settings(access.teamId), type: "Settings", ...b, practices, cancelled, updatedAt: at, updatedBy: caller.sub } } },
         { Put: { TableName: TABLE, Item: { ...dir, name: b.teamName, season: b.season ?? "", age: b.age ?? "", coaches: b.coaches.map((c) => c.name) } } }
       ]
     }));
     return json(200, { ok: true });
   });
+
+  // ---------- practices (coaches, coordinators, admins) ----------
+  r.on("PUT", "/teams/{teamId}/practices", async ({ caller, params, body }) => {
+    const access = await loadAccess(caller, checkId(params.teamId, "team"));
+    access.require("schedule");
+    const { practices } = parseBody(practicesSchema, body);
+    try {
+      await ddb.send(new UpdateCommand({
+        TableName: TABLE, Key: keys.settings(access.teamId),
+        UpdateExpression: "SET practices = :p, updatedAt = :at, updatedBy = :by",
+        ConditionExpression: "attribute_exists(PK)",
+        ExpressionAttributeValues: { ":p": practices, ":at": now(), ":by": caller.sub }
+      }));
+    } catch (e) { mapDbError(e, "This team has no settings yet."); }
+    return json(200, { practices });
+  });
+
+  /** Cancel (PUT) or restore (DELETE) one practice date. Key: pr-<practiceId>-<YYYY-MM-DD>. */
+  for (const method of ["PUT", "DELETE"] as const) {
+    r.on(method, "/teams/{teamId}/practices/cancelled/{key}", async ({ caller, params }) => {
+      const access = await loadAccess(caller, checkId(params.teamId, "team"));
+      access.require("schedule");
+      const key = checkId(params.key, "practice");
+      if (!/^pr-.+-\d{4}-\d{2}-\d{2}$/.test(key) || key.length > 80) throw badRequest("That isn't a practice date.");
+      // Read, change, write back only if nobody else saved in between (retry a few times if they did).
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const saved = await getItem(keys.settings(access.teamId));
+        if (!saved) throw notFound("This team has no settings yet.");
+        const list = new Set((saved.cancelled as string[] | undefined) ?? []);
+        if (method === "PUT") list.add(key); else list.delete(key);
+        if (list.size > MAX_CANCELLED) throw conflict("Too many cancelled practices. Remove old ones first.");
+        try {
+          await ddb.send(new UpdateCommand({
+            TableName: TABLE, Key: keys.settings(access.teamId),
+            UpdateExpression: "SET cancelled = :c, updatedAt = :at, updatedBy = :by",
+            ConditionExpression: "updatedAt = :prev",
+            ExpressionAttributeValues: { ":c": [...list], ":at": now(), ":by": caller.sub, ":prev": saved.updatedAt }
+          }));
+          return json(200, { key, cancelled: method === "PUT" });
+        } catch (e) {
+          if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
+        }
+      }
+      throw conflict("Someone else is changing the schedule. Try again.");
+    });
+  }
 
   r.on("PUT", "/teams/{teamId}/handbook", async ({ caller, params, body }) => {
     const access = await loadAccess(caller, checkId(params.teamId, "team"));

@@ -1,0 +1,83 @@
+<div class="sec-h"><div><h2>Members</h2><p class="muted" style="margin-top:6px">Who can sign in to this team, what they can do, and which player each parent answers for.</p></div></div>
+<th-messages [error]="error()" [notice]="notice()" />
+
+<div class="grid g-home" style="margin-top:14px">
+  <section class="card">
+    <div class="card-h"><h2>Members</h2><span class="muted small">{{ store.members().length }}</span></div>
+    <div class="card-b">
+      @for (m of store.members(); track m.sub ?? m.email) {
+        <div class="member">
+          <div>
+            <b>{{ m.email || m.person || m.sub }}</b>
+            <div class="row small" style="margin-top:4px;gap:6px">
+              @for (r of m.roles; track r) { <span class="role" [class]="'r-' + r">{{ roleLabel(r) }}</span> }
+              @if (m.pid) { <span class="muted">family: {{ playerLabel(m.pid) }}</span> }
+            </div>
+          </div>
+          @if (m.sub && memberForms().get(m.sub); as f) {
+            <details>
+              <summary>Change</summary>
+              <form [formGroup]="f" (ngSubmit)="saveMember(m.sub)" novalidate>
+                <div class="checks" formGroupName="roles">
+                  @for (r of roles; track r) { <label><input type="checkbox" [formControlName]="r"> {{ roleLabel(r) }}</label> }
+                </div>
+                <label>Family (player)
+                  <select formControlName="pid">
+                    <option value="">None</option>
+                    @for (p of store.players(); track p.pid) { <option [value]="p.pid">{{ p.first }} {{ p.last }}</option> }
+                    @if (f.controls.pid.value && !store.playerName(f.controls.pid.value)) { <option [value]="f.controls.pid.value">{{ f.controls.pid.value }}</option> }
+                  </select>
+                </label>
+                <div class="row">
+                  <button class="btn primary sm" type="submit" [disabled]="busy()">Save</button>
+                  <button class="btn sm" type="button" [class.danger]="confirming() !== 'member:' + m.sub" [class.confirming]="confirming() === 'member:' + m.sub" [disabled]="busy()" (click)="removeMember(m.sub)">
+                    {{ confirming() === 'member:' + m.sub ? 'Tap again to confirm' : 'Remove from team' }}
+                  </button>
+                </div>
+              </form>
+            </details>
+          }
+        </div>
+      } @empty {
+        <div class="empty">No members yet.</div>
+      }
+    </div>
+  </section>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card-h"><h2>Invite someone</h2></div>
+      <div class="card-b">
+        <form [formGroup]="inviteForm" (ngSubmit)="sendInvite()" novalidate>
+          <label for="inviteEmail">Email<input id="inviteEmail" type="email" formControlName="email" required autocomplete="off"></label>
+          <div class="checks" formGroupName="roles">
+            @for (r of roles; track r) { <label><input type="checkbox" [formControlName]="r"> {{ roleLabel(r) }}</label> }
+          </div>
+          <label for="invitePid">Family (for parents)
+            <select id="invitePid" formControlName="pid">
+              <option value="">None</option>
+              @for (p of store.players(); track p.pid) { <option [value]="p.pid">{{ p.first }} {{ p.last }}</option> }
+            </select>
+          </label>
+          <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Send invite' }}</button>
+          <p class="hint">Invites don’t send an email yet. Tell the person to create an account at this site with that address.</p>
+        </form>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-h"><h2>Pending invites</h2></div>
+      <div class="card-b">
+        @for (i of invites(); track i.email) {
+          <div class="li">
+            <div class="grow"><b>{{ i.email }}</b><div class="small muted">{{ roleList(i.roles) }}@if (i.pid) { · family: {{ playerLabel(i.pid) }}}</div></div>
+            <button class="link-btn small" type="button" [class.confirm]="confirming() === 'invite:' + i.email" (click)="cancelInvite(i.email)">
+              {{ confirming() === 'invite:' + i.email ? 'Tap again to confirm' : 'Cancel' }}
+            </button>
+          </div>
+        } @empty {
+          <div class="empty">No pending invites.</div>
+        }
+      </div>
+    </section>
+  </div>
+</div>

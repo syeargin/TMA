@@ -1,0 +1,70 @@
+<div class="sec-h">
+  <div>
+    <h2>Schedule</h2>
+    <p class="muted" style="margin-top:6px">{{ note() }}</p>
+  </div>
+  <span class="spacer"></span>
+  @if (store.can('schedule')) {
+    <div class="row">
+      <button class="btn sm" type="button" (click)="practicesOpen.set(true)">Practice times</button>
+      <button class="btn sm" type="button" (click)="add('tournament')">Add tournament</button>
+      <button class="btn sm primary" type="button" (click)="add('event')">Add event</button>
+    </div>
+  }
+</div>
+
+<div class="row" style="margin-bottom:6px">
+  <div class="chips" role="group" aria-label="Show">
+    @for (f of filters; track f[0]) {
+      <button class="chip" type="button" [attr.aria-pressed]="filter() === f[0]" (click)="filter.set(f[0])">{{ f[1] }}</button>
+    }
+  </div>
+  <span class="spacer"></span>
+  <div class="chips" role="group" aria-label="Range">
+    @for (r of ranges; track r[0]) {
+      <button class="chip" type="button" [attr.aria-pressed]="range() === r[0]" (click)="range.set(r[0])">{{ r[1] }}</button>
+    }
+  </div>
+</div>
+
+@for (m of months(); track m.key) {
+  <h3 class="month">{{ m.label }}</h3>
+  @for (it of m.items; track it.key) {
+    <div class="ev" [class]="'k-' + it.kind" [class.cancel]="it.cancelled">
+      <div class="d" aria-hidden="true">
+        <div class="dw">{{ fmt(it.date, { weekday: 'short' }) }}</div>
+        <div class="dn tn">{{ pd(it.date).getDate() }}</div>
+      </div>
+      <div>
+        <div class="ev-t"><span class="t">{{ it.title }}</span> <th-kind-pill [item]="it" /></div>
+        <div class="meta">
+          <span class="sr-only">{{ fmt(it.date, { weekday: 'long', month: 'long', day: 'numeric' }) }}</span>
+          @if (when(it)) { <span>{{ when(it) }}</span> }
+          @if (it.location) { <span>{{ it.location }}</span> }
+          @if (it.note) { <span>{{ it.note }}</span> }
+        </div>
+      </div>
+      <div class="side">
+        @if (pid()) { <th-rsvp [item]="it" [pid]="pid()" /> }
+        <th-counts [item]="it" />
+        @if (store.can('schedule')) {
+          @if (it.kind === 'practice') {
+            <button class="link-btn small" type="button" (click)="toggleCancelled(it)">{{ it.cancelled ? 'Restore practice' : 'Cancel practice' }}</button>
+          } @else {
+            <button class="link-btn small" type="button" (click)="edit(it)">Edit</button>
+          }
+        }
+      </div>
+    </div>
+  }
+} @empty {
+  <div class="empty" style="margin-top:16px">
+    Nothing scheduled in this range.
+    @if (store.can('schedule') && !store.settings()?.practices?.length) { Add practice times or an event to get started. }
+  </div>
+}
+
+@if (store.can('schedule')) {
+  <th-event-form [open]="eventOpen()" [event]="editing()" [defaultKind]="newKind()" (closed)="eventOpen.set(false)" />
+  <th-practices-form [open]="practicesOpen()" (closed)="practicesOpen.set(false)" />
+}
