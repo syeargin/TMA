@@ -308,3 +308,30 @@ select.cell{width:auto;font-size:13.5px;padding:4px 6px;border-radius:6px;min-wi
 .nowrap{white-space:nowrap}
 fieldset.group{border:1px solid var(--line-2);border-radius:10px;padding:12px;margin:0;display:flex;flex-direction:column;gap:10px}
 fieldset.group legend{font-family:var(--f-cond);font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:13px;color:var(--ink-3);padding:0 6px}
+
+/* ---------- fund ---------- */
+.amt-in{color:var(--ok)}
+.amt-out{color:var(--bad)}
+.big2{font-size:22px;font-weight:700}
+.calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.calc label{font-size:13px}
+.calc input,.calc select{padding:7px 9px}
+.calc-out{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px}
+.calc-out>div{background:var(--surface-2);border:1px solid var(--line-2);border-radius:10px;padding:10px 12px}
+.calc-out .v{font-family:var(--f-display);font-weight:800;font-size:28px}
+
+/* ---------- roster ---------- */
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:12px}
+.pcard{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;padding:14px}
+.pcard.me{border-color:var(--accent)}
+.jersey{width:64px;height:70px;position:relative;display:flex;align-items:center;justify-content:center}
+.jersey svg{position:absolute;inset:0;width:100%;height:100%}
+.jersey b{position:relative;font-family:var(--f-display);font-weight:900;font-size:28px;color:#fff;margin-top:8px}
+.pcard h3{font-size:17px;font-weight:700}
+.parent{font-size:13.5px;padding-top:6px;margin-top:6px;border-top:1px dashed var(--line)}
+.parent .pn{font-weight:600}
+.parent a{display:inline-block;margin-right:12px}
+a.statlink{color:var(--ink);text-decoration:none}
+a.statlink:hover{border-color:var(--ink-3)}
+a.chip{text-decoration:none;display:inline-flex;align-items:center}
+.calc label{justify-content:space-between}

@@ -155,7 +155,8 @@ Try it on dev: open the team page in two browsers (or one normal window and one 
 ```
 web/src/main.ts                   reads /config.json (written by the deploy), then starts the app
 web/src/app/app.ts                shell: header, Live pill, env badge
-web/src/app/app.routes.ts         /, /teams/:id (Home), …/schedule, …/tournaments[/:eid[/gameday|ref|meals|travel|agenda]], …/members, sign-in screens
+web/src/app/app.routes.ts         /, /teams/:id (Home), …/schedule, …/tournaments[/:eid[/gameday|ref|meals|travel|agenda]], …/fund, …/roster[/uniforms],
+                                  …/members, sign-in screens
                                   (team sections load on demand)
 web/src/app/core/                 services shared by every screen
   auth.service.ts                   Cognito sign-in through Amplify
@@ -165,8 +166,9 @@ web/src/app/core/                 services shared by every screen
 web/src/app/layout/               app shell pieces: narrow card (sign-in, your teams), team shell (tabs)
 web/src/app/core/team-store.ts    the open team's data for every tab; live refreshes, held while editing
 web/src/app/core/schedule.ts      events + weekly practices → schedule rows; availability counts
-web/src/app/core/tournament.ts    ref-job rotation, meal days, money helpers
-web/src/app/features/             one folder per area: auth, home, team (home, members), schedule, tournaments
+web/src/app/core/tournament.ts    ref-job rotation, meal days
+web/src/app/core/money.ts         fund balance, dues per family, meal budget model
+web/src/app/features/             one folder per area: auth, home, team (home, members), schedule, tournaments, fund, roster
 web/src/app/shared/               small UI pieces and the role checkbox helpers
 ```
 

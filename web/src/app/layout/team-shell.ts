@@ -19,6 +19,8 @@ import { AvailabilitySheet } from '../features/schedule/availability-sheet';
         <a class="tab" routerLink="." routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Home</a>
         <a class="tab" routerLink="schedule" routerLinkActive="active" ariaCurrentWhenActive="page">Schedule</a>
         <a class="tab" routerLink="tournaments" routerLinkActive="active" ariaCurrentWhenActive="page">Tournaments</a>
+        <a class="tab" routerLink="fund" routerLinkActive="active" ariaCurrentWhenActive="page">Team Fund</a>
+        <a class="tab" routerLink="roster" routerLinkActive="active" ariaCurrentWhenActive="page">Roster</a>
         @if (store.can('accounts')) {
           <a class="tab" routerLink="members" routerLinkActive="active" ariaCurrentWhenActive="page">Members</a>
         }

@@ -31,7 +31,7 @@
     }
 
     <div class="stats o-stats">
-      <div class="card stat">
+      <a class="card stat statlink" [routerLink]="nextTournament() ? ['tournaments', nextTournament()!.key] : 'tournaments'">
         <div class="label">Next tournament</div>
         @if (nextTournament(); as t) {
           <div class="v tn">{{ daysUntil(t.date) }}<small> days</small></div>
@@ -39,17 +39,18 @@
         } @else {
           <div class="v">—</div><div class="s">None scheduled</div>
         }
-      </div>
-      <div class="card stat">
-        <div class="label">Next 7 days</div>
-        <div class="v tn">{{ weekCount() }}</div>
-        <div class="s">practice{{ weekCount() === 1 ? '' : 's' }} and events</div>
-      </div>
-      <div class="card stat">
-        <div class="label">Roster</div>
-        <div class="v tn">{{ store.players().length }}</div>
-        <div class="s">players · {{ store.members().length }} account{{ store.members().length === 1 ? '' : 's' }}</div>
-      </div>
+      </a>
+      <a class="card stat statlink" routerLink="fund">
+        <div class="label">Team fund</div>
+        <div class="v tn">{{ money(store.fund().balance) }}</div>
+        <div class="s">{{ store.fund().pendingIn ? money(store.fund().pendingIn) + ' waiting to be confirmed' : 'Confirmed balance' }}</div>
+      </a>
+      <a class="card stat statlink" routerLink="fund">
+        <div class="label">Dues collected</div>
+        <div class="v tn">{{ store.fund().duesPaidFamilies }}<small> / {{ store.players().length }}</small></div>
+        <div class="s">@if (store.duesCents()) { {{ money(store.duesCents()) }} per family@if (store.settings()?.dues?.due) { · due {{ fmt(store.settings()?.dues?.due, { month: 'short', day: 'numeric' }) }}} } @else { Dues not set yet }</div>
+        <div class="meter"><i [style.width.%]="store.players().length ? (100 * store.fund().duesPaidFamilies) / store.players().length : 0"></i></div>
+      </a>
     </div>
 
     <section class="card o-week">

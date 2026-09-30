@@ -16,6 +16,7 @@ export interface Settings {
   coaches?: Coach[]; practices?: Practice[]; cancelled?: string[];
   checklist?: string[]; uniformItems?: string[];
   dues?: { amountCents?: number; due?: string; label?: string };
+  budget?: { costPerMealCents?: number; mealsPerDay?: number; people?: number; families?: number };
   [key: string]: unknown;
 }
 export interface Parent { name: string; cell?: string; email?: string }
@@ -46,12 +47,24 @@ export interface Meal {
   eid: string; mid: string; meal: string; day?: string; time?: string; plan?: string; costCents?: number;
   claimedBy?: string | null;
 }
+export type MoneyKind = 'in' | 'out';
+/** Finance's record of money in or out. */
+export interface LedgerEntry {
+  lid: string; kind: MoneyKind; cat: string; amountCents: number; date: string; desc: string;
+  pid?: string; payee?: string; status?: string; src?: string; by?: string; at?: string;
+}
+/** Sent by a family (dues) or anyone (reimbursement); finance confirms or declines it. */
+export interface Payment {
+  payId: string; kind: MoneyKind; cat: string; amountCents: number; date: string; desc: string;
+  pid?: string; status: 'pending' | 'confirmed' | 'declined'; submittedBy?: string; submittedAt?: string;
+}
 export interface Travel { mode?: string; flight?: string; hotel?: string; conf?: string; arrive?: string; depart?: string; notes?: string; at?: string }
 export type Rsvp = 'yes' | 'maybe' | 'no';
 export interface FamilyRecord {
   pid?: string;
   rsvp?: Record<string, { v: Rsvp; at?: string; by?: string }>;
   travel?: Record<string, Travel>;
+  uniform?: { sizes?: Record<string, string>; at?: string };
   [key: string]: unknown;
 }
 export interface Announcement { aid: string; text: string; pinned?: boolean; by?: string; at?: string }
@@ -67,6 +80,8 @@ export interface TeamBundle {
   announcements: Announcement[];
   members: Member[];
   meals: Meal[];
+  ledger: LedgerEntry[];
+  payments: Payment[];
   refjobs: Record<string, RefJobs>;
   agenda: Record<string, Agenda>;
   [key: string]: unknown;

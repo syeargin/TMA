@@ -4,7 +4,7 @@ import { firstValueFrom, from, switchMap, throwError } from 'rxjs';
 import type { Role } from '@shared/permissions';
 import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
-import type { Agenda, ClubTeam, Invite, Me, Meal, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
+import type { Agenda, ClubTeam, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
   constructor(readonly status: number, body?: { message?: string; error?: string } | null) {
@@ -91,4 +91,26 @@ export class ApiService {
   setTravel(teamId: string, pid: string, eid: string, travel: Travel | null) {
     return this.call('PUT', `/teams/${enc(teamId)}/family/${enc(pid)}`, { travel: { [eid]: travel } });
   }
+  setUniform(teamId: string, pid: string, sizes: Record<string, string>) {
+    return this.call('PUT', `/teams/${enc(teamId)}/family/${enc(pid)}`, { uniform: { sizes } });
+  }
+
+  recordPayment(teamId: string, p: { kind: MoneyKind; cat: string; pid?: string; amountCents: number; date: string; desc: string }) {
+    return this.call('POST', `/teams/${enc(teamId)}/payments`, p);
+  }
+  withdrawPayment(teamId: string, payId: string) { return this.call('DELETE', `/teams/${enc(teamId)}/payments/${enc(payId)}`); }
+  settlePayment(teamId: string, payId: string, action: 'confirm' | 'decline') {
+    return this.call('POST', `/teams/${enc(teamId)}/payments/${enc(payId)}/${action}`);
+  }
+  saveLedger(teamId: string, l: LedgerEntry) {
+    const { lid, kind, cat, pid, payee, amountCents, date, desc } = l;
+    return this.call('PUT', `/teams/${enc(teamId)}/ledger/${enc(lid)}`, { kind, cat, pid: pid || undefined, payee: payee || undefined, amountCents, date, desc });
+  }
+  deleteLedger(teamId: string, lid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/ledger/${enc(lid)}`); }
+
+  savePlayer(teamId: string, p: Player) {
+    const { pid, first, last, jersey, shirt, town, allergies, refTeam, order, parents } = p;
+    return this.call('PUT', `/teams/${enc(teamId)}/players/${enc(pid)}`, { first, last, jersey, shirt, town, allergies, refTeam, order, parents: parents ?? [] });
+  }
+  deletePlayer(teamId: string, pid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/players/${enc(pid)}`); }
 }

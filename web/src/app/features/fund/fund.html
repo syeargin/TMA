@@ -1,0 +1,206 @@
+<div class="sec-h">
+  <div>
+    <h2>Team Fund</h2>
+    <p class="muted" style="margin-top:6px">Covers team meals, coach snacks and drinks, and shared tournament costs.</p>
+  </div>
+  <span class="spacer"></span>
+  <div class="row">
+    @if (myPid) { <button class="btn sm red" type="button" (click)="openPay()">Record a payment</button> }
+    @if (store.can('reimb')) { <button class="btn sm" type="button" (click)="openReimb()">Request reimbursement</button> }
+    @if (finance) { <button class="btn sm primary" type="button" (click)="openEntry(null)">Add entry</button> }
+  </div>
+</div>
+
+<div class="grid g-home">
+  <div class="stack">
+    <section class="card" aria-label="Balance">
+      <div class="card-b" style="padding-top:16px">
+        <div class="row" style="align-items:flex-end;gap:28px">
+          <div><div class="label">Balance</div><div class="bignum tn">{{ money(f().balance) }}</div></div>
+          <div><div class="label">Money in</div><div class="tn amt-in big2">{{ money(f().inn) }}</div></div>
+          <div><div class="label">Money out</div><div class="tn amt-out big2">{{ money(f().out) }}</div></div>
+          @if (f().pendingIn || f().pendingOut) {
+            <div><div class="label">Waiting to confirm</div><div class="tn" style="font-size:15px;font-weight:600">+{{ money(f().pendingIn) }} / −{{ money(f().pendingOut) }}</div></div>
+          }
+        </div>
+      </div>
+    </section>
+
+    @if (waiting().length) {
+      <section class="card">
+        <div class="card-h"><h3>{{ finance ? 'Waiting for you to confirm' : 'Waiting to be confirmed' }}</h3></div>
+        <div class="card-b">
+          <div class="tw">
+            <table>
+              <thead><tr><th>Sent</th><th>What</th><th>From</th><th class="num">Amount</th><th><span class="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                @for (p of waiting(); track p.payId) {
+                  <tr>
+                    <td class="tn nowrap">{{ fmt(p.date, { month: 'short', day: 'numeric' }) }}</td>
+                    <td><b>{{ p.desc }}</b><div class="small muted">{{ p.kind === 'in' ? 'Payment in · ' + p.cat : 'Reimbursement request · ' + p.cat }}</div></td>
+                    <td>{{ who(p) }}@if (p.pid) { <div class="small muted">{{ store.playerName(p.pid) }}'s family</div> }</td>
+                    <td class="num" [class.amt-in]="p.kind === 'in'" [class.amt-out]="p.kind === 'out'">{{ money(p.amountCents) }}</td>
+                    <td class="nowrap">
+                      @if (finance) {
+                        <button class="btn sm primary" type="button" (click)="settle(p, 'confirm')">{{ p.kind === 'in' ? 'Received' : 'Paid back' }}</button>
+                        <button class="link-btn small" type="button" style="margin-left:8px" (click)="settle(p, 'decline')">Decline</button>
+                      }
+                      @if (canWithdraw(p) && p.submittedBy === store.you().sub) {
+                        <button class="link-btn small" type="button" style="margin-left:8px" [class.confirm]="confirmWithdraw() === p.payId" (click)="withdraw(p)">
+                          {{ confirmWithdraw() === p.payId ? 'Tap again to withdraw' : 'Withdraw' }}
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    }
+
+    <section class="card">
+      <div class="card-h"><h3>Ledger</h3><span class="muted small">{{ store.ledger().length }} entries · kept by finance</span></div>
+      <div class="card-b">
+        @if (store.ledger().length) {
+          <div class="tw">
+            <table>
+              <thead><tr><th>Date</th><th>Description</th><th>Family / payee</th><th class="num">In</th><th class="num">Out</th>@if (finance) { <th><span class="sr-only">Actions</span></th> }</tr></thead>
+              <tbody>
+                @for (l of store.ledger(); track l.lid) {
+                  <tr [style.opacity]="l.status === 'declined' ? 0.55 : null">
+                    <td class="tn nowrap">{{ fmt(l.date, { month: 'short', day: 'numeric', year: '2-digit' }) }}</td>
+                    <td><b>{{ l.desc }}</b><div class="small muted">{{ l.cat }}@if (l.status === 'declined') { · declined }</div></td>
+                    <td>{{ payee(l) }}</td>
+                    <td class="num amt-in">{{ l.kind === 'in' ? money(l.amountCents) : '' }}</td>
+                    <td class="num amt-out">{{ l.kind === 'out' ? money(l.amountCents) : '' }}</td>
+                    @if (finance) { <td><button class="link-btn small" type="button" (click)="openEntry(l)">Edit</button></td> }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="empty">No money in or out yet.@if (store.duesCents()) { Dues of {{ money(store.duesCents()) }} per family@if (dues().due) { are due {{ fmt(dues().due, { month: 'long', day: 'numeric' }) }}}. }</div>
+        }
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><h3>Tournament meal budget</h3><span class="muted small">Plan on $20–30 per person per meal</span></div>
+      <div class="card-b">
+        <div class="calc">
+          <label>Tournament days<select [ngModel]="calc().days" (ngModelChange)="setCalc('days', $event)">@for (n of [1, 2, 3, 4]; track n) { <option [ngValue]="n">{{ n }}</option> }</select></label>
+          <label>Meals per day<input type="number" min="0" step="1" [ngModel]="calc().meals" (ngModelChange)="setCalc('meals', $event)"></label>
+          <label>Cost per meal ($)<input type="number" min="0" step="1" [ngModel]="calc().costCents / 100" (ngModelChange)="setCost($event)"></label>
+          <label>People fed<input type="number" min="0" step="1" [ngModel]="calc().people" (ngModelChange)="setCalc('people', $event)"></label>
+          <label>Families splitting<input type="number" min="1" step="1" [ngModel]="calc().families" (ngModelChange)="setCalc('families', $event)"></label>
+        </div>
+        <div class="calc-out" aria-live="polite">
+          <div><div class="label">Meals</div><div class="v tn">{{ calcOut().meals }}</div></div>
+          <div><div class="label">Per person</div><div class="v tn">{{ money(calcOut().perPerson) }}</div></div>
+          <div><div class="label">Team total</div><div class="v tn">{{ money(calcOut().total) }}</div></div>
+          <div><div class="label">Per family</div><div class="v tn">{{ money(calcOut().perFamily) }}</div><div class="small muted">≈ {{ money(calcOut().perFamilyRounded) }} rounded</div></div>
+        </div>
+        <p class="small muted" style="margin-top:10px">People fed = {{ store.players().length }} players plus coaches.@if (travelNames()) { Travel tournaments: {{ travelNames() }}. }</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card-h"><h3>Dues by family</h3></div>
+      <div class="card-b">
+        @if (store.duesCents()) {
+          <p class="small muted" style="margin:0 0 10px">{{ duesLabel() }}: <b>{{ money(store.duesCents()) }}</b> per family@if (dues().due) {, due <b>{{ fmt(dues().due, { month: 'long', day: 'numeric', year: 'numeric' }) }}</b>}. Topped up during the season as needed.</p>
+        } @else {
+          <p class="small muted" style="margin:0 0 10px">Dues aren’t set yet. A team admin or coordinator sets them in team settings.</p>
+        }
+        <div class="tw">
+          <table>
+            <thead><tr><th class="sticky-col">Player</th><th class="num">Paid</th><th><span class="sr-only">Progress</span></th><th>Status</th></tr></thead>
+            <tbody>
+              @for (r of duesRows(); track r.p.pid) {
+                <tr [class.mine]="r.p.pid === store.you().pid">
+                  <td class="sticky-col"><b>{{ r.p.first }} {{ r.p.last }}</b></td>
+                  <td class="num">{{ money(r.paid) }}</td>
+                  <td style="min-width:90px"><div class="meter" style="margin:0" role="img" [attr.aria-label]="r.pct + '% paid'"><i [style.width.%]="r.pct"></i></div></td>
+                  <td>
+                    @if (r.done) { <span class="pill p-ok">Paid</span> }
+                    @else if (r.waiting) { <span class="pill p-warn">{{ money(r.waiting) }} to confirm</span> }
+                    @else if (store.duesCents()) { <span class="pill p-mute">@if (dues().due) { Due {{ fmt(dues().due, { month: 'short', day: 'numeric' }) }} } @else { Not paid }</span> }
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="4" class="muted">No players yet.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-h"><h3>How it works</h3></div>
+      <div class="card-b small stack" style="gap:8px">
+        <p><b>Paying dues:</b> send your payment the way the coordinator asks, then tap <i>Record a payment</i>. Finance marks it received.</p>
+        <p><b>Getting reimbursed:</b> bought team food or coach snacks? Tap <i>Request reimbursement</i> and keep the receipt.</p>
+        <p><b>Who confirms:</b> {{ confirmers() }}.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<th-sheet [heading]="form() === 'pay' ? 'Record a payment' : 'Request reimbursement'" [open]="form() === 'pay' || form() === 'reimb'" (closed)="form.set(null)">
+  <form [formGroup]="payForm" (ngSubmit)="submitPayment()" novalidate>
+    @if (form() === 'pay') { <p class="muted small">For {{ store.playerName(myPid) }}’s family. Record it once you’ve sent the money; finance confirms when it arrives.</p> }
+    @else { <p class="muted small">Keep the receipt. Finance pays you back and marks it done.</p> }
+    <th-messages [error]="error()" />
+    <div class="two">
+      <label>Amount ($)<input formControlName="amount" inputmode="decimal" placeholder="400"></label>
+      <label>Date sent<input type="date" formControlName="date"></label>
+    </div>
+    <label>Category
+      <select formControlName="cat">
+        @if (form() === 'pay') { @for (c of ['Dues', 'Team meals', 'Other']; track c) { <option [value]="c">{{ c }}</option> } }
+        @else { @for (c of reimbCats; track c) { <option [value]="c">{{ c }}</option> } }
+      </select>
+    </label>
+    <label>{{ form() === 'pay' ? 'What for' : 'What you bought' }}<input formControlName="desc" [placeholder]="form() === 'pay' ? 'Team fund deposit' : 'Coach snacks for Winter Classic'"></label>
+    <div class="form-actions">
+      <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Sending…' : form() === 'pay' ? 'Record payment' : 'Send request' }}</button>
+      <button class="btn ghost" type="button" (click)="form.set(null)">Cancel</button>
+    </div>
+  </form>
+</th-sheet>
+
+@if (finance) {
+  <th-sheet [heading]="editing() ? 'Edit entry' : 'Add entry'" [open]="form() === 'entry'" (closed)="form.set(null)">
+    <form [formGroup]="entryForm" (ngSubmit)="submitEntry()" novalidate>
+      <th-messages [error]="error()" />
+      <div class="two">
+        <label>Direction<select formControlName="kind"><option value="in">Money in</option><option value="out">Money out</option></select></label>
+        <label>Amount ($)<input formControlName="amount" inputmode="decimal"></label>
+      </div>
+      <div class="two">
+        <label>Date<input type="date" formControlName="date"></label>
+        <label>Category<select formControlName="cat">@for (c of cats; track c) { <option [value]="c">{{ c }}</option> }</select></label>
+      </div>
+      <label>Description<input formControlName="desc"></label>
+      <div class="two">
+        <label>Family
+          <select formControlName="pid"><option value="">— (none)</option>@for (p of store.players(); track p.pid) { <option [value]="p.pid">{{ p.first }} {{ p.last }}</option> }</select>
+        </label>
+        <label>Payee (if not a family)<input formControlName="payee"></label>
+      </div>
+      <div class="form-actions">
+        <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save entry' }}</button>
+        <button class="btn ghost" type="button" (click)="form.set(null)">Cancel</button>
+        <span class="spacer"></span>
+        @if (editing()) {
+          <button class="btn" type="button" [class.danger]="!confirmDelete()" [class.confirming]="confirmDelete()" (click)="removeEntry()">{{ confirmDelete() ? 'Tap again to remove' : 'Remove' }}</button>
+        }
+      </div>
+    </form>
+  </th-sheet>
+}

@@ -4,7 +4,8 @@ import { Permission, can as roleCan } from '@shared/permissions';
 import { ApiError, ApiService } from './api.service';
 import { explain } from './errors';
 import { LiveService } from './live.service';
-import type { Agenda, Announcement, Meal, Member, Player, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
+import type { Agenda, Announcement, LedgerEntry, Meal, Member, MoneyKind, Payment, Player, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
+import { duesFor, fundStats } from './money';
 import { ScheduleItem, buildItems, countsFor, rsvpOf } from './schedule';
 import { ToastService } from './toast.service';
 
@@ -42,6 +43,13 @@ export class TeamStore implements OnDestroy {
     Number(!!b.pinned) - Number(!!a.pinned) || String(b.at ?? '').localeCompare(String(a.at ?? ''))));
   readonly items = computed(() => buildItems(this.events(), this.settings()));
   readonly meals = computed<Meal[]>(() => this.bundle()?.meals ?? []);
+  readonly ledger = computed<LedgerEntry[]>(() => [...(this.bundle()?.ledger ?? [])].sort((a, b) =>
+    b.date.localeCompare(a.date) || String(b.at ?? '').localeCompare(String(a.at ?? ''))));
+  readonly payments = computed<Payment[]>(() => this.bundle()?.payments ?? []);
+  readonly duesCents = computed(() => this.settings()?.dues?.amountCents ?? 0);
+  readonly fund = computed(() => fundStats(this.ledger(), this.payments(), this.players(), this.duesCents()));
+  dues(pid: string) { return duesFor(pid, this.ledger(), this.payments()); }
+  uniformOf(pid: string): Record<string, string> { return this.family()[pid]?.uniform?.sizes ?? {}; }
   readonly refjobs = computed(() => this.bundle()?.refjobs ?? {});
   readonly agenda = computed(() => this.bundle()?.agenda ?? {});
   /** Tournaments, soonest first. */
@@ -164,6 +172,19 @@ export class TeamStore implements OnDestroy {
   deleteMeal(m: Meal) { return this.save('Meal removed', (t) => this.api.deleteMeal(t, m.eid, m.mid)); }
   claimMeal(m: Meal, pid: string) { return this.save("Thanks! It's yours.", (t) => this.api.claimMeal(t, m.eid, m.mid, pid)); }
   releaseMeal(m: Meal) { return this.save('Meal reopened', (t) => this.api.releaseMeal(t, m.eid, m.mid)); }
+  recordPayment(p: { kind: MoneyKind; cat: string; pid?: string; amountCents: number; date: string; desc: string }) {
+    return this.save(p.kind === 'in' ? 'Payment recorded. Finance will confirm it.' : 'Request sent to finance', (t) => this.api.recordPayment(t, p));
+  }
+  withdrawPayment(payId: string) { return this.save('Withdrawn', (t) => this.api.withdrawPayment(t, payId)); }
+  settlePayment(p: Payment, action: 'confirm' | 'decline') {
+    const done = action === 'decline' ? 'Declined' : p.kind === 'in' ? 'Marked received' : 'Marked paid back';
+    return this.save(done, (t) => this.api.settlePayment(t, p.payId, action));
+  }
+  saveLedger(l: LedgerEntry, isNew: boolean) { return this.save(isNew ? 'Entry added' : 'Entry saved', (t) => this.api.saveLedger(t, l)); }
+  deleteLedger(lid: string) { return this.save('Entry removed', (t) => this.api.deleteLedger(t, lid)); }
+  savePlayer(p: Player, isNew: boolean) { return this.save(isNew ? 'Player added' : 'Player saved', (t) => this.api.savePlayer(t, p)); }
+  deletePlayer(pid: string) { return this.save('Player removed', (t) => this.api.deletePlayer(t, pid)); }
+  setUniform(pid: string, sizes: Record<string, string>) { return this.save('Sizes saved', (t) => this.api.setUniform(t, pid, sizes)); }
   setTravel(pid: string, eid: string, travel: Travel | null) {
     return this.save(travel ? 'Travel plans saved' : 'Travel plans cleared', (t) => this.api.setTravel(t, pid, eid, travel));
   }
