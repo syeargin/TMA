@@ -3,6 +3,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { addDays, daysUntil, fmt, fmtRange, newId, pd, today } from '../../core/dates';
 import type { Announcement } from '../../core/models';
+import { money, pending } from '../../core/money';
 import { ScheduleItem, takesRsvp } from '../../core/schedule';
 import { TeamStore } from '../../core/team-store';
 import { Sheet } from '../../shared/sheet';
@@ -24,6 +25,7 @@ export class TeamHome {
   readonly fmtRange = fmtRange;
   readonly pd = pd;
   readonly pid = this.store.myPid;
+  readonly money = money;
 
   readonly upcoming = computed(() => this.store.items().filter((i) => i.end >= today()));
   readonly next = computed(() => this.upcoming().find((i) => !i.cancelled && i.kind !== 'deadline') ?? null);
@@ -53,6 +55,20 @@ export class TeamHome {
       });
     }
     const t0 = today();
+    if (pid && this.store.duesCents()) {
+      const d = this.store.dues(pid);
+      const left = this.store.duesCents() - d.paid;
+      const due = this.store.settings()?.dues?.due;
+      if (left > 0) out.push({
+        title: `Team fund: ${money(left)} to go`,
+        sub: d.waiting ? `${money(d.waiting)} recorded, waiting to be confirmed` : `${due ? 'Due ' + fmt(due, { month: 'long', day: 'numeric' }) + '. ' : ''}Record it here once you’ve paid.`,
+        link: 'fund', tone: d.waiting ? 'warn' : undefined
+      });
+    }
+    if (this.store.can('finance')) {
+      const p = pending(this.store.payments());
+      if (p.length) out.push({ title: `Confirm ${p.length} payment${p.length > 1 ? 's or requests' : ' or request'}`, sub: 'Sent in by families', link: 'fund' });
+    }
     if (pid) {
       const need = this.store.tournaments().filter((e) => e.travel && e.date >= t0 && daysUntil(e.date) <= 150 && !this.store.travelOf(pid, e.eid));
       if (need.length) out.push({

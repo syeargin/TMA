@@ -32,14 +32,7 @@ export function tournamentDays(date: string, end?: string): string[] {
   return out;
 }
 
-export const money = (cents: number) =>
-  (cents < 0 ? '−$' : '$') + (Math.abs(cents) / 100).toLocaleString('en-US', { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 });
-
-/** "12.50" → 1250; blank or bad → 0 */
-export const toCents = (v: string | number | null | undefined) => {
-  const n = Number(String(v ?? '').replace(/[$,\s]/g, ''));
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : 0;
-};
+export { money, toCents } from './money';
 
 export const sortMeals = (meals: Meal[]) =>
   [...meals].sort((a, b) => String(a.day ?? '').localeCompare(String(b.day ?? '')) || tmin(a.time) - tmin(b.time));

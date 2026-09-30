@@ -1,0 +1,134 @@
+<div class="sec-h">
+  <div>
+    <h2>Roster</h2>
+    <p class="muted" style="margin-top:6px">{{ store.players().length }} players@if (store.settings()?.age) { · {{ store.settings()?.age }} }</p>
+  </div>
+  <span class="spacer"></span>
+  <nav class="chips" aria-label="Roster views">
+    <a class="chip" [routerLink]="['/teams', store.teamId(), 'roster']" [attr.aria-pressed]="!uniforms()">Players &amp; parents</a>
+    <a class="chip" [routerLink]="['/teams', store.teamId(), 'roster', 'uniforms']" [attr.aria-pressed]="uniforms()">Uniform order</a>
+  </nav>
+</div>
+
+@if (!uniforms()) {
+  <div class="row" style="margin-bottom:14px">
+    @if (emails().length) { <button class="btn sm" type="button" (click)="copy(emails().join(', '), 'Emails')">Copy all parent emails ({{ emails().length }})</button> }
+    @if (manage) { <button class="btn sm primary" type="button" (click)="openPlayer(null)">Add player</button> }
+  </div>
+  <div class="rgrid">
+    @for (p of store.players(); track p.pid) {
+      <article class="card pcard" [class.me]="p.pid === store.you().pid">
+        <div class="jersey" aria-hidden="true">
+          <svg viewBox="0 0 64 70"><path d="M20 2 L8 8 L1 24 L11 29 L14 23 L14 68 L50 68 L50 23 L53 29 L63 24 L56 8 L44 2 C42 9 22 9 20 2 Z" fill="var(--hdr)"/><path d="M20 2 C22 9 42 9 44 2" fill="none" stroke="var(--accent)" stroke-width="3"/><path d="M1 24 L11 29 M63 24 L53 29" stroke="var(--accent)" stroke-width="3"/></svg>
+          <b class="tn">{{ p.jersey }}</b>
+        </div>
+        <div style="min-width:0">
+          <div class="row" style="gap:6px">
+            <h3>{{ p.first }} {{ p.last }}</h3>
+            @if (p.jersey) { <span class="sr-only">jersey {{ p.jersey }}</span> }
+            <span class="spacer"></span>
+            @if (manage) { <button class="link-btn small" type="button" (click)="openPlayer(p)">Edit</button> }
+          </div>
+          <div class="small muted">Shirt {{ p.shirt || '—' }} · Ref team {{ p.refTeam || 'A' }}@if (p.town) { · {{ p.town }}}</div>
+          @if (hasAllergy(p)) { <div class="pill p-bad" style="margin-top:4px">Food allergy: {{ p.allergies }}</div> }
+          @if (linked().has(p.pid)) { <div class="pill p-ok" style="margin-top:4px" title="A parent has a linked account">Family signed in</div> }
+          @for (x of p.parents ?? []; track $index) {
+            <div class="parent">
+              <div class="pn">{{ x.name }}</div>
+              @if (x.cell) { <a class="copy tn" [href]="'tel:' + x.cell">{{ x.cell }}</a> }
+              @if (x.email) { <a class="copy" [href]="'mailto:' + x.email">{{ x.email }}</a> }
+            </div>
+          }
+        </div>
+      </article>
+    } @empty {
+      <div class="empty">No players yet.@if (manage) { Add the team’s players to get started. }</div>
+    }
+  </div>
+} @else {
+  <div class="row" style="margin-bottom:12px">
+    <p class="muted intro"><b>{{ sizesDone() }} of {{ store.players().length }}</b> families have entered sizes. Each family fills in their own row.</p>
+    @if (myPid && items().length) { <button class="btn sm red" type="button" (click)="openSizes(myPid)">Enter {{ store.playerName(myPid) }}’s sizes</button> }
+  </div>
+  @if (items().length) {
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th class="sticky-col">Player</th>
+          @for (i of items(); track $index) { <th [title]="i" style="white-space:normal;min-width:92px;vertical-align:bottom">{{ shortItem(i) }}</th> }
+          <th><span class="sr-only">Actions</span></th>
+        </tr></thead>
+        <tbody>
+          @for (p of store.players(); track p.pid) {
+            <tr [class.mine]="p.pid === store.you().pid">
+              <td class="sticky-col"><b>{{ p.first }}</b> <span class="muted small">{{ p.shirt }}</span></td>
+              @for (i of items(); track $index) {
+                <td class="tn">@if (store.uniformOf(p.pid)[$index + '']; as s) { {{ s }} } @else { <span class="tbd">—</span> }</td>
+              }
+              <td>@if (p.pid === myPid || manage) { <button class="link-btn small" type="button" (click)="openSizes(p.pid)">Edit</button> }</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty">No uniform items yet. A team admin or coordinator adds them in team settings.</div>
+  }
+}
+
+@if (manage) {
+  <th-sheet [heading]="editing() ? 'Edit player' : 'Add player'" [open]="playerOpen()" (closed)="playerOpen.set(false)">
+    <form [formGroup]="playerForm" (ngSubmit)="savePlayer()" novalidate>
+      <th-messages [error]="error()" />
+      <div class="two">
+        <label>First name<input formControlName="first" required></label>
+        <label>Last name<input formControlName="last"></label>
+      </div>
+      <div class="two">
+        <label>Jersey #<input formControlName="jersey" inputmode="numeric"></label>
+        <label>Shirt size<input formControlName="shirt" placeholder="YL, AS…"></label>
+      </div>
+      <div class="two">
+        <label>Ref job group<select formControlName="refTeam"><option value="A">A</option><option value="B">B</option></select></label>
+        <label>Town (for carpools)<input formControlName="town"></label>
+      </div>
+      <label>Food allergies<input formControlName="allergies"></label>
+      <div formArrayName="parents" class="stack" style="gap:10px">
+        @for (g of parents.controls; track $index; let i = $index) {
+          <fieldset class="group" [formGroupName]="i">
+            <legend>Parent / guardian {{ i + 1 }}</legend>
+            <label>Name<input formControlName="name"></label>
+            <div class="two">
+              <label>Cell<input type="tel" formControlName="cell"></label>
+              <label>Email<input type="email" formControlName="email"></label>
+            </div>
+          </fieldset>
+        }
+      </div>
+      @if (parents.length < 4) { <div><button class="btn sm" type="button" (click)="parents.push(newParent())">Add another parent</button></div> }
+      <div class="form-actions">
+        <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save player' }}</button>
+        <button class="btn ghost" type="button" (click)="playerOpen.set(false)">Cancel</button>
+        <span class="spacer"></span>
+        @if (editing()) {
+          <button class="btn" type="button" [class.danger]="!confirmDelete()" [class.confirming]="confirmDelete()" (click)="removePlayer()">{{ confirmDelete() ? 'Tap again to remove' : 'Remove player' }}</button>
+        }
+      </div>
+      @if (editing() && confirmDelete()) { <p class="hint">Removing a player also removes their family’s availability, travel and sizes.</p> }
+    </form>
+  </th-sheet>
+}
+
+<th-sheet [heading]="sizesFor() ? store.playerName(sizesFor()) + '’s sizes' : 'Sizes'" [open]="!!sizesFor()" (closed)="sizesFor.set('')">
+  <form (ngSubmit)="saveSizes()" [formGroup]="sizesGroup" novalidate>
+    <div formArrayName="sizes" class="stack" style="gap:10px">
+      @for (c of sizes.controls; track $index; let i = $index) {
+        <label>{{ items()[i] }}<input [formControlName]="i" maxlength="10" placeholder="YM, AS, 8…"></label>
+      }
+    </div>
+    <div class="form-actions">
+      <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save sizes' }}</button>
+      <button class="btn ghost" type="button" (click)="sizesFor.set('')">Cancel</button>
+    </div>
+  </form>
+</th-sheet>
