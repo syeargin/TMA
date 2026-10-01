@@ -42,7 +42,7 @@ All writes go through the API, which checks the caller's membership (`TEAM#<t>` 
 | Membership (roles) | `TEAM#<t>` | `MEMBER#<uid>` | `USER#<uid>` / `TEAM#<t>` | |
 | Family record | `TEAM#<t>` | `FAMILY#<pid>` | | |
 | Invite | `INVITE#<email>` | `TEAM#<t>` | `TEAM#<t>` / `INVITE#<email>` | |
-| User profile | `USER#<uid>` | `PROFILE` | | |
+| User profile (email, first and last name) | `USER#<uid>` | `PROFILE` | | |
 | Payment (family-submitted) | `TEAM#<t>` | `PAYMENT#<payId>` | | |
 | Live connection | `CONN#<connId>` | `META` (`sub`, `teamId`, `ttl`) | | |
 | Team subscriber | `TEAMCONN#<t>` | `CONN#<connId>` (`sub`, `ttl`) | | |
@@ -86,3 +86,5 @@ Patterns 16–18 use DynamoDB's conditional writes and transactions, which repla
 - Dates are `YYYY-MM-DD`; timestamps are ISO-8601 UTC. Both sort correctly as strings.
 - `ttl` (epoch seconds) expires unanswered join requests; set it about 60 days out.
 - Every item carries `type` for filtering and stream consumers.
+
+Names: `firstName`/`lastName` live on the profile and are copied onto each `MEMBER#` item (so a team loads names in its one query). `PUT /me` updates both; an invite's name is used until the person sets their own; team admins can correct a name on their team.

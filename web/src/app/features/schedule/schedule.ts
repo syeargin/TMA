@@ -4,6 +4,7 @@ import { addDays, fmt, fmtRange, pd, today } from '../../core/dates';
 import type { EventKind, TeamEvent } from '../../core/models';
 import { ScheduleItem } from '../../core/schedule';
 import { TeamStore } from '../../core/team-store';
+import { AddToCalendar } from '../../shared/add-to-calendar';
 import { EventForm } from './event-form';
 import { PracticesForm } from './practices-form';
 import { KindPill, RsvpButtons, RsvpCounts } from './rsvp';
@@ -13,7 +14,7 @@ type Range = '8w' | 'season';
 
 @Component({
   selector: 'th-schedule',
-  imports: [RouterLink, EventForm, PracticesForm, KindPill, RsvpButtons, RsvpCounts],
+  imports: [RouterLink, AddToCalendar, EventForm, PracticesForm, KindPill, RsvpButtons, RsvpCounts],
   templateUrl: './schedule.html'
 })
 export class Schedule {

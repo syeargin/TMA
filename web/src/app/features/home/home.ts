@@ -3,7 +3,8 @@ import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
-import type { ClubTeam, Me } from '../../core/models';
+import { MeService } from '../../core/me.service';
+import type { ClubTeam } from '../../core/models';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
 import { roleLabel } from '../../shared/roles';
@@ -19,7 +20,10 @@ export class Home extends Page {
   private readonly fb = inject(NonNullableFormBuilder);
 
   readonly user = this.auth.user;
-  readonly me = signal<Me | null>(null);
+  private readonly meSvc = inject(MeService);
+  readonly me = this.meSvc.me;
+  readonly editingName = signal(false);
+  readonly nameForm = this.fb.group({ firstName: '', lastName: '' });
   readonly clubTeams = signal<ClubTeam[] | null>(null);
   readonly clubTeamsError = signal('');
   readonly roleLabel = roleLabel;
@@ -32,8 +36,8 @@ export class Home extends Page {
 
   private async load() {
     try {
-      const me = await this.api.me();
-      this.me.set(me);
+      const me = await this.meSvc.load(true);
+      this.nameForm.reset({ firstName: me.firstName ?? '', lastName: me.lastName ?? '' });
       if (me.acceptedInvites && !this.notice()) {
         this.notice.set(`You've been added to ${me.acceptedInvites} team${me.acceptedInvites > 1 ? 's' : ''}.`);
       }
@@ -45,6 +49,16 @@ export class Home extends Page {
       this.me.set({ teams: [] });
       this.error.set((err as Error).message);
     }
+  }
+
+  saveName() {
+    const v = this.nameForm.getRawValue();
+    if (!v.firstName.trim()) { this.error.set('Enter your first name.'); return; }
+    return this.run(async () => {
+      await this.meSvc.setName(v.firstName, v.lastName);
+      this.editingName.set(false);
+      this.notice.set('Name saved. Your teams will see it.');
+    });
   }
 
   createTeam() {
@@ -59,6 +73,7 @@ export class Home extends Page {
   signOut() {
     return this.run(async () => {
       await this.auth.logOut();
+      this.meSvc.clear();
       return this.go('/signin', { notice: "You've signed out." });
     });
   }

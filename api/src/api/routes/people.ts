@@ -11,9 +11,10 @@ const inviteSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(200),
   roles,
   person: optStr(120),
+  firstName: optStr(60), lastName: optStr(60),
   pid: optStr(64)
 });
-const memberSchema = z.object({ roles, person: optStr(120), pid: optStr(64) });
+const memberSchema = z.object({ roles, person: optStr(120), firstName: optStr(60), lastName: optStr(60), pid: optStr(64) });
 
 const INVITE_DAYS = 60;
 
@@ -49,7 +50,7 @@ export function peopleRoutes(r: Router) {
     const at = now();
     await putItem({
       ...keys.invite(b.email, a.teamId), ...keys.inviteGsi(b.email, a.teamId),
-      type: "Invite", teamId: a.teamId, email: b.email, roles: b.roles, person: b.person ?? "", pid: b.pid ?? "",
+      type: "Invite", teamId: a.teamId, email: b.email, roles: b.roles, person: b.person ?? "", firstName: b.firstName ?? "", lastName: b.lastName ?? "", pid: b.pid ?? "",
       invitedBy: caller.sub, at, ttl: Math.floor(Date.now() / 1000) + INVITE_DAYS * 86400
     });
     return json(201, { email: b.email });
@@ -83,7 +84,8 @@ export function peopleRoutes(r: Router) {
       const admins = (await activeMembers(a.teamId)).filter((m) => (m.roles as string[]).includes("admin"));
       if (admins.length <= 1) throw conflict("A team needs at least one team admin. Make someone else an admin first.");
     }
-    await putItem({ ...existing, sub, roles: b.roles, person: b.person ?? existing.person ?? "", pid: b.pid ?? existing.pid ?? "", updatedAt: now(), updatedBy: caller.sub });
+    await putItem({ ...existing, sub, roles: b.roles, person: b.person ?? existing.person ?? "",
+      firstName: b.firstName ?? existing.firstName ?? "", lastName: b.lastName ?? existing.lastName ?? "", pid: b.pid ?? existing.pid ?? "", updatedAt: now(), updatedBy: caller.sub });
     return json(200, { sub });
   });
 

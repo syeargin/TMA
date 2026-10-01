@@ -283,6 +283,31 @@ describe("invites and members", () => {
     expect(invites.some((i: any) => i.email === email)).toBe(false);
   });
 
+  it("names: the inviter's name lands on the membership; the person can set their own on every team", async () => {
+    const sub = "u-named";
+    expect((await call("POST", `/teams/${T}/invites`, ROLE_SUBS.admin, { email: "named@example.com", roles: ["parent"], firstName: "Jo", lastName: "Moss", pid: "p1" })).status).toBe(201);
+    expect((await call("GET", "/me", sub, undefined, "named@example.com")).body.acceptedInvites).toBe(1);
+    let m = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.members.find((x: any) => x.sub === sub);
+    expect([m.firstName, m.lastName]).toEqual(["Jo", "Moss"]);
+    expect(m.email).toBeUndefined(); // parents still don't see emails
+
+    expect((await call("PUT", "/me", sub, { firstName: "  Joanna ", lastName: "Moss-Lee" })).status).toBe(200);
+    const me = (await call("GET", "/me", sub, undefined, "named@example.com")).body;
+    expect([me.firstName, me.lastName]).toEqual(["Joanna", "Moss-Lee"]);
+    m = (await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.members.find((x: any) => x.sub === sub);
+    expect([m.firstName, m.lastName]).toEqual(["Joanna", "Moss-Lee"]);
+    expect(m.roles).toEqual(["parent"]);
+    expect(m.pid).toBe("p1");
+
+    expect((await call("PUT", "/me", sub, { firstName: "", lastName: "X" })).status).toBe(400);
+  });
+
+  it("team admins can correct a member's name; roles and family are kept", async () => {
+    expect((await call("PUT", `/teams/${T}/members/${ROLE_SUBS.food}`, ROLE_SUBS.admin, { roles: ["food"], firstName: "Fran", lastName: "Food" })).status).toBe(200);
+    const m = (await call("GET", `/teams/${T}`, ROLE_SUBS.admin)).body.members.find((x: any) => x.sub === ROLE_SUBS.food);
+    expect([m.firstName, m.lastName, m.roles[0]]).toEqual(["Fran", "Food", "food"]);
+  });
+
   it("refuses to invite someone already on the team", async () => {
     expect((await call("POST", `/teams/${T}/invites`, ROLE_SUBS.admin, { email: "u-coach@example.com", roles: ["parent"] })).status).toBe(409);
   });

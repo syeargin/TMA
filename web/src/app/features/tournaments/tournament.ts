@@ -6,6 +6,7 @@ import { TeamStore } from '../../core/team-store';
 import { safeUrl } from '../../core/tournament';
 import { EventForm } from '../schedule/event-form';
 import { RsvpButtons, RsvpCounts } from '../schedule/rsvp';
+import { AddToCalendar } from '../../shared/add-to-calendar';
 import { Agenda } from './agenda';
 import { GameDay } from './game-day';
 import { Meals } from './meals';
@@ -18,7 +19,7 @@ const LABELS: Record<Section, string> = { gameday: 'Game day', ref: 'Ref jobs', 
 /** /teams/:id/tournaments/:eid[/:section] */
 @Component({
   selector: 'th-tournament',
-  imports: [RouterLink, RsvpButtons, RsvpCounts, EventForm, GameDay, RefJobs, Meals, TravelPlans, Agenda],
+  imports: [RouterLink, AddToCalendar, RsvpButtons, RsvpCounts, EventForm, GameDay, RefJobs, Meals, TravelPlans, Agenda],
   template: `
     <a class="link-btn small" [routerLink]="['/teams', store.teamId(), 'tournaments']" style="display:inline-block;margin-bottom:10px">‹ All tournaments</a>
     @if (event(); as e) {
@@ -51,6 +52,8 @@ const LABELS: Record<Section, string> = { gameday: 'Game day', ref: 'Ref jobs', 
           <th-rsvp [item]="item()!" [pid]="store.myPid()" />
         }
         <th-counts [item]="item()!" />
+        <span class="spacer"></span>
+        <th-add-to-calendar [item]="item()!" [path]="'/teams/' + store.teamId() + '/tournaments/' + e.eid" />
       </div>
       @switch (current()) {
         @case ('ref') { <th-ref-jobs [event]="e" /> }

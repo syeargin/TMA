@@ -6,6 +6,7 @@ import { explain } from './errors';
 import { LiveService } from './live.service';
 import type { Agenda, Announcement, Handbook, Settings, Task, LedgerEntry, Meal, Member, MoneyKind, Payment, Player, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
 import { duesFor, fundStats } from './money';
+import { fullName } from './me.service';
 import { ScheduleItem, buildItems, countsFor, rsvpOf } from './schedule';
 import { ToastService } from './toast.service';
 
@@ -199,6 +200,7 @@ export class TeamStore implements OnDestroy {
   authorName(sub?: string): string {
     const m = this.members().find((x) => x.sub === sub);
     if (!m) return '';
+    if (fullName(m)) return fullName(m);
     if (m.person) return m.person;
     if (m.pid && this.playerName(m.pid)) return `${this.playerName(m.pid)}'s family`;
     return m.email ?? '';

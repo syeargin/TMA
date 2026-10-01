@@ -8,7 +8,8 @@
       @for (m of store.members(); track m.sub ?? m.email) {
         <div class="member">
           <div>
-            <b>{{ m.email || m.person || m.sub }}</b>
+            <b>{{ fullName(m) || m.email || m.person || m.sub }}</b>
+            @if (fullName(m) && m.email) { <div class="small muted">{{ m.email }}</div> }
             <div class="row small" style="margin-top:4px;gap:6px">
               @for (r of m.roles; track r) { <span class="role" [class]="'r-' + r">{{ roleLabel(r) }}</span> }
               @if (m.pid) { <span class="muted">family: {{ playerLabel(m.pid) }}</span> }
@@ -18,6 +19,10 @@
             <details>
               <summary>Change</summary>
               <form [formGroup]="f" (ngSubmit)="saveMember(m.sub)" novalidate>
+                <div class="two">
+                  <label>First name<input formControlName="firstName"></label>
+                  <label>Last name<input formControlName="lastName"></label>
+                </div>
                 <div class="checks" formGroupName="roles">
                   @for (r of roles; track r) { <label><input type="checkbox" [formControlName]="r"> {{ roleLabel(r) }}</label> }
                 </div>
@@ -49,6 +54,10 @@
       <div class="card-h"><h2>Invite someone</h2></div>
       <div class="card-b">
         <form [formGroup]="inviteForm" (ngSubmit)="sendInvite()" novalidate>
+          <div class="two">
+            <label for="inviteFirst">First name<input id="inviteFirst" formControlName="firstName" autocomplete="off"></label>
+            <label for="inviteLast">Last name<input id="inviteLast" formControlName="lastName" autocomplete="off"></label>
+          </div>
           <label for="inviteEmail">Email<input id="inviteEmail" type="email" formControlName="email" required autocomplete="off"></label>
           <div class="checks" formGroupName="roles">
             @for (r of roles; track r) { <label><input type="checkbox" [formControlName]="r"> {{ roleLabel(r) }}</label> }
@@ -60,7 +69,7 @@
             </select>
           </label>
           <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Send invite' }}</button>
-          <p class="hint">Invites don’t send an email yet. Tell the person to create an account at this site with that address.</p>
+          <p class="hint">People can change their own name later from “Your teams”. Invites don’t send an email yet. Tell the person to create an account at this site with that address.</p>
         </form>
       </div>
     </section>
@@ -69,7 +78,7 @@
       <div class="card-b">
         @for (i of invites(); track i.email) {
           <div class="li">
-            <div class="grow"><b>{{ i.email }}</b><div class="small muted">{{ roleList(i.roles) }}@if (i.pid) { · family: {{ playerLabel(i.pid) }}}</div></div>
+            <div class="grow"><b>{{ fullName(i) || i.email }}</b>@if (fullName(i)) { <div class="small muted">{{ i.email }}</div> }<div class="small muted">{{ roleList(i.roles) }}@if (i.pid) { · family: {{ playerLabel(i.pid) }}}</div></div>
             <button class="link-btn small" type="button" [class.confirm]="confirming() === 'invite:' + i.email" (click)="cancelInvite(i.email)">
               {{ confirming() === 'invite:' + i.email ? 'Tap again to confirm' : 'Cancel' }}
             </button>

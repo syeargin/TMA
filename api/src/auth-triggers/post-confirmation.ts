@@ -1,7 +1,7 @@
 import type { PostConfirmationTriggerHandler } from "aws-lambda";
 import { emailSet, keys, normEmail } from "../lib/keys.js";
 import { TABLE } from "../lib/db.js";
-import { inviteToMembershipItems, pendingInvites, writeInChunks } from "../lib/invites.js";
+import { inviteToMembershipItems, nameFromInvites, pendingInvites, writeInChunks } from "../lib/invites.js";
 
 /**
  * Cognito post-confirmation trigger. Runs once the person has verified their email.
@@ -20,8 +20,9 @@ export const handler: PostConfirmationTriggerHandler = async (event) => {
   const isClubAdmin = emailSet(process.env.CLUB_ADMIN_EMAILS).has(email);
 
   const invites = await pendingInvites(email);
+  const name = nameFromInvites(invites);
   const items: Parameters<typeof writeInChunks>[0] = [
-    { Put: { TableName: TABLE, Item: { ...keys.profile(sub), type: "UserProfile", sub, email, clubAdmin: isClubAdmin, createdAt: now } } }
+    { Put: { TableName: TABLE, Item: { ...keys.profile(sub), type: "UserProfile", sub, email, ...name, clubAdmin: isClubAdmin, createdAt: now } } }
   ];
   if (isClubAdmin) {
     items.push({ Put: { TableName: TABLE, Item: { ...keys.clubAdmin(clubId, sub), type: "ClubAdmin", sub, email, grantedBy: "bootstrap", at: now } } });

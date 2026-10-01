@@ -343,3 +343,20 @@ a.chip{text-decoration:none;display:inline-flex;align-items:center}
 .hb section:first-child{border-top:0}
 .hb .link-btn:disabled{opacity:.35;cursor:default}
 button.task-s{appearance:none;border:0;cursor:pointer}
+.namebox{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:12px 0;background:var(--surface-2)}
+.namebox.ask{border-color:var(--accent);background:var(--accent-soft)}
+.namebox h3{margin:0 0 4px}
+.namebox form{margin-top:10px}
+
+/* ---------- add to calendar ---------- */
+.cal{position:relative;display:inline-block}
+.cal summary{list-style:none;cursor:pointer;white-space:nowrap}
+.cal summary::-webkit-details-marker{display:none}
+.cal-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:230px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(6,12,24,.18);padding:6px;display:flex;flex-direction:column}
+.cal-menu a,.cal-menu button{appearance:none;border:0;background:none;text-align:left;padding:9px 10px;border-radius:7px;color:var(--ink);font-weight:600;font-size:14px;text-decoration:none;cursor:pointer}
+.cal-menu a:hover,.cal-menu button:hover,.cal-menu a:focus-visible,.cal-menu button:focus-visible{background:var(--btn-soft)}
+.cal-menu .sub{font-weight:500;color:var(--ink-2);font-size:13px;border-top:1px solid var(--line-2);border-radius:0 0 7px 7px;margin-top:4px}
+@media (max-width:640px){.cal-menu{left:0;right:auto}}
+
+/* Same height for every text box and dropdown (selects render taller or shorter than inputs by default). */
+input:not([type=checkbox]):not([type=radio]),select:not(.cell){height:42px}

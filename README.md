@@ -99,6 +99,7 @@ Every call needs a Cognito access token (`Authorization: Bearer …`). The API l
 | Route | Who |
 |---|---|
 | `GET /me` | Anyone signed in (also accepts invites waiting for their email) |
+| `PUT /me` (first and last name, copied to every team) | Anyone signed in |
 | `GET /teams` · `POST /teams` | Anyone · club admins |
 | `GET /teams/{t}` | Members (contacts, ledger, payments and member emails trimmed by role) |
 | `PUT /teams/{t}/settings` | Coordinator, team admin (practices, cancellations and the meal budget are kept if left out) |
@@ -167,6 +168,7 @@ web/src/app/layout/               app shell pieces: narrow card (sign-in, your t
 web/src/app/core/team-store.ts    the open team's data for every tab; live refreshes, held while editing
 web/src/app/core/schedule.ts      events + weekly practices → schedule rows; availability counts
 web/src/app/core/tournament.ts    ref-job rotation, meal days
+web/src/app/core/calendar.ts      add-to-calendar: Google/Android, Outlook.com, Outlook 365, .ics (Apple, Outlook desktop)
 web/src/app/core/money.ts         fund balance, dues per family, meal budget model
 web/src/app/features/             one folder per area: auth, home, team (home, members), schedule, tournaments, fund, roster, info
 web/src/app/shared/               small UI pieces and the role checkbox helpers
