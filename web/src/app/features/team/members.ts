@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ROLES } from '@shared/permissions';
 import { ApiService } from '../../core/api.service';
-import { fullName } from '../../core/me.service';
+import { MeService, fullName } from '../../core/me.service';
 import type { Invite, Member } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { Messages } from '../../shared/messages';
@@ -22,6 +22,7 @@ export class Members extends Page {
   readonly store = inject(TeamStore);
   private readonly api = inject(ApiService);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly meSvc = inject(MeService);
 
   readonly invites = signal<Invite[]>([]);
   readonly memberForms = signal(new Map<string, MemberForm>());
@@ -85,6 +86,7 @@ export class Members extends Page {
     return this.run(async () => {
       await this.api.updateMember(this.store.teamId(), sub, { roles: pickedRoles(f.controls.roles), pid: f.controls.pid.value || undefined, firstName: f.controls.firstName.value.trim(), lastName: f.controls.lastName.value.trim() });
       await this.reload();
+      if (sub === this.store.you().sub) await this.meSvc.load(true).catch(() => undefined);
       this.notice.set('Roles saved.');
     });
   }

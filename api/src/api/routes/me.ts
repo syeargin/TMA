@@ -39,6 +39,21 @@ export function meRoutes(r: Router) {
       clubAdmin = true;
     }
 
+    // No name of their own yet: use one an admin set on a team, and keep it on the profile from now on.
+    if (!name.firstName) {
+      const named = memberships.find((m) => m.status === "active" && m.firstName);
+      if (named) {
+        name.firstName = String(named.firstName);
+        name.lastName = String(named.lastName ?? "");
+        await ddb.send(new UpdateCommand({
+          TableName: TABLE, Key: keys.profile(caller.sub),
+          UpdateExpression: "SET firstName = :f, lastName = :l",
+          ConditionExpression: "attribute_not_exists(firstName) OR firstName = :empty",
+          ExpressionAttributeValues: { ":f": name.firstName, ":l": name.lastName, ":empty": "" }
+        })).catch((e) => { if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e; });
+      }
+    }
+
     return json(200, {
       sub: caller.sub,
       email,

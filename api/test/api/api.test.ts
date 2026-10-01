@@ -302,6 +302,15 @@ describe("invites and members", () => {
     expect((await call("PUT", "/me", sub, { firstName: "", lastName: "X" })).status).toBe(400);
   });
 
+  it("the banner name falls back to a name an admin set, and it sticks to the profile", async () => {
+    expect((await call("PUT", `/teams/${T}/members/${ROLE_SUBS.finance}`, ROLE_SUBS.admin, { roles: ["finance"], firstName: "Pat", lastName: "Lee" })).status).toBe(200);
+    let me = (await call("GET", "/me", ROLE_SUBS.finance, undefined, "u-fin@example.com")).body;
+    expect([me.firstName, me.lastName]).toEqual(["Pat", "Lee"]);
+    expect((await call("PUT", "/me", ROLE_SUBS.finance, { firstName: "Patricia", lastName: "Lee" })).status).toBe(200);
+    me = (await call("GET", "/me", ROLE_SUBS.finance, undefined, "u-fin@example.com")).body;
+    expect(me.firstName).toBe("Patricia");
+  });
+
   it("team admins can correct a member's name; roles and family are kept", async () => {
     expect((await call("PUT", `/teams/${T}/members/${ROLE_SUBS.food}`, ROLE_SUBS.admin, { roles: ["food"], firstName: "Fran", lastName: "Food" })).status).toBe(200);
     const m = (await call("GET", `/teams/${T}`, ROLE_SUBS.admin)).body.members.find((x: any) => x.sub === ROLE_SUBS.food);
