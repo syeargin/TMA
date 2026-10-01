@@ -1,0 +1,146 @@
+<div class="sec-h">
+  <div><h2>Team Info</h2></div>
+  <span class="spacer"></span>
+  <nav class="chips" aria-label="Team info views">
+    <a class="chip" [routerLink]="['/teams', store.teamId(), 'info']" [attr.aria-pressed]="!tasksView()">Team handbook</a>
+    <a class="chip" [routerLink]="['/teams', store.teamId(), 'info', 'tasks']" [attr.aria-pressed]="tasksView()">Coordinator tasks</a>
+  </nav>
+  @if (store.can('settings')) { <button class="btn sm" type="button" (click)="settingsOpen.set(true)">Team settings</button> }
+</div>
+
+@if (!tasksView()) {
+  <div class="grid g-home">
+    <section class="card">
+      <div class="card-h"><h3>From the kickoff meeting</h3><span class="spacer"></span>
+        @if (editHandbook) { <button class="btn sm primary" type="button" (click)="editSection(-1)">Add section</button> }
+      </div>
+      <div class="card-b hb">
+        @for (s of store.handbook().sections; track $index; let i = $index; let first = $first; let last = $last) {
+          <section>
+            <div class="row">
+              <h3>{{ s.t }}</h3><span class="spacer"></span>
+              @if (editHandbook) {
+                <button class="link-btn small" type="button" [disabled]="first" (click)="move(i, -1)" [attr.aria-label]="'Move ' + s.t + ' up'">↑</button>
+                <button class="link-btn small" type="button" [disabled]="last" (click)="move(i, 1)" [attr.aria-label]="'Move ' + s.t + ' down'">↓</button>
+                <button class="link-btn small" type="button" (click)="editSection(i)">Edit</button>
+              }
+            </div>
+            <p>{{ s.b }}</p>
+          </section>
+        } @empty {
+          <div class="empty">No handbook sections yet.@if (editHandbook) { Add the team’s rules and expectations from the kickoff meeting. }</div>
+        }
+      </div>
+    </section>
+    <div class="stack">
+      <section class="card">
+        <div class="card-h"><h3>Who does what</h3><span class="spacer"></span>
+          @if (store.can('accounts')) { <a class="link-btn small" [routerLink]="['/teams', store.teamId(), 'members']">Roles &amp; access</a> }
+        </div>
+        <div class="card-b">
+          @for (r of whoDoesWhat(); track r.label) {
+            <div class="li" style="align-items:flex-start">
+              <div class="label" style="min-width:120px;padding-top:2px">{{ r.label }}</div>
+              <div class="grow">@for (p of r.people; track $index) { <div>{{ p }}</div> } @empty { <span class="tbd">Open</span> }</div>
+            </div>
+          }
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-h"><h3>Players’ jobs</h3></div>
+        <div class="card-b small">
+          <ul style="margin:0;padding-left:18px">
+            <li>Bring the ball bags and ball cart from A5 to tournaments and keep track of them overnight (rotation on each tournament page).</li>
+            <li>Line judging, keeping the score book, flipping the score, and libero tracking (see <i>Ref jobs</i> on each tournament).</li>
+            <li>If balls or the cart have to be checked on a flight, A5 reimburses the fee. Keep the receipt.</li>
+          </ul>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-h"><h3>Useful links</h3></div>
+        <div class="card-b small">
+          <div class="li"><a href="https://a5volleyball.sprocketsports.com/" target="_blank" rel="noopener">A5 registration &amp; player-parent contract ↗</a></div>
+          <div class="li"><a href="https://www.srva.org/" target="_blank" rel="noopener">SRVA / USAV membership ↗</a></div>
+          <div class="li"><a href="https://sportwrench.com/" target="_blank" rel="noopener">SportWrench tournament tickets ↗</a></div>
+          <div class="li"><a href="https://www.a5tournaments.com/club-tournaments" target="_blank" rel="noopener">A5 club tournaments ↗</a></div>
+        </div>
+      </section>
+    </div>
+  </div>
+} @else {
+  <div class="row" style="margin-bottom:12px">
+    <p class="muted intro">The team coordinator’s running checklist. {{ doneCount() }} of {{ store.tasks().length }} done.@if (manageTasks) { Tap a status to move it along. }</p>
+    @if (manageTasks) { <button class="btn sm primary" type="button" (click)="openTask(null)">Add task</button> }
+  </div>
+  @if (store.tasks().length) {
+    <div class="tw">
+      <table>
+        <thead><tr><th>#</th><th>Task</th><th>How / notes</th><th>Owner</th><th>Status</th>@if (manageTasks) { <th><span class="sr-only">Actions</span></th> }</tr></thead>
+        <tbody>
+          @for (t of store.tasks(); track t.kid; let i = $index) {
+            <tr>
+              <td class="tn muted">{{ i + 1 }}</td>
+              <td><b>{{ t.title }}</b></td>
+              <td class="small"><span class="pw">{{ t.desc }}</span></td>
+              <td class="small">{{ t.owner }}</td>
+              <td>
+                @if (manageTasks) {
+                  <button class="pill task-s" [class]="tone(t.status)" type="button" (click)="cycle(t)" [attr.aria-label]="t.title + ': ' + (t.status || 'To do') + '. Change status'">{{ t.status || 'To do' }}</button>
+                } @else {
+                  <span class="pill" [class]="tone(t.status)">{{ t.status || 'To do' }}</span>
+                }
+              </td>
+              @if (manageTasks) { <td><button class="link-btn small" type="button" (click)="openTask(t)">Edit</button></td> }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="empty">No coordinator tasks yet.</div>
+  }
+}
+
+@if (editHandbook) {
+  <th-sheet [heading]="sectionIndex() === -1 ? 'Add section' : 'Edit section'" [open]="sectionIndex() !== null" (closed)="sectionIndex.set(null)">
+    <form [formGroup]="sectionForm" (ngSubmit)="saveSection()" novalidate>
+      <th-messages [error]="error()" />
+      <label>Heading<input formControlName="t" placeholder="Attendance"></label>
+      <label>Text<textarea formControlName="b" rows="10"></textarea></label>
+      <div class="form-actions">
+        <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save section' }}</button>
+        <button class="btn ghost" type="button" (click)="sectionIndex.set(null)">Cancel</button>
+        <span class="spacer"></span>
+        @if (sectionIndex() !== null && sectionIndex()! >= 0) {
+          <button class="btn" type="button" [class.danger]="!confirmDelete()" [class.confirming]="confirmDelete()" (click)="removeSection()">{{ confirmDelete() ? 'Tap again to remove' : 'Remove' }}</button>
+        }
+      </div>
+    </form>
+  </th-sheet>
+}
+
+@if (manageTasks) {
+  <th-sheet [heading]="editingTask() ? 'Edit task' : 'Add task'" [open]="taskOpen()" (closed)="taskOpen.set(false)">
+    <form [formGroup]="taskForm" (ngSubmit)="saveTask()" novalidate>
+      <th-messages [error]="error()" />
+      <label>Task<input formControlName="title" placeholder="Book the team hotel"></label>
+      <label>How / notes<textarea formControlName="desc" rows="2"></textarea></label>
+      <div class="two">
+        <label>Owner<input formControlName="owner"></label>
+        <label>Status<select formControlName="status">@for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }</select></label>
+      </div>
+      <div class="form-actions">
+        <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save task' }}</button>
+        <button class="btn ghost" type="button" (click)="taskOpen.set(false)">Cancel</button>
+        <span class="spacer"></span>
+        @if (editingTask()) {
+          <button class="btn" type="button" [class.danger]="!confirmDelete()" [class.confirming]="confirmDelete()" (click)="removeTask()">{{ confirmDelete() ? 'Tap again to delete' : 'Delete' }}</button>
+        }
+      </div>
+    </form>
+  </th-sheet>
+}
+
+@if (store.can('settings')) {
+  <th-settings-form [open]="settingsOpen()" (closed)="settingsOpen.set(false)" />
+}

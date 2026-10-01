@@ -21,6 +21,7 @@ import { AvailabilitySheet } from '../features/schedule/availability-sheet';
         <a class="tab" routerLink="tournaments" routerLinkActive="active" ariaCurrentWhenActive="page">Tournaments</a>
         <a class="tab" routerLink="fund" routerLinkActive="active" ariaCurrentWhenActive="page">Team Fund</a>
         <a class="tab" routerLink="roster" routerLinkActive="active" ariaCurrentWhenActive="page">Roster</a>
+        <a class="tab" routerLink="info" routerLinkActive="active" ariaCurrentWhenActive="page">Team Info</a>
         @if (store.can('accounts')) {
           <a class="tab" routerLink="members" routerLinkActive="active" ariaCurrentWhenActive="page">Members</a>
         }

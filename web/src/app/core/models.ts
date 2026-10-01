@@ -67,6 +67,10 @@ export interface FamilyRecord {
   uniform?: { sizes?: Record<string, string>; at?: string };
   [key: string]: unknown;
 }
+export interface HandbookSection { t: string; b: string }
+export interface Handbook { sections: HandbookSection[] }
+export type TaskStatus = 'To do' | 'In progress' | 'Done' | 'N/A';
+export interface Task { kid: string; title: string; desc?: string; owner?: string; status?: TaskStatus; order?: number }
 export interface Announcement { aid: string; text: string; pinned?: boolean; by?: string; at?: string }
 
 /** GET /teams/:id — everything the caller may see about one team. */
@@ -81,6 +85,8 @@ export interface TeamBundle {
   members: Member[];
   meals: Meal[];
   ledger: LedgerEntry[];
+  handbook: Handbook | null;
+  tasks: Task[];
   payments: Payment[];
   refjobs: Record<string, RefJobs>;
   agenda: Record<string, Agenda>;

@@ -4,7 +4,7 @@ import { Permission, can as roleCan } from '@shared/permissions';
 import { ApiError, ApiService } from './api.service';
 import { explain } from './errors';
 import { LiveService } from './live.service';
-import type { Agenda, Announcement, LedgerEntry, Meal, Member, MoneyKind, Payment, Player, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
+import type { Agenda, Announcement, Handbook, Settings, Task, LedgerEntry, Meal, Member, MoneyKind, Payment, Player, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
 import { duesFor, fundStats } from './money';
 import { ScheduleItem, buildItems, countsFor, rsvpOf } from './schedule';
 import { ToastService } from './toast.service';
@@ -46,6 +46,8 @@ export class TeamStore implements OnDestroy {
   readonly ledger = computed<LedgerEntry[]>(() => [...(this.bundle()?.ledger ?? [])].sort((a, b) =>
     b.date.localeCompare(a.date) || String(b.at ?? '').localeCompare(String(a.at ?? ''))));
   readonly payments = computed<Payment[]>(() => this.bundle()?.payments ?? []);
+  readonly handbook = computed<Handbook>(() => this.bundle()?.handbook ?? { sections: [] });
+  readonly tasks = computed<Task[]>(() => [...(this.bundle()?.tasks ?? [])].sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.title.localeCompare(b.title)));
   readonly duesCents = computed(() => this.settings()?.dues?.amountCents ?? 0);
   readonly fund = computed(() => fundStats(this.ledger(), this.payments(), this.players(), this.duesCents()));
   dues(pid: string) { return duesFor(pid, this.ledger(), this.payments()); }
@@ -184,6 +186,10 @@ export class TeamStore implements OnDestroy {
   deleteLedger(lid: string) { return this.save('Entry removed', (t) => this.api.deleteLedger(t, lid)); }
   savePlayer(p: Player, isNew: boolean) { return this.save(isNew ? 'Player added' : 'Player saved', (t) => this.api.savePlayer(t, p)); }
   deletePlayer(pid: string) { return this.save('Player removed', (t) => this.api.deletePlayer(t, pid)); }
+  saveHandbook(h: Handbook, done: string) { return this.save(done, (t) => this.api.saveHandbook(t, h)); }
+  saveTask(task: Task, done = 'Task saved') { return this.save(done, (t) => this.api.saveTask(t, task)); }
+  deleteTask(kid: string) { return this.save('Task deleted', (t) => this.api.deleteTask(t, kid)); }
+  saveSettings(s: Settings) { return this.save('Settings saved', (t) => this.api.saveSettings(t, s)); }
   setUniform(pid: string, sizes: Record<string, string>) { return this.save('Sizes saved', (t) => this.api.setUniform(t, pid, sizes)); }
   setTravel(pid: string, eid: string, travel: Travel | null) {
     return this.save(travel ? 'Travel plans saved' : 'Travel plans cleared', (t) => this.api.setTravel(t, pid, eid, travel));
