@@ -4,7 +4,7 @@ import { firstValueFrom, from, switchMap, throwError } from 'rxjs';
 import type { Role } from '@shared/permissions';
 import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
-import type { Agenda, ClubTeam, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
+import type { Agenda, ClubTeam, Handbook, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, Practice, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
   constructor(readonly status: number, body?: { message?: string; error?: string } | null) {
@@ -113,4 +113,16 @@ export class ApiService {
     return this.call('PUT', `/teams/${enc(teamId)}/players/${enc(pid)}`, { first, last, jersey, shirt, town, allergies, refTeam, order, parents: parents ?? [] });
   }
   deletePlayer(teamId: string, pid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/players/${enc(pid)}`); }
+
+  saveHandbook(teamId: string, h: Handbook) { return this.call('PUT', `/teams/${enc(teamId)}/handbook`, { sections: h.sections }); }
+  saveTask(teamId: string, t: Task) {
+    const { kid, title, desc, owner, status, order } = t;
+    return this.call('PUT', `/teams/${enc(teamId)}/tasks/${enc(kid)}`, { title, desc, owner, status, order });
+  }
+  deleteTask(teamId: string, kid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/tasks/${enc(kid)}`); }
+  /** Team settings. Practices and cancellations are left out, so the API keeps what coaches saved. */
+  saveSettings(teamId: string, s: Settings) {
+    const { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems } = s;
+    return this.call('PUT', `/teams/${enc(teamId)}/settings`, { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems });
+  }
 }

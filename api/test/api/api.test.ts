@@ -155,6 +155,13 @@ describe("practices", () => {
     const s = (await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.settings;
     expect(s.cancelled).toEqual(expect.arrayContaining(keysToCancel));
   });
+  it("saving team settings without the meal budget keeps it", async () => {
+    const base = { teamName: "A5 13 Test", season: "2026-27", age: "13U", coaches: [{ name: "Coach Tom" }] };
+    expect((await call("PUT", `/teams/${T}/settings`, ROLE_SUBS.admin, { ...base, budget: { costPerMealCents: 2500, mealsPerDay: 3, people: 16 } })).status).toBe(200);
+    expect((await call("PUT", `/teams/${T}/settings`, ROLE_SUBS.coordinator, base)).status).toBe(200);
+    const s = (await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.settings;
+    expect(s.budget).toEqual({ costPerMealCents: 2500, mealsPerDay: 3, people: 16 });
+  });
   it("saving team settings without practices keeps them", async () => {
     expect((await call("PUT", `/teams/${T}/settings`, ROLE_SUBS.admin, { teamName: "A5 13 Test", season: "2026-27", age: "13U", coaches: [{ name: "Coach Tom" }] })).status).toBe(200);
     const s = (await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.settings;

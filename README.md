@@ -101,7 +101,7 @@ Every call needs a Cognito access token (`Authorization: Bearer …`). The API l
 | `GET /me` | Anyone signed in (also accepts invites waiting for their email) |
 | `GET /teams` · `POST /teams` | Anyone · club admins |
 | `GET /teams/{t}` | Members (contacts, ledger, payments and member emails trimmed by role) |
-| `PUT /teams/{t}/settings` | Coordinator, team admin (practices and cancellations are kept if left out) |
+| `PUT /teams/{t}/settings` | Coordinator, team admin (practices, cancellations and the meal budget are kept if left out) |
 | `PUT /teams/{t}/practices` · `PUT·DELETE …/practices/cancelled/{pr-id-date}` | Coach, coordinator, team admin |
 | `PUT /teams/{t}/refgroups` (players' A/B ref groups only) | Coach, coordinator, team admin |
 | `PUT /teams/{t}/handbook` | Coach, coordinator, team admin |
@@ -156,7 +156,7 @@ Try it on dev: open the team page in two browsers (or one normal window and one 
 web/src/main.ts                   reads /config.json (written by the deploy), then starts the app
 web/src/app/app.ts                shell: header, Live pill, env badge
 web/src/app/app.routes.ts         /, /teams/:id (Home), …/schedule, …/tournaments[/:eid[/gameday|ref|meals|travel|agenda]], …/fund, …/roster[/uniforms],
-                                  …/members, sign-in screens
+                                  …/info[/tasks], …/members, sign-in screens
                                   (team sections load on demand)
 web/src/app/core/                 services shared by every screen
   auth.service.ts                   Cognito sign-in through Amplify
@@ -168,7 +168,7 @@ web/src/app/core/team-store.ts    the open team's data for every tab; live refre
 web/src/app/core/schedule.ts      events + weekly practices → schedule rows; availability counts
 web/src/app/core/tournament.ts    ref-job rotation, meal days
 web/src/app/core/money.ts         fund balance, dues per family, meal budget model
-web/src/app/features/             one folder per area: auth, home, team (home, members), schedule, tournaments, fund, roster
+web/src/app/features/             one folder per area: auth, home, team (home, members), schedule, tournaments, fund, roster, info
 web/src/app/shared/               small UI pieces and the role checkbox helpers
 ```
 

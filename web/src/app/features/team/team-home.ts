@@ -91,6 +91,13 @@ export class TeamHome {
         out.push({ title: `Assign ref jobs for ${nt.title}`, sub: fmtRange(nt.date, nt.endDate), link: ['tournaments', nt.eid, 'ref'], tone: 'ok' });
       }
     }
+    if (this.store.can('tasks')) {
+      const open = this.store.tasks().filter((x) => x.status !== 'Done' && x.status !== 'N/A');
+      if (open.length) out.push({ title: `${open.length} coordinator task${open.length > 1 ? 's' : ''} open`, sub: open[0].title, link: ['info', 'tasks'], tone: 'ok' });
+    }
+    if (this.store.can('settings') && !this.store.duesCents()) {
+      out.push({ title: 'Set team dues', sub: 'Dues, coaches, checklist and uniform items live in team settings', link: 'info', tone: 'ok' });
+    }
     if (this.store.can('schedule') && !this.store.settings()?.practices?.length) {
       out.push({ title: 'Add practice times', sub: 'Weekly practices fill the schedule for the season', link: 'schedule', tone: 'ok' });
     }

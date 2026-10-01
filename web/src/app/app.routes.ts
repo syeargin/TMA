@@ -20,6 +20,8 @@ export const routes: Routes = [
       { path: 'fund', loadComponent: () => import('./features/fund/fund').then((m) => m.Fund), title: T('Team fund') },
       { path: 'roster', loadComponent: () => import('./features/roster/roster').then((m) => m.Roster), title: T('Roster') },
       { path: 'roster/:section', loadComponent: () => import('./features/roster/roster').then((m) => m.Roster), title: T('Uniform order') },
+      { path: 'info', loadComponent: () => import('./features/info/info').then((m) => m.Info), title: T('Team info') },
+      { path: 'info/:section', loadComponent: () => import('./features/info/info').then((m) => m.Info), title: T('Coordinator tasks') },
       { path: 'members', loadComponent: () => import('./features/team/members').then((m) => m.Members), title: T('Members') }
     ]
   },

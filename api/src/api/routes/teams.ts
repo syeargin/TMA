@@ -20,7 +20,7 @@ const settingsSchema = z.object({
   coaches: z.array(coach).max(6).default([]),
   teamCode: optStr(40),
   dues: z.object({ amountCents: z.number().int().min(0).max(10_000_00), due: optStr(10), label: optStr(100) }).partial().default({}),
-  budget: z.record(z.number()).default({}),
+  budget: z.record(z.number()).optional(), // left out = keep what's saved
   // Left out = keep what's saved (coaches manage these through the /practices routes).
   practices: z.array(practice).max(20).optional(),
   cancelled: z.array(str(80)).max(500).optional(),
@@ -162,10 +162,11 @@ export function teamRoutes(r: Router) {
     const saved = await getItem(keys.settings(access.teamId));
     const practices = b.practices ?? (saved?.practices as unknown[] | undefined) ?? [];
     const cancelled = b.cancelled ?? (saved?.cancelled as unknown[] | undefined) ?? [];
+    const budget = b.budget ?? (saved?.budget as Record<string, number> | undefined) ?? {};
     const dir = (await getItem(keys.teamDir(CLUB_ID(), access.teamId))) ?? { ...keys.teamDir(CLUB_ID(), access.teamId), type: "Team", archived: false, createdAt: at };
     await ddb.send(new TransactWriteCommand({
       TransactItems: [
-        { Put: { TableName: TABLE, Item: { ...keys.settings(access.teamId), type: "Settings", ...b, practices, cancelled, updatedAt: at, updatedBy: caller.sub } } },
+        { Put: { TableName: TABLE, Item: { ...keys.settings(access.teamId), type: "Settings", ...b, practices, cancelled, budget, updatedAt: at, updatedBy: caller.sub } } },
         { Put: { TableName: TABLE, Item: { ...dir, name: b.teamName, season: b.season ?? "", age: b.age ?? "", coaches: b.coaches.map((c) => c.name) } } }
       ]
     }));
