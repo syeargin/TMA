@@ -1,9 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/auth.service';
 import { APP_CONFIG } from './core/config';
 import { HeaderService } from './core/header.service';
 import { LiveService } from './core/live.service';
+import { MeService } from './core/me.service';
 import type { LiveStatus } from './core/live-client';
 import { ToastService } from './core/toast.service';
 
@@ -30,8 +31,8 @@ import { ToastService } from './core/toast.service';
           }
           @if (env !== 'prod') { <span class="env">{{ env }}</span> }
           @if (auth.user(); as u) {
-            <a class="who" routerLink="/" title="Your teams and account">
-              <span><span class="w-l">Signed in</span><span class="w-n">{{ u.email }}</span></span>
+            <a class="who" routerLink="/" [title]="'Signed in as ' + u.email">
+              <span><span class="w-l">Signed in</span><span class="w-n">{{ me.label() || u.email }}</span></span>
               <span class="w-c">Your teams</span>
             </a>
           }
@@ -48,7 +49,12 @@ export class App {
   readonly header = inject(HeaderService);
   readonly live = inject(LiveService);
   readonly toast = inject(ToastService);
+  readonly me = inject(MeService);
   readonly env = this.cfg.env || 'local';
   readonly commit = this.cfg.commit?.slice(0, 7);
+  constructor() {
+    // Load the name for the header once someone is signed in.
+    effect(() => { if (this.auth.user()) void this.me.load().catch(() => {}); else this.me.clear(); });
+  }
   readonly liveText: Record<LiveStatus, string> = { off: '', live: 'Live', connecting: 'Connecting…', reconnecting: 'Reconnecting…' };
 }

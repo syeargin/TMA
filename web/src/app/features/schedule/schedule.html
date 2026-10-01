@@ -54,6 +54,7 @@
       <div class="side">
         @if (pid()) { <th-rsvp [item]="it" [pid]="pid()" /> }
         <th-counts [item]="it" />
+        <th-add-to-calendar [item]="it" [path]="it.kind === 'tournament' ? '/teams/' + store.teamId() + '/tournaments/' + it.key : '/teams/' + store.teamId() + '/schedule'" />
         @if (store.can('schedule')) {
           @if (it.kind === 'practice') {
             <button class="link-btn small" type="button" (click)="toggleCancelled(it)">{{ it.cancelled ? 'Restore practice' : 'Cancel practice' }}</button>

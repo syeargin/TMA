@@ -1,10 +1,10 @@
 import type { Role } from '@shared/permissions';
 
 export interface MyTeam { teamId: string; name?: string; roles: Role[]; pid?: string }
-export interface Me { sub?: string; email?: string; teams: MyTeam[]; clubAdmin?: boolean; acceptedInvites?: number }
+export interface Me { sub?: string; email?: string; firstName?: string; lastName?: string; teams: MyTeam[]; clubAdmin?: boolean; acceptedInvites?: number }
 export interface ClubTeam { teamId: string; name: string; season?: string; age?: string }
-export interface Member { sub?: string; email?: string; person?: string; roles: Role[]; pid?: string; status?: string }
-export interface Invite { email: string; roles?: Role[]; pid?: string }
+export interface Member { sub?: string; email?: string; firstName?: string; lastName?: string; person?: string; roles: Role[]; pid?: string; status?: string }
+export interface Invite { email: string; firstName?: string; lastName?: string; roles?: Role[]; pid?: string }
 
 export interface Coach { name: string; phone?: string }
 export interface Practice {

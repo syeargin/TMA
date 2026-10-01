@@ -2,7 +2,7 @@ import { QueryCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE } from "./db.js";
 import { keys, normEmail } from "./keys.js";
 
-type Invite = { PK: string; SK: string; teamId?: string; person?: string; pid?: string; roles?: string[]; invitedBy?: string };
+type Invite = { PK: string; SK: string; teamId?: string; person?: string; firstName?: string; lastName?: string; pid?: string; roles?: string[]; invitedBy?: string };
 type TxItem = NonNullable<ConstructorParameters<typeof TransactWriteCommand>[0]["TransactItems"]>[number];
 
 export async function pendingInvites(email: string): Promise<Invite[]> {
@@ -22,7 +22,8 @@ export async function pendingInvites(email: string): Promise<Invite[]> {
 }
 
 /** Transaction actions that turn each invite into an active membership and delete the invite. */
-export function inviteToMembershipItems(invites: Invite[], sub: string, email: string, now: string): TxItem[] {
+/** name: the person's own name from their profile, which wins over what the inviter typed. */
+export function inviteToMembershipItems(invites: Invite[], sub: string, email: string, now: string, name?: { firstName?: string; lastName?: string }): TxItem[] {
   const items: TxItem[] = [];
   for (const inv of invites) {
     const teamId = inv.teamId ?? inv.SK.slice("TEAM#".length);
@@ -32,7 +33,8 @@ export function inviteToMembershipItems(invites: Invite[], sub: string, email: s
         Item: {
           ...keys.member(teamId, sub), ...keys.memberGsi(teamId, sub),
           type: "Membership", status: "active", sub, email: normEmail(email),
-          person: inv.person ?? "", pid: inv.pid ?? "", roles: inv.roles?.length ? inv.roles : ["parent"],
+          person: inv.person ?? "", pid: inv.pid ?? "",
+          firstName: name?.firstName || inv.firstName || "", lastName: name?.firstName ? name.lastName ?? "" : inv.lastName ?? "", roles: inv.roles?.length ? inv.roles : ["parent"],
           invitedBy: inv.invitedBy ?? "", at: now
         }
       }
@@ -49,11 +51,17 @@ export async function writeInChunks(items: TxItem[]) {
   }
 }
 
+/** The first name the inviter typed, for a new profile with no name yet. */
+export const nameFromInvites = (invites: Invite[]) => {
+  const i = invites.find((x) => x.firstName);
+  return i ? { firstName: i.firstName ?? "", lastName: i.lastName ?? "" } : { firstName: "", lastName: "" };
+};
+
 /** Accepts any invites waiting for this email (used after sign-in for people who already have an account). */
-export async function acceptPendingInvites(sub: string, email: string): Promise<number> {
+export async function acceptPendingInvites(sub: string, email: string, name?: { firstName?: string; lastName?: string }): Promise<number> {
   if (!email) return 0;
   const invites = await pendingInvites(email);
   if (!invites.length) return 0;
-  await writeInChunks(inviteToMembershipItems(invites, sub, email, new Date().toISOString()));
+  await writeInChunks(inviteToMembershipItems(invites, sub, email, new Date().toISOString(), name));
   return invites.length;
 }

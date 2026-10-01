@@ -23,6 +23,7 @@
             @if (pid()) { <th-rsvp [item]="n" [pid]="pid()" /> }
             <th-counts [item]="n" />
             @if (n.kind === 'tournament') { <a class="btn sm" [routerLink]="['tournaments', n.key]">Game-day details</a> }
+            <th-add-to-calendar [item]="n" />
           </div>
         </div>
       </section>

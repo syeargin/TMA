@@ -50,13 +50,14 @@ export class ApiService {
   }
 
   me() { return this.call<Me>('GET', '/me'); }
+  setMyName(firstName: string, lastName: string) { return this.call('PUT', '/me', { firstName, lastName }); }
   clubTeams() { return this.call<{ teams: ClubTeam[] }>('GET', '/teams'); }
   createTeam(t: { teamId: string; name: string; season?: string; age?: string }) { return this.call('POST', '/teams', t); }
   team(teamId: string) { return this.call<TeamBundle>('GET', `/teams/${enc(teamId)}`); }
   invites(teamId: string) { return this.call<{ invites: Invite[] }>('GET', `/teams/${enc(teamId)}/invites`); }
-  invite(teamId: string, v: { email: string; roles: Role[]; pid?: string }) { return this.call('POST', `/teams/${enc(teamId)}/invites`, v); }
+  invite(teamId: string, v: { email: string; firstName?: string; lastName?: string; roles: Role[]; pid?: string }) { return this.call('POST', `/teams/${enc(teamId)}/invites`, v); }
   cancelInvite(teamId: string, email: string) { return this.call('DELETE', `/teams/${enc(teamId)}/invites/${enc(email)}`); }
-  updateMember(teamId: string, sub: string, v: { roles: Role[]; pid?: string }) { return this.call('PUT', `/teams/${enc(teamId)}/members/${enc(sub)}`, v); }
+  updateMember(teamId: string, sub: string, v: { roles: Role[]; pid?: string; firstName?: string; lastName?: string }) { return this.call('PUT', `/teams/${enc(teamId)}/members/${enc(sub)}`, v); }
   removeMember(teamId: string, sub: string) { return this.call('DELETE', `/teams/${enc(teamId)}/members/${enc(sub)}`); }
 
   saveEvent(teamId: string, e: TeamEvent) {

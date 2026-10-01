@@ -3,13 +3,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ROLES } from '@shared/permissions';
 import { ApiService } from '../../core/api.service';
+import { fullName } from '../../core/me.service';
 import type { Invite, Member } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
 import { RoleChecks, pickedRoles, roleChecks, roleLabel, roleList } from '../../shared/roles';
 
-type MemberForm = FormGroup<{ roles: RoleChecks; pid: FormControl<string> }>;
+type MemberForm = FormGroup<{ roles: RoleChecks; pid: FormControl<string>; firstName: FormControl<string>; lastName: FormControl<string> }>;
 
 /** Team admins: who's on the team, their roles and family, and pending invites. */
 @Component({
@@ -28,7 +29,8 @@ export class Members extends Page {
   readonly roles = ROLES;
   readonly roleLabel = roleLabel;
   readonly roleList = roleList;
-  readonly inviteForm = this.fb.group({ email: '', roles: roleChecks(['parent']), pid: '' });
+  readonly inviteForm = this.fb.group({ firstName: '', lastName: '', email: '', roles: roleChecks(['parent']), pid: '' });
+  readonly fullName = fullName;
 
   constructor() {
     super();
@@ -44,7 +46,8 @@ export class Members extends Page {
   }
 
   private memberForm(m: Member): MemberForm {
-    return new FormGroup({ roles: roleChecks(m.roles), pid: new FormControl(m.pid ?? '', { nonNullable: true }) });
+    const c = (v?: string) => new FormControl(v ?? '', { nonNullable: true });
+    return new FormGroup({ roles: roleChecks(m.roles), pid: c(m.pid), firstName: c(m.firstName), lastName: c(m.lastName) });
   }
 
   playerLabel(pid?: string) { const n = this.store.playerName(pid); return n ? `${n} (${pid})` : pid ?? ''; }
@@ -63,7 +66,7 @@ export class Members extends Page {
   private async reload() {
     await this.store.load();
     await this.loadInvites();
-    this.inviteForm.reset({ email: '', roles: Object.fromEntries(ROLES.map((r) => [r, r === 'parent'])), pid: '' });
+    this.inviteForm.reset({ firstName: '', lastName: '', email: '', roles: Object.fromEntries(ROLES.map((r) => [r, r === 'parent'])), pid: '' });
     this.confirming.set(null);
   }
 
@@ -71,7 +74,7 @@ export class Members extends Page {
     const v = this.inviteForm.getRawValue();
     const email = v.email.trim().toLowerCase();
     return this.run(async () => {
-      await this.api.invite(this.store.teamId(), { email, roles: pickedRoles(this.inviteForm.controls.roles), pid: v.pid || undefined });
+      await this.api.invite(this.store.teamId(), { email, firstName: v.firstName.trim() || undefined, lastName: v.lastName.trim() || undefined, roles: pickedRoles(this.inviteForm.controls.roles), pid: v.pid || undefined });
       await this.reload();
       this.notice.set(`Invited ${email}.`);
     });
@@ -80,7 +83,7 @@ export class Members extends Page {
   saveMember(sub: string) {
     const f = this.memberForms().get(sub)!;
     return this.run(async () => {
-      await this.api.updateMember(this.store.teamId(), sub, { roles: pickedRoles(f.controls.roles), pid: f.controls.pid.value || undefined });
+      await this.api.updateMember(this.store.teamId(), sub, { roles: pickedRoles(f.controls.roles), pid: f.controls.pid.value || undefined, firstName: f.controls.firstName.value.trim(), lastName: f.controls.lastName.value.trim() });
       await this.reload();
       this.notice.set('Roles saved.');
     });

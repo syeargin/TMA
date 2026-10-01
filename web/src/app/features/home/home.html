@@ -2,9 +2,25 @@
 <th-messages [error]="error()" [notice]="notice()" />
 @if (me(); as me) {
   <p class="muted small">
-    Signed in as <b>{{ user()?.email }}</b>
+    Signed in as <b>{{ me.firstName ? me.firstName + ' ' + (me.lastName ?? '') : user()?.email }}</b>@if (me.firstName) { <span> ({{ user()?.email }})</span> · <button class="link" type="button" (click)="editingName.set(true)">Change name</button> }
     @if (me.clubAdmin) { · <span class="pill">Club admin</span> }
   </p>
+  @if (!me.firstName || editingName()) {
+    <section class="namebox" [class.ask]="!me.firstName">
+      <h3>Your name</h3>
+      @if (!me.firstName) { <p class="small muted">Add your name so coaches and families see who you are instead of your email.</p> }
+      <form [formGroup]="nameForm" (ngSubmit)="saveName()" novalidate>
+        <div class="two">
+          <label for="firstName">First name<input id="firstName" formControlName="firstName" autocomplete="given-name" required></label>
+          <label for="lastName">Last name<input id="lastName" formControlName="lastName" autocomplete="family-name"></label>
+        </div>
+        <div class="row">
+          <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save name' }}</button>
+          @if (me.firstName) { <button class="btn ghost" type="button" (click)="editingName.set(false)">Cancel</button> }
+        </div>
+      </form>
+    </section>
+  }
   @if (me.teams.length) {
     <ul class="list">
       @for (t of me.teams; track t.teamId) {

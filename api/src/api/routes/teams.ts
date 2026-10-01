@@ -197,7 +197,7 @@ export function teamRoutes(r: Router) {
       const key = checkId(params.key, "practice");
       if (!/^pr-.+-\d{4}-\d{2}-\d{2}$/.test(key) || key.length > 80) throw badRequest("That isn't a practice date.");
       // Read, change, write back only if nobody else saved in between (retry a few times if they did).
-      for (let attempt = 0; attempt < 4; attempt++) {
+      for (let attempt = 0; attempt < 8; attempt++) {
         const saved = await getItem(keys.settings(access.teamId));
         if (!saved) throw notFound("This team has no settings yet.");
         const list = new Set((saved.cancelled as string[] | undefined) ?? []);
@@ -206,9 +206,13 @@ export function teamRoutes(r: Router) {
         try {
           await ddb.send(new UpdateCommand({
             TableName: TABLE, Key: keys.settings(access.teamId),
-            UpdateExpression: "SET cancelled = :c, updatedAt = :at, updatedBy = :by",
-            ConditionExpression: "updatedAt = :prev",
-            ExpressionAttributeValues: { ":c": [...list], ":at": now(), ":by": caller.sub, ":prev": saved.updatedAt }
+            // A counter, not a timestamp: two saves in the same millisecond would look identical.
+            UpdateExpression: "SET cancelled = :c, cancelledVersion = :next, updatedAt = :at, updatedBy = :by",
+            ConditionExpression: saved.cancelledVersion === undefined ? "attribute_not_exists(cancelledVersion)" : "cancelledVersion = :prev",
+            ExpressionAttributeValues: {
+              ":c": [...list], ":next": Number(saved.cancelledVersion ?? 0) + 1, ":at": now(), ":by": caller.sub,
+              ...(saved.cancelledVersion === undefined ? {} : { ":prev": saved.cancelledVersion })
+            }
           }));
           return json(200, { key, cancelled: method === "PUT" });
         } catch (e) {

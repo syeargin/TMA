@@ -8,6 +8,7 @@ import { ScheduleItem, takesRsvp } from '../../core/schedule';
 import { TeamStore } from '../../core/team-store';
 import { Sheet } from '../../shared/sheet';
 import { roleLabel } from '../../shared/roles';
+import { AddToCalendar } from '../../shared/add-to-calendar';
 import { KindPill, RsvpButtons, RsvpCounts, RsvpStatus } from '../schedule/rsvp';
 
 interface Todo { title: string; sub: string; link: string | string[]; tone?: 'warn' | 'ok' }
@@ -15,7 +16,7 @@ interface Contact { name: string; role: string; phone?: string }
 
 @Component({
   selector: 'th-team-home',
-  imports: [RouterLink, ReactiveFormsModule, Sheet, KindPill, RsvpButtons, RsvpCounts, RsvpStatus],
+  imports: [RouterLink, ReactiveFormsModule, Sheet, AddToCalendar, KindPill, RsvpButtons, RsvpCounts, RsvpStatus],
   templateUrl: './team-home.html'
 })
 export class TeamHome {
