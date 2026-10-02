@@ -1,4 +1,4 @@
-import { googleUrl, ics, icsFileName, outlookUrl, toCalEvent } from './calendar';
+import { googleUrl, ics, icsFileName, outlookUrl, toCalEvent, toSeriesCalEvent } from './calendar';
 import type { ScheduleItem } from './schedule';
 
 const item = (o: Partial<ScheduleItem>): ScheduleItem => ({
@@ -52,8 +52,40 @@ describe('calendar links', () => {
     expect(f).toContain('DTSTAMP:20261001T120000Z');
     expect(f.endsWith('END:VCALENDAR\r\n')).toBe(true);
     const odd = ics(toCalEvent(item({ title: 'Dinner; pizza, salad', note: 'x'.repeat(200), time: '7:00 PM' }), LINK));
-    expect(odd).toContain('SUMMARY:Dinner\; pizza\\, salad');
+    expect(odd).toContain('SUMMARY:Dinner\\; pizza\\, salad');
     expect(odd.split('\r\n').every((l) => new TextEncoder().encode(l).length <= 75)).toBe(true);
     expect(icsFileName(allDay)).toBe('Winter-Classic.ics');
+  });
+});
+
+describe('series calendar entries', () => {
+  const series = { id: 'e9', source: 'event' as const, every: 1, days: [2, 4], until: '2026-11-19',
+    dates: ['2026-11-03', '2026-11-05', '2026-11-10', '2026-11-12', '2026-11-17', '2026-11-19'],
+    active: ['2026-11-03', '2026-11-05', '2026-11-12', '2026-11-17', '2026-11-19'] };
+  const it9 = item({ key: 'e9-2026-11-03', title: 'Open gym', time: '6:00 PM – 8:00 PM', series });
+
+  it('starts at the next date, repeats weekly, and lists missing dates as exceptions', () => {
+    const e = toSeriesCalEvent(it9, LINK, '2026-11-04')!;
+    expect(e.start!.getDate()).toBe(5);
+    expect(e.rrule).toMatch(/^FREQ=WEEKLY;INTERVAL=1;BYDAY=TU,TH;UNTIL=\d{8}T\d{6}Z;WKST=SU$/);
+    expect(e.exdates).toEqual(['2026-11-10']);
+    expect(e.uid).toBe('event-e9@a5-team-hub');
+    const file = ics(e);
+    expect(file).toContain('RRULE:FREQ=WEEKLY');
+    expect(file).toMatch(/EXDATE:20261110T\d{6}Z/);
+    expect(new URL(googleUrl(e)).searchParams.get('recur')).toBe(`RRULE:${e.rrule}`);
+  });
+  it('all-day series use plain dates', () => {
+    const e = toSeriesCalEvent(item({ title: 'Dues', kind: 'deadline', series: { ...series, every: 2 } }), LINK, '2026-11-01')!;
+    expect(e.rrule).toContain('INTERVAL=2');
+    expect(e.rrule).toContain('UNTIL=20261119;');
+    expect(ics(e)).toContain('EXDATE;VALUE=DATE:20261110');
+  });
+  it('nothing left to add once the series is over, or for a one-time item', () => {
+    expect(toSeriesCalEvent(it9, LINK, '2026-11-20')).toBeNull();
+    expect(toSeriesCalEvent(item({}), LINK)).toBeNull();
+  });
+  it('escapes semicolons in text', () => {
+    expect(ics(toCalEvent(item({ title: 'A; B' }), LINK))).toContain('SUMMARY:A\\; B');
   });
 });

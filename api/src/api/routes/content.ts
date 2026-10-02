@@ -25,7 +25,29 @@ const eventSchema = z.object({
   uniforms: optStr(500), admissions: optStr(500), teamCode: optStr(60), scheduleLink: optStr(500), ticketHelp: optStr(500),
   foodPlan: optStr(2000), reservations: optStr(1000), notes: optStr(2000),
   hotel: optStr(200), hotelLink: optStr(500), hotelCode: optStr(100), hotelBy: optStr(60),
-  checklist: z.array(str(200)).max(60).optional()
+  checklist: z.array(str(200)).max(60).optional(),
+  // Repeating events (not tournaments): every N weeks on these weekdays (0 = Sunday) until a date.
+  repeat: z.object({
+    every: z.number().int().min(1).max(4).default(1),
+    days: z.array(z.number().int().min(0).max(6)).min(1).max(7).transform((d) => [...new Set(d)].sort()),
+    until: date,
+    skipTournaments: z.boolean().default(true)
+  }).optional(),
+  cancelled: z.array(date).max(400).optional(), // occurrences shown as cancelled
+  skip: z.array(date).max(400).optional()       // occurrences left out entirely
+}).refine((e) => !e.repeat || e.kind !== "tournament", "Tournaments can't repeat.")
+  .refine((e) => !e.repeat || e.repeat.until >= e.date, "The series ends before it starts.");
+
+/** Turn separate events that follow a weekly pattern into one repeating event. */
+const combineSchema = z.object({
+  eids: z.array(z.string()).min(2).max(150),
+  repeat: z.object({
+    every: z.number().int().min(1).max(4),
+    days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+    until: date,
+    skipTournaments: z.boolean().default(true)
+  }),
+  skip: z.array(date).max(400).default([])
 });
 
 const refGroupsSchema = z.object({ groups: z.record(z.enum(["A", "B"])) });
@@ -77,6 +99,45 @@ export function contentRoutes(r: Router) {
       updatedAt: now(), updatedBy: caller.sub
     });
     return json(200, { eid });
+  });
+
+  r.on("POST", "/teams/{teamId}/events/combine", async ({ caller, params, body }) => {
+    const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.require("schedule");
+    const b = parseBody(combineSchema, body);
+    const eids = [...new Set(b.eids.map((e) => checkId(e, "event")))];
+    const events = await Promise.all(eids.map((eid) => getItem(keys.event(a.teamId, eid))));
+    if (events.some((e) => !e)) throw notFound("One of those events no longer exists. Refresh and try again.");
+    const evs = (events as Record<string, unknown>[]).map((e, i): Record<string, unknown> & { eid: string } => ({ ...e, eid: eids[i] }))
+      .sort((x, y) => String(x.date).localeCompare(String(y.date)));
+    if (evs.some((e) => e.kind === "tournament" || e.repeat)) throw badRequest("Only separate one-time events can be combined.");
+    const first = evs[0];
+    const seriesId = first.eid;
+    const { PK: _pk, SK: _sk, eid: _e, GSI2PK: _g1, GSI2SK: _g2, updatedAt: _u, updatedBy: _ub, ...base } = first;
+    const days = [...new Set(b.repeat.days)].sort();
+    await putItem({
+      ...keys.event(a.teamId, seriesId), ...base, type: "Event",
+      repeat: { ...b.repeat, days }, skip: b.skip, cancelled: [],
+      GSI2PK: `TEAM#${a.teamId}#CAL`, GSI2SK: `${first.date}#${seriesId}`,
+      updatedAt: now(), updatedBy: caller.sub
+    });
+    // Move families' availability answers onto the series dates, then remove the old one-time events.
+    const moves = evs.map((e) => [e.eid, `${seriesId}-${e.date}`] as const);
+    const families = await queryAll({
+      KeyConditionExpression: "PK = :p AND begins_with(SK, :f)",
+      ExpressionAttributeValues: { ":p": `TEAM#${a.teamId}`, ":f": "FAMILY#" }
+    });
+    let moved = 0;
+    for (const f of families) {
+      const rsvp = (f.rsvp ?? {}) as Record<string, unknown>;
+      if (!moves.some(([from]) => rsvp[from])) continue;
+      const next = { ...rsvp };
+      for (const [from, to] of moves) if (next[from]) { next[to] = next[from]; delete next[from]; moved++; }
+      await ddb.send(new UpdateCommand({ TableName: TABLE, Key: { PK: String(f.PK), SK: String(f.SK) },
+        UpdateExpression: "SET rsvp = :r", ExpressionAttributeValues: { ":r": next } }));
+    }
+    await deleteMany(evs.slice(1).map((e) => keys.event(a.teamId, e.eid)));
+    return json(200, { eid: seriesId, combined: evs.length, answersMoved: moved });
   });
 
   r.on("DELETE", "/teams/{teamId}/events/{eid}", async ({ caller, params }) => {

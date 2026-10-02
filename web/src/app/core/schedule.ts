@@ -1,5 +1,6 @@
 import { addDays, iso, pd, tmin } from './dates';
 import type { FamilyRecord, Player, Practice, Rsvp, Settings, TeamEvent } from './models';
+import { Series, expandPattern } from './series';
 
 export type ItemKind = 'tournament' | 'event' | 'deadline' | 'practice';
 
@@ -17,35 +18,49 @@ export interface ScheduleItem {
   cancelled: boolean;
   event?: TeamEvent;
   practice?: Practice;
+  /** Set when this date is one of a repeating series. */
+  series?: Series;
 }
 
 const SEASON_END = '2027-06-30';
 
-/** Events plus every practice date, sorted by day and time. Practices skip tournament weekends. */
+/** Events (repeating ones expanded) plus every practice date, sorted by day and time. Practices skip tournament days. */
 export function buildItems(events: TeamEvent[], settings: Settings | null): ScheduleItem[] {
   const out: ScheduleItem[] = [];
   const tournaments = events.filter((e) => e.kind === 'tournament');
+  const onTournament = (ds: string) => tournaments.some((t) => ds >= t.date && ds <= (t.endDate || t.date));
   for (const e of events) {
-    out.push({
-      key: e.eid, kind: e.kind, title: e.title, date: e.date, end: e.endDate || e.date,
-      time: e.time || '', location: e.location || e.city || '', note: e.kind === 'tournament' ? '' : e.notes || '',
-      travel: !!e.travel, cancelled: false, event: e
-    });
+    const base = {
+      kind: e.kind, title: e.title, time: e.time || '', location: e.location || e.city || '',
+      note: e.kind === 'tournament' ? '' : e.notes || '', travel: !!e.travel, event: e
+    };
+    if (!e.repeat) {
+      out.push({ ...base, key: e.eid, date: e.date, end: e.endDate || e.date, cancelled: false });
+      continue;
+    }
+    const r = e.repeat;
+    const dates = expandPattern(e.date, r.until, r.days, r.every);
+    const skip = new Set(e.skip ?? []);
+    const shown = dates.filter((d) => !skip.has(d) && !(r.skipTournaments !== false && onTournament(d)));
+    const cancelled = new Set(e.cancelled ?? []);
+    const series: Series = { id: e.eid, source: 'event', every: r.every, days: r.days, until: r.until, dates, active: shown.filter((d) => !cancelled.has(d)) };
+    for (const d of shown) out.push({ ...base, key: `${e.eid}-${d}`, date: d, end: d, cancelled: cancelled.has(d), series });
   }
   const cancelled = new Set(settings?.cancelled ?? []);
   for (const p of settings?.practices ?? []) {
     if (!p.from) continue;
-    const d = pd(p.from);
-    const until = pd(p.until || SEASON_END);
-    for (let guard = 0; d.getDay() !== Number(p.dow) && guard < 8; guard++) d.setDate(d.getDate() + 1);
-    for (let n = 0; d <= until && n < 60; d.setDate(d.getDate() + 7), n++) {
-      const ds = iso(d);
-      if (tournaments.some((t) => ds >= t.date && ds <= (t.endDate || t.date))) continue;
+    const dates = expandPattern(p.from, p.until || SEASON_END, [Number(p.dow)], 1);
+    const shown = dates.filter((d) => !onTournament(d));
+    const series: Series = {
+      id: p.id, source: 'practice', every: 1, days: [Number(p.dow)], until: p.until || SEASON_END, dates,
+      active: shown.filter((d) => !cancelled.has(practiceKey(p.id, d)))
+    };
+    for (const ds of shown) {
       const key = practiceKey(p.id, ds);
       out.push({
         key, kind: 'practice', title: p.label, date: ds, end: ds,
         time: p.start ? p.start + (p.end ? ` – ${p.end}` : '') : 'Time TBD',
-        location: p.location || '', note: p.note || '', travel: false, cancelled: cancelled.has(key), practice: p
+        location: p.location || '', note: p.note || '', travel: false, cancelled: cancelled.has(key), practice: p, series
       });
     }
   }

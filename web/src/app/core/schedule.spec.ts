@@ -79,3 +79,26 @@ describe('availability', () => {
     expect(countsFor(players, family, 'e1')).toEqual({ yes: 1, maybe: 0, no: 1, none: 1 });
   });
 });
+
+describe('repeating events', () => {
+  const series = {
+    eid: 'og', kind: 'event', title: 'Open gym', date: '2026-11-03', time: '6:00 PM',
+    repeat: { every: 1, days: [2], until: '2026-11-24', skipTournaments: true }, skip: ['2026-11-10'], cancelled: ['2026-11-24']
+  } as TeamEvent;
+  const tourney = { eid: 't1', kind: 'tournament', title: 'Qualifier', date: '2026-11-15', endDate: '2026-11-17' } as TeamEvent;
+
+  it('expands into one row per date: skipped weeks and tournament days hidden, cancelled ones kept and marked', () => {
+    const rows = buildItems([series, tourney], null).filter((i) => i.event?.eid === 'og');
+    expect(rows.map((r) => [r.key, r.cancelled])).toEqual([['og-2026-11-03', false], ['og-2026-11-24', true]]);
+    expect(rows[0].series).toMatchObject({ id: 'og', source: 'event', active: ['2026-11-03'] });
+  });
+  it('can keep tournament days when asked', () => {
+    const keep = { ...series, repeat: { ...series.repeat!, skipTournaments: false } };
+    expect(buildItems([keep, tourney], null).filter((i) => i.event?.eid === 'og').map((r) => r.date)).toContain('2026-11-17');
+  });
+  it('weekly practice times carry their series', () => {
+    const s = { practices: [{ id: 'tue', label: 'Tuesday', dow: 2, start: '6:00 PM', from: '2026-11-03', until: '2026-11-17' }] } as Settings;
+    const rows = buildItems([], s);
+    expect(rows[0].series).toMatchObject({ source: 'practice', every: 1, days: [2] });
+  });
+});

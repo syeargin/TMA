@@ -13,63 +13,132 @@
   }
 </div>
 
+@for (p of patterns(); track p.eids[0]) {
+  <div class="banner series-tip" role="status">
+    <span class="pill p-series" aria-hidden="true">↻</span>
+    <span class="grow">{{ patternText(p) }} Combine them into one repeating event? Everyone’s answers carry over.</span>
+    <button class="btn sm primary" type="button" [disabled]="combining() === p.eids[0]" (click)="combine(p)">{{ combining() === p.eids[0] ? 'Combining…' : 'Combine into series' }}</button>
+  </div>
+}
+
 <div class="row" style="margin-bottom:6px">
+  <div class="chips" role="group" aria-label="View">
+    <button class="chip" type="button" [attr.aria-pressed]="view() === 'list'" (click)="view.set('list')">List</button>
+    <button class="chip" type="button" [attr.aria-pressed]="view() === 'month'" (click)="view.set('month')">Month</button>
+  </div>
   <div class="chips" role="group" aria-label="Show">
     @for (f of filters; track f[0]) {
       <button class="chip" type="button" [attr.aria-pressed]="filter() === f[0]" (click)="filter.set(f[0])">{{ f[1] }}</button>
     }
   </div>
   <span class="spacer"></span>
-  <div class="chips" role="group" aria-label="Range">
-    @for (r of ranges; track r[0]) {
-      <button class="chip" type="button" [attr.aria-pressed]="range() === r[0]" (click)="range.set(r[0])">{{ r[1] }}</button>
-    }
-  </div>
-</div>
-
-@for (m of months(); track m.key) {
-  <h3 class="month">{{ m.label }}</h3>
-  @for (it of m.items; track it.key) {
-    <div class="ev" [class]="'k-' + it.kind" [class.cancel]="it.cancelled">
-      <div class="d" aria-hidden="true">
-        <div class="dw">{{ fmt(it.date, { weekday: 'short' }) }}</div>
-        <div class="dn tn">{{ pd(it.date).getDate() }}</div>
-      </div>
-      <div>
-        <div class="ev-t">
-          @if (it.kind === 'tournament') {
-            <a class="t" [routerLink]="['/teams', store.teamId(), 'tournaments', it.key]">{{ it.title }}</a>
-          } @else {
-            <span class="t">{{ it.title }}</span>
-          }
-          <th-kind-pill [item]="it" />
-        </div>
-        <div class="meta">
-          <span class="sr-only">{{ fmt(it.date, { weekday: 'long', month: 'long', day: 'numeric' }) }}</span>
-          @if (when(it)) { <span>{{ when(it) }}</span> }
-          @if (it.location) { <span>{{ it.location }}</span> }
-          @if (it.note) { <span>{{ it.note }}</span> }
-        </div>
-      </div>
-      <div class="side">
-        @if (pid()) { <th-rsvp [item]="it" [pid]="pid()" /> }
-        <th-counts [item]="it" />
-        <th-add-to-calendar [item]="it" [path]="it.kind === 'tournament' ? '/teams/' + store.teamId() + '/tournaments/' + it.key : '/teams/' + store.teamId() + '/schedule'" />
-        @if (store.can('schedule')) {
-          @if (it.kind === 'practice') {
-            <button class="link-btn small" type="button" (click)="toggleCancelled(it)">{{ it.cancelled ? 'Restore practice' : 'Cancel practice' }}</button>
-          } @else {
-            <button class="link-btn small" type="button" (click)="edit(it)">Edit</button>
-          }
-        }
-      </div>
+  @if (view() === 'list') {
+    <div class="chips" role="group" aria-label="Range">
+      @for (r of ranges; track r[0]) {
+        <button class="chip" type="button" [attr.aria-pressed]="range() === r[0]" (click)="range.set(r[0])">{{ r[1] }}</button>
+      }
     </div>
   }
-} @empty {
-  <div class="empty" style="margin-top:16px">
-    Nothing scheduled in this range.
-    @if (store.can('schedule') && !store.settings()?.practices?.length) { Add practice times or an event to get started. }
+</div>
+
+<ng-template #row let-it>
+  <div class="ev" [class]="'k-' + it.kind" [class.cancel]="it.cancelled">
+    <div class="d" aria-hidden="true">
+      <div class="dw">{{ fmt(it.date, { weekday: 'short' }) }}</div>
+      <div class="dn tn">{{ pd(it.date).getDate() }}</div>
+    </div>
+    <div>
+      <div class="ev-t">
+        @if (it.kind === 'tournament') {
+          <a class="t" [routerLink]="['/teams', store.teamId(), 'tournaments', it.event?.eid ?? it.key]">{{ it.title }}</a>
+        } @else {
+          <span class="t">{{ it.title }}</span>
+        }
+        <th-kind-pill [item]="it" />
+        @if (it.series) {
+          <span class="pill p-series" [title]="describe(it.series, true)"><span aria-hidden="true">↻</span> {{ shortLabel(it.series) }}<span class="sr-only">: {{ describe(it.series, true) }}</span></span>
+        }
+      </div>
+      <div class="meta">
+        <span class="sr-only">{{ fmt(it.date, { weekday: 'long', month: 'long', day: 'numeric' }) }}</span>
+        @if (when(it)) { <span>{{ when(it) }}</span> }
+        @if (it.location) { <span>{{ it.location }}</span> }
+        @if (it.note) { <span>{{ it.note }}</span> }
+      </div>
+    </div>
+    <div class="side">
+      @if (pid()) { <th-rsvp [item]="it" [pid]="pid()" /> }
+      <th-counts [item]="it" />
+      <th-add-to-calendar [item]="it" [path]="it.kind === 'tournament' ? '/teams/' + store.teamId() + '/tournaments/' + it.key : '/teams/' + store.teamId() + '/schedule'" />
+      @if (store.can('schedule')) {
+        @if (it.kind === 'practice') {
+          <button class="link-btn small" type="button" (click)="toggleCancelled(it)">{{ it.cancelled ? 'Restore practice' : 'Cancel practice' }}</button>
+        } @else if (it.series) {
+          <span class="row" style="gap:10px">
+            <button class="link-btn small" type="button" (click)="toggleCancelled(it)">{{ it.cancelled ? 'Restore this date' : 'Cancel this date' }}</button>
+            <button class="link-btn small" type="button" (click)="edit(it)">Edit series</button>
+          </span>
+        } @else {
+          <button class="link-btn small" type="button" (click)="edit(it)">Edit</button>
+        }
+      }
+    </div>
   </div>
+</ng-template>
+
+@if (view() === 'list') {
+  @for (m of months(); track m.key) {
+    <h3 class="month">{{ m.label }}</h3>
+    @for (it of m.items; track it.key) {
+      <ng-container *ngTemplateOutlet="row; context: { $implicit: it }" />
+    }
+  } @empty {
+    <div class="empty" style="margin-top:16px">
+      Nothing scheduled in this range.
+      @if (store.can('schedule') && !store.settings()?.practices?.length) { Add practice times or an event to get started. }
+    </div>
+  }
+} @else {
+  <div class="cal">
+    <div class="cal-nav">
+      <button class="btn sm" type="button" (click)="shiftMonth(-1)" aria-label="Previous month">‹</button>
+      <h3 class="cal-title" aria-live="polite">{{ monthLabel() }}</h3>
+      <button class="btn sm" type="button" (click)="shiftMonth(1)" aria-label="Next month">›</button>
+      <span class="spacer"></span>
+      <button class="btn sm" type="button" (click)="thisMonth()">Today</button>
+    </div>
+    <div class="cal-grid" role="grid" [attr.aria-label]="monthLabel()">
+      <div class="cal-row cal-wd" role="row">
+        @for (w of weekdays; track w) { <div role="columnheader">{{ w }}</div> }
+      </div>
+      @for (week of grid(); track week[0].date) {
+        <div class="cal-row" role="row">
+          @for (c of week; track c.date) {
+            <button type="button" role="gridcell" class="cal-day" [class.out]="!c.inMonth" [class.today]="c.isToday"
+              [attr.aria-selected]="selectedDay() === c.date" [attr.aria-label]="cellLabel(c)" (click)="pick(c)">
+              <span class="cal-n">{{ pd(c.date).getDate() }}</span>
+              <span class="cal-items" aria-hidden="true">
+                @for (it of c.items.slice(0, 3); track it.key) {
+                  <span class="cal-it" [class]="'cal-it k-' + it.kind" [class.cancel]="it.cancelled">
+                    <span class="cal-dot"></span><span class="cal-tx">@if (it.series) {↻ }{{ it.title }}</span>
+                  </span>
+                }
+                @if (c.items.length > 3) { <span class="cal-more">+{{ c.items.length - 3 }} more</span> }
+              </span>
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </div>
+  @if (selectedDay(); as d) {
+    <h3 class="month">{{ fmt(d, { weekday: 'long', month: 'long', day: 'numeric' }) }}</h3>
+    @for (it of dayItems(); track it.key) {
+      <ng-container *ngTemplateOutlet="row; context: { $implicit: it }" />
+    } @empty {
+      <div class="empty">Nothing scheduled this day.</div>
+    }
+  }
 }
 
 @if (store.can('schedule')) {

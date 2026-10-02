@@ -1,4 +1,4 @@
-import { addDays, pd } from './dates';
+import { addDays, pd, today } from './dates';
 import type { ScheduleItem } from './schedule';
 
 /** One schedule item as a calendar entry. All-day entries use an exclusive end date, as calendars expect. */
@@ -9,6 +9,9 @@ export interface CalEvent {
   startDate: string; endDate: string;
   /** timed: local times */
   start?: Date; end?: Date;
+  /** series only: repeat rule and the dates it skips */
+  rrule?: string;
+  exdates?: string[];
 }
 
 const TIME = /(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i;
@@ -39,6 +42,27 @@ export function toCalEvent(it: ScheduleItem, link: string): CalEvent {
   return { ...base, allDay: false, startDate: it.date, endDate: it.date, start, end };
 }
 
+const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+
+/**
+ * The whole series as one repeating calendar entry, starting from its next date (today or later).
+ * Cancelled dates, skipped weeks and tournament days become exceptions. Null if no dates are left.
+ */
+export function toSeriesCalEvent(it: ScheduleItem, link: string, from = today()): CalEvent | null {
+  const s = it.series;
+  if (!s) return null;
+  const startDate = s.active.find((d) => d >= from);
+  if (!startDate) return null;
+  const base = toCalEvent({ ...it, date: startDate, end: startDate, cancelled: false }, link);
+  const active = new Set(s.active);
+  const exdates = s.dates.filter((d) => d > startDate && !active.has(d));
+  let until: string;
+  if (base.allDay) until = compact(s.until);
+  else { const u = pd(s.until); u.setHours(23, 59, 59, 0); until = utc(u).replace(/00Z$/, '59Z'); }
+  const rrule = `FREQ=WEEKLY;INTERVAL=${s.every};BYDAY=${[...s.days].sort().map((d) => BYDAY[d]).join(',')};UNTIL=${until};WKST=SU`;
+  return { ...base, uid: `${s.source}-${s.id}@a5-team-hub`, rrule, exdates };
+}
+
 const pad = (n: number) => String(n).padStart(2, '0');
 const utc = (d: Date) => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
 const compact = (s: string) => s.replace(/-/g, '');
@@ -53,6 +77,7 @@ function localIso(d: Date): string {
 export function googleUrl(e: CalEvent): string {
   const dates = e.allDay ? `${compact(e.startDate)}/${compact(e.endDate)}` : `${utc(e.start!)}/${utc(e.end!)}`;
   const q = new URLSearchParams({ action: 'TEMPLATE', text: e.title, dates, details: e.details, location: e.location });
+  if (e.rrule) q.set('recur', `RRULE:${e.rrule}`);
   return `https://calendar.google.com/calendar/render?${q}`;
 }
 
@@ -66,7 +91,7 @@ export function outlookUrl(e: CalEvent, which: 'live' | 'office'): string {
   return `https://outlook.${which === 'live' ? 'live' : 'office'}.com/calendar/0/action/compose?${q}`;
 }
 
-const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 /** Lines longer than 75 octets continue on the next line after a space (RFC 5545). */
 function fold(line: string): string {
   const out: string[] = [];
@@ -85,6 +110,10 @@ export function ics(e: CalEvent, now = new Date()): string {
     ...(e.allDay
       ? [`DTSTART;VALUE=DATE:${compact(e.startDate)}`, `DTEND;VALUE=DATE:${compact(e.endDate)}`]
       : [`DTSTART:${utc(e.start!)}`, `DTEND:${utc(e.end!)}`]),
+    ...(e.rrule ? [`RRULE:${e.rrule}`] : []),
+    ...(e.exdates?.length ? (e.allDay
+      ? [`EXDATE;VALUE=DATE:${e.exdates.map(compact).join(',')}`]
+      : [`EXDATE:${e.exdates.map((d) => { const x = pd(d); x.setHours(e.start!.getHours(), e.start!.getMinutes(), 0, 0); return utc(x); }).join(',')}`]) : []),
     `SUMMARY:${esc(e.title)}`,
     ...(e.location ? [`LOCATION:${esc(e.location)}`] : []),
     ...(e.details ? [`DESCRIPTION:${esc(e.details)}`] : []),

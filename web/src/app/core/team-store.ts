@@ -7,6 +7,7 @@ import { LiveService } from './live.service';
 import type { Agenda, Announcement, Handbook, Settings, Task, LedgerEntry, Meal, Member, MoneyKind, Payment, Player, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
 import { duesFor, fundStats } from './money';
 import { fullName } from './me.service';
+import type { PatternSuggestion } from './series';
 import { ScheduleItem, buildItems, countsFor, rsvpOf } from './schedule';
 import { ToastService } from './toast.service';
 
@@ -157,6 +158,18 @@ export class TeamStore implements OnDestroy {
 
   saveEvent(e: TeamEvent, isNew: boolean) { return this.save(isNew ? 'Added to the schedule' : 'Saved', (t) => this.api.saveEvent(t, e)); }
   deleteEvent(eid: string) { return this.save('Removed from the schedule', (t) => this.api.deleteEvent(t, eid)); }
+  /** Turn one-at-a-time events that follow a weekly pattern into one repeating event. Answers carry over. */
+  combineEvents(s: PatternSuggestion) {
+    return this.save(`Combined ${s.count} dates into a series`, (t) => this.api.combineEvents(t, { eids: s.eids, repeat: s.repeat, skip: s.skip }));
+  }
+  /** Call off (or restore) one date of a repeating event. */
+  setOccurrenceCancelled(e: TeamEvent, date: string, cancel: boolean) {
+    const set = new Set(e.cancelled ?? []);
+    if (cancel) set.add(date); else set.delete(date);
+    const next = { ...e, cancelled: [...set].sort() } as TeamEvent & Record<string, unknown>;
+    for (const k of ['type', 'updatedAt', 'updatedBy', 'GSI2PK', 'GSI2SK']) delete next[k];
+    return this.save(cancel ? 'Cancelled for that date' : 'Restored', (t) => this.api.saveEvent(t, next));
+  }
   savePractices(p: Practice[]) { return this.save('Practice times saved', (t) => this.api.savePractices(t, p)); }
   setPracticeCancelled(key: string, cancelled: boolean) {
     return this.save(cancelled ? 'Practice cancelled' : 'Practice restored', (t) => this.api.setPracticeCancelled(t, key, cancelled));

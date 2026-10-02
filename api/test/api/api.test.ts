@@ -186,6 +186,44 @@ describe("ref groups", () => {
   });
 });
 
+describe("repeating events", () => {
+  it("saves a weekly series; tournaments can't repeat; the end can't be before the start", async () => {
+    const s = { kind: "event", title: "Skills clinic", date: "2026-11-03", time: "6:00 PM", repeat: { every: 1, days: [4, 2, 2], until: "2026-12-15" } };
+    expect((await call("PUT", `/teams/${T}/events/eser`, ROLE_SUBS.coach, s)).status).toBe(200);
+    const e = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.events.find((x: any) => x.eid === "eser");
+    expect(e.repeat).toEqual({ every: 1, days: [2, 4], until: "2026-12-15", skipTournaments: true });
+    expect((await call("PUT", `/teams/${T}/events/eser`, ROLE_SUBS.coach, { ...s, cancelled: ["2026-11-10"] })).status).toBe(200);
+    expect((await call("PUT", `/teams/${T}/events/tser`, ROLE_SUBS.coach, { ...s, kind: "tournament" })).status).toBe(400);
+    expect((await call("PUT", `/teams/${T}/events/eser`, ROLE_SUBS.coach, { ...s, repeat: { ...s.repeat, until: "2026-10-01" } })).status).toBe(400);
+  });
+
+  it("combines one-time practices into a series and keeps families' answers", async () => {
+    const dates = ["2027-01-05", "2027-01-12", "2027-01-26"];
+    for (const [i, d] of dates.entries()) {
+      expect((await call("PUT", `/teams/${T}/events/ep${i}`, ROLE_SUBS.coach, { kind: "event", title: "Practice", date: d, time: "7:00 PM", location: "Gym" })).status).toBe(200);
+    }
+    expect((await call("PUT", `/teams/${T}/family/p1`, ROLE_SUBS.parent, { rsvp: { ep0: "yes", ep2: "no" } })).status).toBe(200);
+    const body = { eids: ["ep2", "ep0", "ep1"], repeat: { every: 1, days: [2], until: "2027-01-26" }, skip: ["2027-01-19"] };
+    expect((await call("POST", `/teams/${T}/events/combine`, ROLE_SUBS.parent, body)).status).toBe(403);
+    const r = await call("POST", `/teams/${T}/events/combine`, ROLE_SUBS.coach, body);
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ eid: "ep0", combined: 3, answersMoved: 2 });
+    const b = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body;
+    const mine = b.events.filter((x: any) => /^ep\d$/.test(x.eid));
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ eid: "ep0", date: "2027-01-05", time: "7:00 PM", repeat: { every: 1, days: [2], until: "2027-01-26" }, skip: ["2027-01-19"] });
+    const rsvp = b.family.p1.rsvp;
+    expect(rsvp["ep0-2027-01-05"].v).toBe("yes");
+    expect(rsvp["ep0-2027-01-26"].v).toBe("no");
+    expect(rsvp.ep0).toBeUndefined();
+    expect(rsvp.ep2).toBeUndefined();
+  });
+
+  it("won't combine tournaments or events that are already a series", async () => {
+    expect((await call("POST", `/teams/${T}/events/combine`, ROLE_SUBS.coach, { eids: ["e1", "ep0"], repeat: { every: 1, days: [2], until: "2027-02-01" } })).status).toBe(400);
+  });
+});
+
 describe("meal claims", () => {
   it("first family wins; others get 409; only that family or food can release", async () => {
     const path = `/teams/${T}/events/e1/meals/m1/claim`;
