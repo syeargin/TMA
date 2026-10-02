@@ -183,7 +183,7 @@ The site imports the API's role table directly (`@shared/permissions` → `api/s
 - Each date of a series is answered separately. The answer key is `<eid>-<date>`, the same idea as `pr-<id>-<date>` for practices.
 - When a coach has entered the same event one date at a time (same name, time and place, on a steady weekly or every-other-week rhythm), the schedule offers **Combine into series**. `POST /events/combine` keeps the first event, makes it repeat, moves everyone's answers to the new keys and removes the rest.
 - Rows in a series (weekly practices too) show a ↻ pill. Add to calendar offers the single date or the whole series: Apple and Google get a repeating entry (RRULE, with skipped or cancelled dates as exceptions); Outlook gets the series as an .ics file, since Outlook web links can't carry a repeat.
-- The schedule has List and Month views. Month view uses a Sunday-first grid (dots only on phones); tap a day to list its items. The choice is remembered on that device.
+- The schedule has List and Month views. Month view uses a Sunday-first grid that always shows six weeks at a fixed size (dots only on phones); tap a day to list its items. The choice is remembered on that device.
 
 ## Local development
 
