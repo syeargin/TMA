@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { fmt, fmtRange, today } from '../../core/dates';
 import type { TeamEvent } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
+import { duties } from '../../core/tournament';
 import { EventForm } from '../schedule/event-form';
 import { RsvpStatus } from '../schedule/rsvp';
 
@@ -37,7 +38,7 @@ import { RsvpStatus } from '../schedule/rsvp';
         <div class="foot2">
           <span class="pill" [class.p-travel]="e.travel" [class.p-local]="!e.travel">{{ e.travel ? 'Travel' : 'Local' }}</span>
           @if (e.division) { <span class="pill p-mute">{{ e.division }}</span> }
-          @if (e.dutyPid) { <span>Balls &amp; cart: <b>{{ store.playerName(e.dutyPid) }}</b></span> }
+          @for (d of duties(e); track d.label) { @if (d.pid !== 'na') { <span>{{ d.label }}: <b>{{ store.playerName(d.pid) }}</b></span> } }
           @if (e.travel) { <span>{{ travelPlans(e) }}/{{ store.players().length }} travel plans</span> }
           @if (store.myPid()) { <th-status [value]="store.rsvp(store.myPid(), e.eid)" [showNone]="false" /> }
         </div>
@@ -49,6 +50,7 @@ import { RsvpStatus } from '../schedule/rsvp';
     }`
 })
 export class Tournaments {
+  readonly duties = duties;
   readonly store = inject(TeamStore);
   readonly fmt = fmt;
   readonly todayStr = today();

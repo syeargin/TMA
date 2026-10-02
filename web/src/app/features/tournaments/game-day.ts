@@ -2,7 +2,7 @@ import { Component, computed, inject, input, output } from '@angular/core';
 import type { TeamEvent } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { ToastService } from '../../core/toast.service';
-import { safeUrl, shortUrl } from '../../core/tournament';
+import { duties, safeUrl, shortUrl } from '../../core/tournament';
 
 interface Row { label: string; text?: string; link?: string; copy?: string; note?: string }
 
@@ -83,7 +83,9 @@ export class GameDay {
       { label: 'Team code', copy: code },
       { label: 'Match schedule', ...linkOr(e.scheduleLink) },
       { label: 'Ticket help', ...linkOr(e.ticketHelp) },
-      { label: 'Balls & cart', text: e.dutyPid ? `${this.store.playerName(e.dutyPid)}'s family` : undefined, note: e.dutyPid ? 'pick up after the last practice, return before the next one' : undefined },
+      ...duties(e).map((d) => d.pid === 'na'
+        ? { label: d.label, text: 'Not needed' }
+        : { label: d.label, text: `${this.store.playerName(d.pid)}'s family`, note: 'pick up after the last practice, return before the next one' }),
       { label: 'Food plan', text: e.foodPlan },
       { label: 'Restaurant reservations', text: e.reservations },
       { label: 'Notes', text: e.notes }

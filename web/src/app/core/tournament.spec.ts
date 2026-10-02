@@ -50,3 +50,15 @@ describe('meals and money', () => {
     expect(safeUrl('Gate B')).toBe('');
   });
 });
+
+describe('ball cart and volleyball duty', () => {
+  it('separate families, one line when the same family has both, older single field as fallback', async () => {
+    const { duties } = await import('./tournament');
+    expect(duties({ cartPid: 'p1', ballsPid: 'p2' })).toEqual([{ label: 'Ball cart', pid: 'p1' }, { label: 'Volleyballs', pid: 'p2' }]);
+    expect(duties({ cartPid: 'p1', ballsPid: 'p1' })).toEqual([{ label: 'Balls & cart', pid: 'p1' }]);
+    expect(duties({ dutyPid: 'p3' })).toEqual([{ label: 'Balls & cart', pid: 'p3' }]);
+    expect(duties({ cartPid: 'na', ballsPid: 'na' })).toEqual([{ label: 'Balls & cart', pid: 'na' }]);
+    expect(duties({ cartPid: 'p1' })).toEqual([{ label: 'Ball cart', pid: 'p1' }]);
+    expect(duties({})).toEqual([]);
+  });
+});

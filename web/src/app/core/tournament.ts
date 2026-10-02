@@ -40,3 +40,15 @@ export const sortMeals = (meals: Meal[]) =>
 /** Only http(s) links become links; anything else shows as text. */
 export const safeUrl = (v?: string) => (v && /^https?:\/\//i.test(v.trim()) ? v.trim() : '');
 export const shortUrl = (v: string) => v.replace(/^https?:\/\/(www\.)?/i, '').slice(0, 60);
+
+export interface Duty { label: string; pid: string }
+/**
+ * Who brings the ball cart and the volleyballs. Each is a player id or "na" (not needed). Events saved before the
+ * two were split have one dutyPid for both. Returns one combined line when the same family has both.
+ */
+export function duties(e: { cartPid?: string; ballsPid?: string; dutyPid?: string }): Duty[] {
+  const cart = e.cartPid ?? e.dutyPid ?? '';
+  const balls = e.ballsPid ?? e.dutyPid ?? '';
+  if (cart && cart === balls) return [{ label: 'Balls & cart', pid: cart }];
+  return [{ label: 'Ball cart', pid: cart }, { label: 'Volleyballs', pid: balls }].filter((d) => d.pid);
+}

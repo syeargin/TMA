@@ -6,3 +6,6 @@ samconfig.local.toml
 .DS_Store
 *.log
 .angular/
+
+# Team data exported from the hub (names, phones, emails)
+*-items.json
