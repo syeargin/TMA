@@ -195,6 +195,23 @@ The site imports the API's role table directly (`@shared/permissions` → `api/s
 - **Club admins** open their club from **Your teams**. There they set the club name, short name and colors, the notes and links every team sees on Team Info, create teams, and add or remove other club admins. They act as team admin on every team in their club, and nowhere else.
 - **Colors:** a club picks a main color and an accent. The site derives the full set of light- and dark-mode colors from those two, darkening (or lightening in dark mode) only as far as needed to keep text readable (WCAG AA). The club page previews the colors on the whole page while choosing. Families see their club's colors on their team's pages; people in several clubs see the standard colors on **Your teams**.
 
+## Importing a team from the claude.ai hub
+
+1. Export the hub's database for the team as JSON files (`teams/<t>.json` and `teams/<t>/<collection>/<doc>.json`).
+2. Convert it. This replays every record through the API against a local DynamoDB (DynamoDB Local or moto on port 8000), so the items get exactly the keys and checks the API uses, then writes them to one file:
+   ```bash
+   cd api && DYNAMODB_ENDPOINT=http://127.0.0.1:8000 npx vite-node scripts/hub-import/convert.ts -- <exportDir> a5-13tom-items.json a5-13tom a5
+   ```
+   It prints what it converted and anything it couldn't carry over (for example the hub's "Who does what" names, which come from member accounts here).
+3. Load it from CloudShell. Without `--yes` it only shows what would change:
+   ```bash
+   python3 scripts/load-team.py dev a5-13tom-items.json
+   python3 scripts/load-team.py dev a5-13tom-items.json --yes
+   ```
+   The team ends up matching the file. Its memberships are kept; its other records that aren't in the file (test events, families, payments) are removed. Nothing outside the team is touched.
+
+The items file holds families' names, phone numbers and emails. Don't commit it.
+
 ## Local development
 
 Node 24 is required (Angular 22 needs 22.22.3+ or 24).

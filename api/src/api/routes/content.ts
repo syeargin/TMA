@@ -20,7 +20,8 @@ const eventSchema = z.object({
   date,
   endDate: date.optional(),
   time: optStr(40), location: optStr(200), city: optStr(120), division: optStr(60), website: optStr(500),
-  travel: z.boolean().default(false), dutyPid: optStr(64),
+  // Which family brings the ball cart and the volleyballs: a player id, "na" (not needed), or empty. dutyPid is the older single field.
+  travel: z.boolean().default(false), dutyPid: optStr(64), cartPid: optStr(64), ballsPid: optStr(64),
   parking: optStr(500), waves: optStr(200), arrival: optStr(100), start: optStr(100), meet: optStr(300),
   uniforms: optStr(500), admissions: optStr(500), teamCode: optStr(60), scheduleLink: optStr(500), ticketHelp: optStr(500),
   foodPlan: optStr(2000), reservations: optStr(1000), notes: optStr(2000),

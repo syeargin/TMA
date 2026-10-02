@@ -90,12 +90,22 @@ const KIND_LABEL: Record<EventKind, string> = { tournament: 'Tournament', event:
             </div>
             <label>Match schedule link<input formControlName="scheduleLink" placeholder="https://"></label>
             <label>Ticket help<input formControlName="ticketHelp"></label>
-            <label>Balls &amp; cart family
-              <select formControlName="dutyPid">
-                <option value="">—</option>
-                @for (p of store.players(); track p.pid) { <option [value]="p.pid">{{ p.first }} {{ p.last }}</option> }
-              </select>
-            </label>
+            <div class="two">
+              <label>Ball cart family
+                <select formControlName="cartPid">
+                  <option value="">—</option>
+                  <option value="na">Not needed</option>
+                  @for (p of store.players(); track p.pid) { <option [value]="p.pid">{{ p.first }} {{ p.last }}</option> }
+                </select>
+              </label>
+              <label>Volleyballs family
+                <select formControlName="ballsPid">
+                  <option value="">—</option>
+                  <option value="na">Not needed</option>
+                  @for (p of store.players(); track p.pid) { <option [value]="p.pid">{{ p.first }} {{ p.last }}</option> }
+                </select>
+              </label>
+            </div>
             <label>Food plan<textarea formControlName="foodPlan" rows="3"></textarea></label>
             <label>Restaurant reservations<textarea formControlName="reservations" rows="2"></textarea></label>
             <label>What to bring<textarea formControlName="checklist" rows="5"></textarea>
@@ -134,7 +144,7 @@ export class EventForm {
     kind: 'event' as EventKind, title: '', date: '', endDate: '', time: '', location: '', city: '', division: '',
     travel: false, notes: '',
     website: '', parking: '', waves: '', arrival: '', start: '', meet: '', uniforms: '', admissions: '', teamCode: '',
-    scheduleLink: '', ticketHelp: '', dutyPid: '', foodPlan: '', reservations: '', checklist: '',
+    scheduleLink: '', ticketHelp: '', cartPid: '', ballsPid: '', foodPlan: '', reservations: '', checklist: '',
     every: 0, until: '', skipTournaments: true,
     days: this.fb.group({ d0: false, d1: false, d2: false, d3: false, d4: false, d5: false, d6: false })
   });
@@ -175,7 +185,7 @@ export class EventForm {
           location: e?.location ?? '', city: e?.city ?? '', division: e?.division ?? '', travel: !!e?.travel, notes: e?.notes ?? '',
           website: e?.website ?? '', parking: e?.parking ?? '', waves: e?.waves ?? '', arrival: e?.arrival ?? '', start: e?.start ?? '',
           meet: e?.meet ?? '', uniforms: e?.uniforms ?? '', admissions: e?.admissions ?? '', teamCode: e?.teamCode ?? '',
-          scheduleLink: e?.scheduleLink ?? '', ticketHelp: e?.ticketHelp ?? '', dutyPid: e?.dutyPid ?? '', foodPlan: e?.foodPlan ?? '',
+          scheduleLink: e?.scheduleLink ?? '', ticketHelp: e?.ticketHelp ?? '', cartPid: e?.cartPid ?? e?.dutyPid ?? '', ballsPid: e?.ballsPid ?? e?.dutyPid ?? '', foodPlan: e?.foodPlan ?? '',
           reservations: e?.reservations ?? '', checklist: (e?.checklist ?? []).join('\n'),
           every: e?.repeat?.every ?? 0, until: e?.repeat?.until ?? '', skipTournaments: e?.repeat?.skipTournaments ?? true,
           days: Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((i) => [`d${i}`, !!e?.repeat?.days.includes(i)]))
@@ -212,8 +222,9 @@ export class EventForm {
     };
     if (isT) {
       const text = ['website', 'parking', 'waves', 'arrival', 'start', 'meet', 'uniforms', 'admissions', 'teamCode', 'scheduleLink',
-        'ticketHelp', 'dutyPid', 'foodPlan', 'reservations'] as const;
+        'ticketHelp', 'cartPid', 'ballsPid', 'foodPlan', 'reservations'] as const;
       for (const k of text) next[k] = v[k].trim() || undefined;
+      delete next['dutyPid']; // replaced by cartPid and ballsPid
       const list = v.checklist.split('\n').map((s) => s.trim()).filter(Boolean);
       next.checklist = list.length ? list : undefined;
     }

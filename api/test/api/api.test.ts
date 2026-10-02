@@ -392,6 +392,14 @@ describe("invites and members", () => {
   });
 });
 
+describe("tournament duties", () => {
+  it("keeps separate ball cart and volleyball families", async () => {
+    expect((await call("PUT", `/teams/${T}/events/e-duty`, ROLE_SUBS.coach, { kind: "tournament", title: "Duty test", date: "2027-02-06", cartPid: "p1", ballsPid: "na" })).status).toBe(200);
+    const e = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.events.find((x: any) => x.eid === "e-duty");
+    expect([e.cartPid, e.ballsPid]).toEqual(["p1", "na"]);
+  });
+});
+
 describe("clubs", () => {
   const OWNER = "u-owner", BOSS = "u-boss", TWO = "u-two", RPARENT = "u-rparent";
   const asOwner = (m: string, p: string, b?: unknown) => call(m, p, OWNER, b, "owner@example.com");

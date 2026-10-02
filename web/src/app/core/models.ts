@@ -45,7 +45,7 @@ export interface TeamEvent {
   travel?: boolean; notes?: string;
   // Game day (tournaments)
   parking?: string; waves?: string; arrival?: string; start?: string; meet?: string; uniforms?: string;
-  admissions?: string; teamCode?: string; scheduleLink?: string; ticketHelp?: string; dutyPid?: string;
+  admissions?: string; teamCode?: string; scheduleLink?: string; ticketHelp?: string; dutyPid?: string; cartPid?: string; ballsPid?: string;
   foodPlan?: string; reservations?: string; checklist?: string[];
   // Team hotel (travel tournaments)
   hotel?: string; hotelLink?: string; hotelCode?: string; hotelBy?: string;
@@ -89,7 +89,7 @@ export interface HandbookSection { t: string; b: string }
 export interface Handbook { sections: HandbookSection[] }
 export type TaskStatus = 'To do' | 'In progress' | 'Done' | 'N/A';
 export interface Task { kid: string; title: string; desc?: string; owner?: string; status?: TaskStatus; order?: number }
-export interface Announcement { aid: string; text: string; pinned?: boolean; by?: string; at?: string }
+export interface Announcement { aid: string; text: string; pinned?: boolean; by?: string; at?: string; /** Who it's from when that isn't a member (e.g. imported). */ byName?: string }
 
 /** GET /teams/:id — everything the caller may see about one team. */
 export interface TeamBundle {

@@ -83,7 +83,7 @@
             @if (a.pinned) { <div class="pin">Pinned</div> }
             <p class="txt">{{ a.text }}</p>
             <div class="row small muted" style="margin-top:6px">
-              <span>{{ store.authorName(a.by) }}@if (annDate(a)) { · {{ annDate(a) }}}</span>
+              <span>{{ store.authorName(a.by) || a.byName }}@if (annDate(a)) { · {{ annDate(a) }}}</span>
               @if (store.can('announce')) {
                 <span class="spacer"></span>
                 <button class="link-btn small" type="button" (click)="togglePin(a)">{{ a.pinned ? 'Unpin' : 'Pin' }}</button>
