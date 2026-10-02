@@ -81,7 +81,7 @@ Sign-up is invite-only:
 2. On sign-up, a pre-sign-up check refuses emails that have no invite.
 3. After the person enters the emailed code, a post-confirmation step turns each invite into a `MEMBER#<sub>` record on that team and deletes the invite.
 
-Emails in the `ClubAdminEmails` parameter (`samconfig.toml`) can sign up without an invite and become club admins.
+Emails in the `ClubAdminEmails` parameter (`samconfig.toml`) can sign up without an invite and become admins of the default club (`ClubId`, `a5`). Emails in `PlatformAdminEmails` are site owners; when that's empty, the `ClubAdminEmails` people are. Club admin invites (`INVITE#<email>` / `CLUB#<c>`) also let someone sign up.
 
 Team admins invite people from the team page on the site. You can also add invites from CloudShell:
 
@@ -100,7 +100,10 @@ Every call needs a Cognito access token (`Authorization: Bearer …`). The API l
 |---|---|
 | `GET /me` | Anyone signed in (also accepts invites waiting for their email) |
 | `PUT /me` (first and last name, copied to every team) | Anyone signed in |
-| `GET /teams` · `POST /teams` | Anyone · club admins |
+| `GET /teams` · `POST /teams` (`clubId`; team ids are unique across clubs) | Club admins: teams in the clubs they run · admins of that club |
+| `GET /clubs` · `POST /clubs` | Club admins (their clubs; site owners see all) · site owners |
+| `GET·PUT /clubs/{c}` (name, short name, colors, Team Info links and notes) | That club's admins, site owners |
+| `POST /clubs/{c}/admins` · `DELETE …/admins/{sub}` · `DELETE …/invites/{email}` | That club's admins (a club keeps at least one) |
 | `GET /teams/{t}` | Members (contacts, ledger, payments and member emails trimmed by role) |
 | `PUT /teams/{t}/settings` | Coordinator, team admin (practices, cancellations and the meal budget are kept if left out) |
 | `PUT /teams/{t}/practices` · `PUT·DELETE …/practices/cancelled/{pr-id-date}` | Coach, coordinator, team admin |
@@ -184,6 +187,13 @@ The site imports the API's role table directly (`@shared/permissions` → `api/s
 - When a coach has entered the same event one date at a time (same name, time and place, on a steady weekly or every-other-week rhythm), the schedule offers **Combine into series**. `POST /events/combine` keeps the first event, makes it repeat, moves everyone's answers to the new keys and removes the rest.
 - Rows in a series (weekly practices too) show a ↻ pill. Add to calendar offers the single date or the whole series: Apple and Google get a repeating entry (RRULE, with skipped or cancelled dates as exceptions); Outlook gets the series as an .ics file, since Outlook web links can't carry a repeat.
 - The schedule has List and Month views. Month view uses a Sunday-first grid that always shows six weeks at a fixed size (dots only on phones); tap a day to list its items. The choice is remembered on that device.
+
+## Clubs
+
+- The site runs any number of clubs. Each team belongs to one club (`TEAM#<t>/META#CLUB`). Teams made before clubs existed have no such record and belong to the default club (`ClubId`), so existing data needs no migration. The default club's record (A5's name and Team Info links) is written the first time it's needed.
+- **Site owners** (`PlatformAdminEmails`, or `ClubAdminEmails` when that's empty) add clubs from **Your teams → Add a club**, naming the first club admin by email. They can open any club and team.
+- **Club admins** open their club from **Your teams**. There they set the club name, short name and colors, the notes and links every team sees on Team Info, create teams, and add or remove other club admins. They act as team admin on every team in their club, and nowhere else.
+- **Colors:** a club picks a main color and an accent. The site derives the full set of light- and dark-mode colors from those two, darkening (or lightening in dark mode) only as far as needed to keep text readable (WCAG AA). The club page previews the colors on the whole page while choosing. Families see their club's colors on their team's pages; people in several clubs see the standard colors on **Your teams**.
 
 ## Local development
 

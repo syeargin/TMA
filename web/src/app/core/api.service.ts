@@ -5,7 +5,7 @@ import type { Role } from '@shared/permissions';
 import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
 import type { Repeat } from './series';
-import type { Agenda, ClubTeam, Handbook, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, Practice, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
+import type { Agenda, Club, ClubDetail, ClubTeam, Handbook, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, Practice, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
   constructor(readonly status: number, body?: { message?: string; error?: string } | null) {
@@ -53,7 +53,16 @@ export class ApiService {
   me() { return this.call<Me>('GET', '/me'); }
   setMyName(firstName: string, lastName: string) { return this.call('PUT', '/me', { firstName, lastName }); }
   clubTeams() { return this.call<{ teams: ClubTeam[] }>('GET', '/teams'); }
-  createTeam(t: { teamId: string; name: string; season?: string; age?: string }) { return this.call('POST', '/teams', t); }
+  createTeam(t: { clubId?: string; teamId: string; name: string; season?: string; age?: string }) { return this.call('POST', '/teams', t); }
+
+  // ---------- clubs ----------
+  clubs() { return this.call<{ platformAdmin: boolean; clubs: Club[] }>('GET', '/clubs'); }
+  createClub(c: { clubId: string; name: string; short?: string; colors?: Club['colors']; adminEmails?: string[] }) { return this.call<Club>('POST', '/clubs', c); }
+  club(clubId: string) { return this.call<ClubDetail>('GET', `/clubs/${enc(clubId)}`); }
+  saveClub(clubId: string, c: Omit<Club, 'clubId'>) { return this.call<Club>('PUT', `/clubs/${enc(clubId)}`, c); }
+  inviteClubAdmin(clubId: string, a: { email: string; firstName?: string; lastName?: string }) { return this.call('POST', `/clubs/${enc(clubId)}/admins`, a); }
+  removeClubAdmin(clubId: string, sub: string) { return this.call('DELETE', `/clubs/${enc(clubId)}/admins/${enc(sub)}`); }
+  withdrawClubInvite(clubId: string, email: string) { return this.call('DELETE', `/clubs/${enc(clubId)}/invites/${enc(email)}`); }
   team(teamId: string) { return this.call<TeamBundle>('GET', `/teams/${enc(teamId)}`); }
   invites(teamId: string) { return this.call<{ invites: Invite[] }>('GET', `/teams/${enc(teamId)}/invites`); }
   invite(teamId: string, v: { email: string; firstName?: string; lastName?: string; roles: Role[]; pid?: string }) { return this.call('POST', `/teams/${enc(teamId)}/invites`, v); }

@@ -41,7 +41,7 @@ const row = (p?: Partial<Practice>): Row => new FormGroup({
               <label>First date<input type="date" formControlName="from"></label>
               <label>Last date<input type="date" formControlName="until"></label>
             </div>
-            <label>Location<input formControlName="location" placeholder="A5 Gym, Court 3"></label>
+            <label>Location<input formControlName="location" placeholder="Main gym, Court 3"></label>
             <label>Note<input formControlName="note" placeholder="Bring both jerseys"></label>
             <div><button class="btn sm danger" type="button" (click)="rows.removeAt(i)">Remove this practice</button></div>
           </fieldset>

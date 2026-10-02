@@ -14,7 +14,9 @@ Both indexes project `ALL`. Billing is on-demand. Streams carry new and old imag
 
 | Partition | Who writes | Holds |
 |---|---|---|
-| `CLUB#<clubId>` | Site owner / club admins (via API) | Team directory, club admins |
+| `CLUBS` | Site owners (via API) | One row per club, for the site owner's club list |
+| `CLUB#<clubId>` | Site owner / club admins (via API) | Club name, colors and links; team directory; club admins |
+| `PLATFORM` | Bootstrap from `PlatformAdminEmails` | Site owners |
 | `TEAM#<teamId>` | The API, by role | Settings, handbook, roster, contacts, events, ref jobs, agendas, meals, family records, payments, ledger, announcements, tasks, memberships |
 | `USER#<uid>` | The API, for that user | Profile |
 | `CONN#<connectionId>` | WebSocket functions | One open live-update socket: who it is and which team it follows |
@@ -26,8 +28,13 @@ All writes go through the API, which checks the caller's membership (`TEAM#<t>` 
 
 | Entity | PK | SK | GSI1PK / GSI1SK | GSI2PK / GSI2SK |
 |---|---|---|---|---|
+| Club list entry | `CLUBS` | `CLUB#<c>` | | |
+| Club (name, short name, colors, links, notes) | `CLUB#<c>` | `META` | | |
 | Team (directory) | `CLUB#<c>` | `TEAM#<t>` | | |
-| Club admin | `CLUB#<c>` | `ADMIN#<uid>` | | |
+| Club admin | `CLUB#<c>` | `ADMIN#<uid>` | `USER#<uid>` / `CLUB#<c>` | |
+| Club admin invite | `INVITE#<email>` | `CLUB#<c>` | `CLUB#<c>` / `INVITE#<email>` | |
+| Site owner | `PLATFORM` | `ADMIN#<uid>` | | |
+| Team's club | `TEAM#<t>` | `META#CLUB` (`clubId`) | | |
 | Settings | `TEAM#<t>` | `META#SETTINGS` | | |
 | Handbook | `TEAM#<t>` | `META#HANDBOOK` | | |
 | Player | `TEAM#<t>` | `PLAYER#<pid>` | | |
@@ -57,8 +64,10 @@ The fan-out maps each changed key to a collection name (`PLAYER#p1#CONTACTS` →
 
 | # | Pattern | Operation |
 |---|---|---|
-| 1 | Teams in the club | Query `PK = CLUB#c`, `begins_with(SK, TEAM#)` |
-| 2 | Is a user a club admin? | GetItem `CLUB#c` / `ADMIN#uid` |
+| 1 | Teams in a club | Query `PK = CLUB#c`, `begins_with(SK, TEAM#)` |
+| 2 | Is a user an admin of this team's club? | GetItem `TEAM#t` / `META#CLUB` (cached per Lambda; missing = the default club), then BatchGet `CLUB#c` / `ADMIN#uid` and `PLATFORM` / `ADMIN#uid` |
+| 2a | Clubs a user runs | Query GSI1 `GSI1PK = USER#uid`, `begins_with(GSI1SK, CLUB#)` |
+| 2b | Every club (site owner) | Query `PK = CLUBS` |
 | 3 | Load a team (settings, roster, events, meals, ledger, tasks, members) | Query `PK = TEAM#t` (paginate) |
 | 4 | Roster only | Query `PK = TEAM#t`, `begins_with(SK, PLAYER#)` |
 | 5 | Everything for one tournament (event, ref jobs, agenda, meals) | Query `PK = TEAM#t`, `begins_with(SK, EVENT#eid)` |

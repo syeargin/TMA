@@ -385,8 +385,115 @@ describe("invites and members", () => {
     expect(me.body.clubAdmin).toBe(true);
   });
 
-  it("lists teams with the caller's roles", async () => {
-    const r = await call("GET", "/teams", ROLE_SUBS.finance);
-    expect(r.body.teams.find((t: any) => t.teamId === T)).toMatchObject({ name: "A5 13 Test", yourRoles: ["finance"] });
+  it("lists the club's teams for its admins only", async () => {
+    const r = await call("GET", "/teams", CLUB);
+    expect(r.body.teams.find((t: any) => t.teamId === T)).toMatchObject({ name: "A5 13 Test", clubId: "a5", yourRoles: [] });
+    expect((await call("GET", "/teams", ROLE_SUBS.finance)).body.teams).toEqual([]);
+  });
+});
+
+describe("clubs", () => {
+  const OWNER = "u-owner", BOSS = "u-boss", TWO = "u-two", RPARENT = "u-rparent";
+  const asOwner = (m: string, p: string, b?: unknown) => call(m, p, OWNER, b, "owner@example.com");
+  const asBoss = (m: string, p: string, b?: unknown) => call(m, p, BOSS, b, "boss@rivals.com");
+  const RED = { primary: "#7a0019", accent: "#ffcc33" };
+
+  it("only the site owner can add clubs; ids are unique", async () => {
+    expect((await asOwner("GET", "/me")).body.platformAdmin).toBe(true);
+    expect((await call("GET", "/me", CLUB, undefined, "club@example.com")).body.platformAdmin).toBe(false);
+    expect((await call("POST", "/clubs", CLUB, { clubId: "nope", name: "Nope" })).status).toBe(403);
+    const r = await asOwner("POST", "/clubs", { clubId: "rivals", name: "Rivals VBC", short: "RVB", colors: RED, adminEmails: ["Boss@Rivals.com"] });
+    expect(r.status).toBe(201);
+    expect(r.body.colors).toEqual({ primary: "#7A0019", accent: "#FFCC33" });
+    expect((await asOwner("POST", "/clubs", { clubId: "rivals", name: "Again" })).status).toBe(409);
+    expect((await asOwner("POST", "/clubs", { clubId: "Bad Id", name: "X" })).status).toBe(400);
+  });
+
+  it("an invited club admin gets the club when they next open the app", async () => {
+    const me = (await asBoss("GET", "/me")).body;
+    expect(me.clubAdmin).toBe(true);
+    expect(me.clubs).toEqual([expect.objectContaining({ clubId: "rivals", name: "Rivals VBC", admin: true, colors: { primary: "#7A0019", accent: "#FFCC33" } })]);
+    expect((await asBoss("GET", "/clubs")).body.clubs.map((c: any) => c.clubId)).toEqual(["rivals"]);
+  });
+
+  it("team ids are unique across clubs, including teams made before clubs existed", async () => {
+    expect((await asBoss("POST", "/teams", { clubId: "rivals", teamId: T, name: "Copycat" })).status).toBe(409);
+    await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.settings("legacy1"), type: "Settings", teamName: "Old team" } }));
+    expect((await asBoss("POST", "/teams", { clubId: "rivals", teamId: "legacy1", name: "Copycat" })).status).toBe(409);
+    expect((await call("GET", `/teams/${T}`, ROLE_SUBS.admin)).body.settings.teamName).not.toBe("Copycat");
+  });
+
+  it("a club admin runs only their own club's teams", async () => {
+    expect((await asBoss("POST", "/teams", { clubId: "rivals", teamId: "r14", name: "Rivals 14", season: "2026-27" })).status).toBe(201);
+    const team = (await asBoss("GET", "/teams/r14")).body;
+    expect(team.clubId).toBe("rivals");
+    expect(team.club).toMatchObject({ name: "Rivals VBC", short: "RVB" });
+    expect(team.you.roles).toContain("admin");
+    // Not the other club's.
+    expect((await asBoss("GET", `/teams/${T}`)).status).toBe(403);
+    expect((await asBoss("PUT", `/teams/${T}/settings`, { teamName: "Mine now" })).status).toBe(403);
+    expect((await asBoss("POST", "/teams", { clubId: "a5", teamId: "sneaky", name: "Sneaky" })).status).toBe(403);
+    expect((await asBoss("POST", "/teams", { clubId: "rivals", teamId: "r15", name: "Copy", copyFrom: T })).status).toBe(403);
+    expect((await asBoss("GET", "/clubs/a5")).status).toBe(403);
+    expect((await call("GET", "/teams/r14", CLUB)).status).toBe(403);
+    expect((await call("PUT", "/clubs/rivals", CLUB, { name: "Ours", colors: RED })).status).toBe(403);
+    expect((await asBoss("GET", "/teams")).body.teams.map((t: any) => t.teamId)).toEqual(["r14"]);
+    // Default club's team keeps working, with the original club's details.
+    const a5 = (await call("GET", `/teams/${T}`, CLUB)).body;
+    expect(a5.clubId).toBe("a5");
+    expect(a5.club.name).toBe("A5 Volleyball");
+  });
+
+  it("the site owner can open any club and team", async () => {
+    expect((await asOwner("GET", "/teams/r14")).status).toBe(200);
+    expect((await asOwner("GET", `/teams/${T}`)).status).toBe(200);
+    expect((await asOwner("GET", "/clubs")).body.clubs.map((c: any) => c.clubId)).toEqual(["a5", "rivals"]);
+    expect((await asOwner("GET", "/teams")).body.teams.map((t: any) => t.teamId)).toEqual(expect.arrayContaining([T, "r14"]));
+  });
+
+  it("club settings: colors, links and notes, validated", async () => {
+    expect((await asBoss("PUT", "/clubs/rivals", { name: "Rivals", colors: { primary: "red", accent: "#FFCC33" } })).status).toBe(400);
+    expect((await asBoss("PUT", "/clubs/rivals", { name: "Rivals", colors: RED, links: [{ label: "Bad", url: "javascript:alert(1)" }] })).status).toBe(400);
+    const ok = await asBoss("PUT", "/clubs/rivals", { name: "Rivals Volleyball", short: "RV", colors: { primary: "#004225", accent: "#ffffff" },
+      links: [{ label: "Registration", url: "https://rivals.example.com/register" }], notes: "Club fees are due in August." });
+    expect(ok.status).toBe(200);
+    const team = (await asBoss("GET", "/teams/r14")).body;
+    expect(team.club).toMatchObject({ name: "Rivals Volleyball", short: "RV", colors: { primary: "#004225", accent: "#FFFFFF" }, notes: "Club fees are due in August." });
+    expect(team.club.links).toHaveLength(1);
+    expect((await asOwner("GET", "/clubs")).body.clubs.find((c: any) => c.clubId === "rivals").name).toBe("Rivals Volleyball");
+  });
+
+  it("the default club starts with the original links", async () => {
+    const r = (await call("GET", "/clubs/a5", CLUB)).body;
+    expect(r.club.links.length).toBe(4);
+    expect(r.teams.map((t: any) => t.teamId)).toContain(T);
+  });
+
+  it("club admins add and remove other admins; a club keeps at least one", async () => {
+    expect((await asBoss("POST", "/clubs/rivals/admins", { email: "Two@Rivals.com", firstName: "Tess" })).status).toBe(201);
+    expect((await asBoss("POST", "/clubs/rivals/admins", { email: "boss@rivals.com" })).status).toBe(409);
+    expect((await asBoss("GET", "/clubs/rivals")).body.invites).toEqual([expect.objectContaining({ email: "two@rivals.com", firstName: "Tess" })]);
+    expect((await call("GET", "/me", TWO, undefined, "two@rivals.com")).body.clubs[0]).toMatchObject({ clubId: "rivals", admin: true });
+    const club = (await asBoss("GET", "/clubs/rivals")).body;
+    expect(club.admins.map((a: any) => a.sub).sort()).toEqual([BOSS, TWO]);
+    expect(club.invites).toEqual([]);
+    expect((await call("DELETE", `/clubs/rivals/admins/${BOSS}`, ROLE_SUBS.admin)).status).toBe(403);
+    expect((await call("DELETE", `/clubs/rivals/admins/${TWO}`, BOSS)).status).toBe(204);
+    expect((await call("DELETE", `/clubs/rivals/admins/${BOSS}`, BOSS)).status).toBe(409);
+    expect((await call("GET", "/me", TWO, undefined, "two@rivals.com")).body.clubAdmin).toBe(false);
+    // Withdraw an invite.
+    expect((await asBoss("POST", "/clubs/rivals/admins", { email: "three@rivals.com" })).status).toBe(201);
+    expect((await asBoss("DELETE", "/clubs/rivals/invites/three%40rivals.com")).status).toBe(204);
+    expect((await asBoss("GET", "/clubs/rivals")).body.invites).toEqual([]);
+  });
+
+  it("families see their team's club, not admin rights", async () => {
+    expect((await asBoss("POST", "/teams/r14/invites", { email: "mom@rivals.com", roles: ["parent"] })).status).toBe(201);
+    const me = (await call("GET", "/me", RPARENT, undefined, "mom@rivals.com")).body;
+    expect(me.teams).toEqual([expect.objectContaining({ teamId: "r14", clubId: "rivals" })]);
+    expect(me.clubs).toEqual([expect.objectContaining({ clubId: "rivals", admin: false })]);
+    expect(me.clubAdmin).toBe(false);
+    expect((await call("GET", "/clubs/rivals", RPARENT)).status).toBe(403);
+    expect((await call("GET", "/teams/r14", RPARENT)).body.you.roles).toEqual(["parent"]);
   });
 });

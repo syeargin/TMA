@@ -22,7 +22,11 @@ export interface ScheduleItem {
   series?: Series;
 }
 
-const SEASON_END = '2027-06-30';
+/** Club seasons run August to June: practices with no end date stop on June 30 of the season they start in. */
+export function seasonEnd(from: string): string {
+  const [y, m] = from.split('-').map(Number);
+  return `${m >= 7 ? y + 1 : y}-06-30`;
+}
 
 /** Events (repeating ones expanded) plus every practice date, sorted by day and time. Practices skip tournament days. */
 export function buildItems(events: TeamEvent[], settings: Settings | null): ScheduleItem[] {
@@ -49,10 +53,11 @@ export function buildItems(events: TeamEvent[], settings: Settings | null): Sche
   const cancelled = new Set(settings?.cancelled ?? []);
   for (const p of settings?.practices ?? []) {
     if (!p.from) continue;
-    const dates = expandPattern(p.from, p.until || SEASON_END, [Number(p.dow)], 1);
+    const until = p.until || seasonEnd(p.from);
+    const dates = expandPattern(p.from, until, [Number(p.dow)], 1);
     const shown = dates.filter((d) => !onTournament(d));
     const series: Series = {
-      id: p.id, source: 'practice', every: 1, days: [Number(p.dow)], until: p.until || SEASON_END, dates,
+      id: p.id, source: 'practice', every: 1, days: [Number(p.dow)], until, dates,
       active: shown.filter((d) => !cancelled.has(practiceKey(p.id, d)))
     };
     for (const ds of shown) {

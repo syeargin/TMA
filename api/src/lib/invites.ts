@@ -2,17 +2,18 @@ import { QueryCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE } from "./db.js";
 import { keys, normEmail } from "./keys.js";
 
-type Invite = { PK: string; SK: string; teamId?: string; person?: string; firstName?: string; lastName?: string; pid?: string; roles?: string[]; invitedBy?: string };
+type Invite = { PK: string; SK: string; teamId?: string; clubId?: string; person?: string; firstName?: string; lastName?: string; pid?: string; roles?: string[]; invitedBy?: string };
 type TxItem = NonNullable<ConstructorParameters<typeof TransactWriteCommand>[0]["TransactItems"]>[number];
 
+/** Every invite waiting for this email: team invites (SK TEAM#<t>) and club admin invites (SK CLUB#<c>). */
 export async function pendingInvites(email: string): Promise<Invite[]> {
   const out: Invite[] = [];
   let startKey: Record<string, unknown> | undefined;
   do {
     const res = await ddb.send(new QueryCommand({
       TableName: TABLE,
-      KeyConditionExpression: "PK = :pk AND begins_with(SK, :team)",
-      ExpressionAttributeValues: { ":pk": keys.invitePrefix(email), ":team": "TEAM#" },
+      KeyConditionExpression: "PK = :pk",
+      ExpressionAttributeValues: { ":pk": keys.invitePrefix(email) },
       ExclusiveStartKey: startKey
     }));
     out.push(...((res.Items ?? []) as Invite[]));
@@ -21,11 +22,21 @@ export async function pendingInvites(email: string): Promise<Invite[]> {
   return out;
 }
 
-/** Transaction actions that turn each invite into an active membership and delete the invite. */
+/** Transaction actions that turn each invite into an active membership (or club admin) and delete the invite. */
 /** name: the person's own name from their profile, which wins over what the inviter typed. */
 export function inviteToMembershipItems(invites: Invite[], sub: string, email: string, now: string, name?: { firstName?: string; lastName?: string }): TxItem[] {
   const items: TxItem[] = [];
   for (const inv of invites) {
+    if (inv.SK.startsWith("CLUB#")) {
+      const clubId = inv.clubId ?? inv.SK.slice("CLUB#".length);
+      items.push({ Put: { TableName: TABLE, Item: {
+        ...keys.clubAdmin(clubId, sub), ...keys.clubAdminGsi(clubId, sub), type: "ClubAdmin", clubId, sub, email: normEmail(email),
+        firstName: name?.firstName || inv.firstName || "", lastName: name?.firstName ? name.lastName ?? "" : inv.lastName ?? "",
+        grantedBy: inv.invitedBy ?? "", at: now } } });
+      items.push({ Delete: { TableName: TABLE, Key: { PK: inv.PK, SK: inv.SK } } });
+      continue;
+    }
+    if (!inv.SK.startsWith("TEAM#")) continue;
     const teamId = inv.teamId ?? inv.SK.slice("TEAM#".length);
     items.push({
       Put: {

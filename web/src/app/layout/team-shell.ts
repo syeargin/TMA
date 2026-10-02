@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { FlashService } from '../core/flash.service';
 import { HeaderService } from '../core/header.service';
+import { ThemeService } from '../core/theme.service';
 import { TeamStore } from '../core/team-store';
 import { Router } from '@angular/router';
 import { AvailabilitySheet } from '../features/schedule/availability-sheet';
@@ -46,6 +47,7 @@ export class TeamShell {
   private readonly header = inject(HeaderService);
   private readonly router = inject(Router);
   private readonly flash = inject(FlashService);
+  private readonly theme = inject(ThemeService);
 
   constructor() {
     effect(() => {
@@ -58,12 +60,17 @@ export class TeamShell {
       if (!s) return;
       this.header.title.set(s.teamName || this.store.teamId());
       const coaches = (s.coaches ?? []).map((c) => c.name).join(' & ');
-      this.header.sub.set(['A5 Volleyball', s.season ? `${s.season} season` : '', coaches].filter(Boolean).join(' · '));
+      this.header.sub.set([this.store.club()?.name ?? '', s.season ? `${s.season} season` : '', coaches].filter(Boolean).join(' · '));
+    });
+    // The team's club colors, for as long as the team is open.
+    effect(() => {
+      const c = this.store.club();
+      if (this.store.bundle()) this.theme.page.set(c ? { name: c.name, short: c.short, colors: c.colors } : null);
     });
     this.store.lost.pipe(takeUntilDestroyed()).subscribe(() => {
       this.flash.set({ error: 'You no longer have access to that team.' });
       void this.router.navigateByUrl('/');
     });
-    inject(DestroyRef).onDestroy(() => this.header.reset());
+    inject(DestroyRef).onDestroy(() => { this.header.reset(); this.theme.page.set(undefined); });
   }
 }

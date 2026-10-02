@@ -5,6 +5,7 @@ import { APP_CONFIG } from './core/config';
 import { HeaderService } from './core/header.service';
 import { LiveService } from './core/live.service';
 import { MeService } from './core/me.service';
+import { ThemeService } from './core/theme.service';
 import type { LiveStatus } from './core/live-client';
 import { ToastService } from './core/toast.service';
 
@@ -15,8 +16,8 @@ import { ToastService } from './core/toast.service';
     <header class="hdr">
       <div class="hdr-in">
         <a class="brand" routerLink="/">
-          <svg class="crest" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" fill="none" stroke="#fff" stroke-width="2.5"/><path d="M26 2c-6 8-8 16-7 24s5 16 13 24M4.5 17c9 2 18 1 26-4s13-10 15-11M3 31c9-4 20-4 29 0s14 11 16 12" fill="none" stroke="#fff" stroke-width="2" opacity=".85"/><circle cx="26" cy="26" r="24" fill="none" stroke="#C8323E" stroke-width="2.5" stroke-dasharray="10 140" transform="rotate(-60 26 26)"/></svg>
-          <div><h1>{{ header.title() }}</h1><div class="sub">{{ header.sub() }}</div></div>
+          <svg class="crest" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" fill="none" stroke="#fff" stroke-width="2.5"/><path d="M26 2c-6 8-8 16-7 24s5 16 13 24M4.5 17c9 2 18 1 26-4s13-10 15-11M3 31c9-4 20-4 29 0s14 11 16 12" fill="none" stroke="#fff" stroke-width="2" opacity=".85"/><circle cx="26" cy="26" r="24" fill="none" class="crest-a" stroke-width="2.5" stroke-dasharray="10 140" transform="rotate(-60 26 26)"/></svg>
+          <div><h1>{{ header.title() }}</h1><div class="sub">{{ header.sub() || theme.look()?.name || '' }}</div></div>
         </a>
         <div class="hdr-side">
           @if (live.status() !== 'off') {
@@ -50,6 +51,7 @@ export class App {
   readonly live = inject(LiveService);
   readonly toast = inject(ToastService);
   readonly me = inject(MeService);
+  readonly theme = inject(ThemeService);
   readonly env = this.cfg.env || 'local';
   readonly commit = this.cfg.commit?.slice(0, 7);
   constructor() {

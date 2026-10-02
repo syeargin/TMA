@@ -105,7 +105,7 @@ function fold(line: string): string {
 /** An .ics file: Apple Calendar on iPhone and Mac, and desktop Outlook. */
 export function ics(e: CalEvent, now = new Date()): string {
   const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//A5 Volleyball//Team Hub//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Team Hub//Team Hub//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VEVENT', `UID:${e.uid}`, `DTSTAMP:${utc(now)}`,
     ...(e.allDay
       ? [`DTSTART;VALUE=DATE:${compact(e.startDate)}`, `DTEND;VALUE=DATE:${compact(e.endDate)}`]

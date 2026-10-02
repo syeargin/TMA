@@ -31,6 +31,16 @@ describe("pre-sign-up", () => {
     expect(q.ExpressionAttributeValues?.[":pk"]).toBe("INVITE#parent@example.com");
   });
 
+  it("allows an email invited to run a club", async () => {
+    ddbMock.on(QueryCommand).resolves({ Items: [{ PK: "INVITE#boss@rivals.com", SK: "CLUB#rivals" }] });
+    await expect(preSignUp(preEvent("boss@rivals.com"), ctx, noop)).resolves.toBeTruthy();
+  });
+
+  it("allows site owners without an invite", async () => {
+    await expect(preSignUp(preEvent("Owner@Example.com"), ctx, noop)).resolves.toBeTruthy();
+    expect(ddbMock.commandCalls(QueryCommand)).toHaveLength(0);
+  });
+
   it("rejects an email with no invite", async () => {
     ddbMock.on(QueryCommand).resolves({ Items: [] });
     await expect(preSignUp(preEvent("stranger@example.com"), ctx, noop)).rejects.toThrow(NOT_INVITED);
@@ -84,6 +94,19 @@ describe("post-confirmation", () => {
       expect.objectContaining({ PK: "CLUB#a5", SK: "ADMIN#sub-admin", type: "ClubAdmin" }),
       expect.objectContaining({ PK: "USER#sub-admin", SK: "PROFILE", clubAdmin: true })
     ]));
+  });
+
+  it("turns a club admin invite into a club admin record; site owners are recorded", async () => {
+    ddbMock.on(QueryCommand).resolves({ Items: [{ PK: "INVITE#owner@example.com", SK: "CLUB#rivals", clubId: "rivals", invitedBy: "sub-x", firstName: "Olive" }] });
+    ddbMock.on(TransactWriteCommand).resolves({});
+    await postConfirmation(postEvent("owner@example.com", "sub-o"), ctx, noop);
+    const actions = ddbMock.commandCalls(TransactWriteCommand)[0].args[0].input.TransactItems!;
+    const puts = actions.filter((x) => x.Put).map((x) => x.Put!.Item!);
+    expect(puts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ PK: "CLUB#rivals", SK: "ADMIN#sub-o", GSI1PK: "USER#sub-o", GSI1SK: "CLUB#rivals", type: "ClubAdmin", grantedBy: "sub-x" }),
+      expect.objectContaining({ PK: "PLATFORM", SK: "ADMIN#sub-o", type: "PlatformAdmin" })
+    ]));
+    expect(actions.find((x) => x.Delete)?.Delete?.Key).toEqual({ PK: "INVITE#owner@example.com", SK: "CLUB#rivals" });
   });
 
   it("follows pagination and splits large transactions at 100 actions", async () => {

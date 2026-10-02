@@ -28,7 +28,13 @@ Parameters:
   ClubAdminEmails:
     Type: String
     Default: ""
-    Description: Comma-separated emails that may sign up without an invite and become club admins.
+    Description: Comma-separated emails that may sign up without an invite and become admins of the default club (ClubId).
+  PlatformAdminEmails:
+    Type: String
+    Default: ""
+    Description: >
+      Comma-separated emails of site owners, who can add clubs and act as an admin of any club.
+      Empty means the ClubAdminEmails people are the site owners.
   SesFromEmail:
     Type: String
     Default: ""
@@ -256,6 +262,7 @@ Resources:
       Environment:
         Variables:
           CLUB_ADMIN_EMAILS: !Ref ClubAdminEmails
+          PLATFORM_ADMIN_EMAILS: !Ref PlatformAdminEmails
       Policies:
         - DynamoDBReadPolicy: { TableName: !Ref TeamHubTable }
       Events:
@@ -285,6 +292,7 @@ Resources:
         Variables:
           CLUB_ID: !Ref ClubId
           CLUB_ADMIN_EMAILS: !Ref ClubAdminEmails
+          PLATFORM_ADMIN_EMAILS: !Ref PlatformAdminEmails
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
       Events:
@@ -363,6 +371,7 @@ Resources:
         Variables:
           CLUB_ID: !Ref ClubId
           CLUB_ADMIN_EMAILS: !Ref ClubAdminEmails
+          PLATFORM_ADMIN_EMAILS: !Ref PlatformAdminEmails
           NODE_OPTIONS: --enable-source-maps
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
@@ -640,6 +649,7 @@ Resources:
         Variables:
           CLUB_ID: !Ref ClubId
           CLUB_ADMIN_EMAILS: !Ref ClubAdminEmails
+          PLATFORM_ADMIN_EMAILS: !Ref PlatformAdminEmails
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
         - Statement:

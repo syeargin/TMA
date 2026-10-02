@@ -6,7 +6,7 @@ import { TeamHome } from './features/team/team-home';
 import { Narrow } from './layout/narrow';
 import { TeamShell } from './layout/team-shell';
 
-const T = (s: string) => `${s} · A5 Team Hub`;
+const T = (s: string) => `${s} · Team Hub`;
 
 export const routes: Routes = [
   {
@@ -24,6 +24,10 @@ export const routes: Routes = [
       { path: 'info/:section', loadComponent: () => import('./features/info/info').then((m) => m.Info), title: T('Coordinator tasks') },
       { path: 'members', loadComponent: () => import('./features/team/members').then((m) => m.Members), title: T('Members') }
     ]
+  },
+  {
+    path: 'clubs/:clubId', canActivate: [signedInGuard], title: T('Club'),
+    loadComponent: () => import('./features/club/club-admin').then((m) => m.ClubAdminPage)
   },
   {
     path: '', component: Narrow,
