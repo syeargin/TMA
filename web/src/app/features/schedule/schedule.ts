@@ -73,13 +73,13 @@ export class Schedule {
     this.combining.set('');
   }
 
-  /** Sunday-start weeks covering the shown month. Multi-day tournaments appear on each of their days. */
+  /** Six Sunday-start weeks covering the shown month. Multi-day tournaments appear on each of their days. */
   readonly grid = computed(() => {
     const first = this.monthStart();
     const month = first.slice(0, 7);
     const start = addDays(first, -pd(first).getDay());
-    const last = iso(new Date(pd(first).getFullYear(), pd(first).getMonth() + 1, 0));
-    const end = addDays(last, 6 - pd(last).getDay());
+    // Always six weeks, so the calendar keeps the same size from month to month.
+    const end = addDays(start, 41);
     const items = this.store.items().filter((i) => i.end >= start && i.date <= end && this.matches(i));
     const now = today();
     const weeks: MonthCell[][] = [];
