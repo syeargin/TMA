@@ -4,6 +4,7 @@ import { firstValueFrom, from, switchMap, throwError } from 'rxjs';
 import type { Role } from '@shared/permissions';
 import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
+import type { Repeat } from './series';
 import type { Agenda, ClubTeam, Handbook, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, Practice, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
@@ -63,6 +64,9 @@ export class ApiService {
   saveEvent(teamId: string, e: TeamEvent) {
     const { eid, ...body } = e;
     return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}`, body);
+  }
+  combineEvents(teamId: string, body: { eids: string[]; repeat: Repeat; skip: string[] }) {
+    return this.call<{ eid: string; combined: number; answersMoved: number }>('POST', `/teams/${enc(teamId)}/events/combine`, body);
   }
   deleteEvent(teamId: string, eid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}`); }
   savePractices(teamId: string, practices: Practice[]) { return this.call('PUT', `/teams/${enc(teamId)}/practices`, { practices }); }

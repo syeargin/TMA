@@ -35,6 +35,10 @@ export interface TeamEvent {
   foodPlan?: string; reservations?: string; checklist?: string[];
   // Team hotel (travel tournaments)
   hotel?: string; hotelLink?: string; hotelCode?: string; hotelBy?: string;
+  // Repeating events
+  repeat?: { every: number; days: number[]; until: string; skipTournaments?: boolean };
+  cancelled?: string[];
+  skip?: string[];
   [key: string]: unknown;
 }
 

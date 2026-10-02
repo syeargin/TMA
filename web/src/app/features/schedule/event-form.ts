@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { newId } from '../../core/dates';
+import { DAYS, newId, pd } from '../../core/dates';
+import { describe, expandPattern } from '../../core/series';
 import type { EventKind, TeamEvent } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { Messages } from '../../shared/messages';
@@ -43,6 +44,32 @@ const KIND_LABEL: Record<EventKind, string> = { tournament: 'Tournament', event:
         }
         <label>{{ kind() === 'tournament' ? 'Venue' : 'Location' }}<input formControlName="location"></label>
         <label>{{ kind() === 'tournament' ? 'Notes' : 'Details' }}<textarea formControlName="notes" rows="3"></textarea></label>
+        @if (kind() !== 'tournament') {
+          <fieldset class="group">
+            <legend>Repeat</legend>
+            <label>Repeats
+              <select formControlName="every">
+                <option [ngValue]="0">Does not repeat</option>
+                <option [ngValue]="1">Every week</option>
+                <option [ngValue]="2">Every 2 weeks</option>
+                <option [ngValue]="3">Every 3 weeks</option>
+              </select>
+            </label>
+            @if (repeating()) {
+              <div class="checks" role="group" aria-label="On these days" formGroupName="days">
+                @for (d of dayNames; track $index) {
+                  <label><input type="checkbox" [formControlName]="'d' + $index"> {{ d.slice(0, 3) }}</label>
+                }
+              </div>
+              <div class="two">
+                <label>Ends on<input type="date" formControlName="until"></label>
+                <label class="checks" style="flex-direction:row;align-items:flex-end"><span><input type="checkbox" formControlName="skipTournaments"> Skip tournament days</span></label>
+              </div>
+              @if (preview()) { <p class="hint">{{ preview() }}</p> }
+              @if (event()?.repeat) { <p class="hint">Changes apply to every date in the series. To call off one date, use “Cancel this date” on the schedule.</p> }
+            }
+          </fieldset>
+        }
         @if (kind() === 'tournament') {
           <fieldset class="group">
             <legend>Game day</legend>
@@ -107,7 +134,21 @@ export class EventForm {
     kind: 'event' as EventKind, title: '', date: '', endDate: '', time: '', location: '', city: '', division: '',
     travel: false, notes: '',
     website: '', parking: '', waves: '', arrival: '', start: '', meet: '', uniforms: '', admissions: '', teamCode: '',
-    scheduleLink: '', ticketHelp: '', dutyPid: '', foodPlan: '', reservations: '', checklist: ''
+    scheduleLink: '', ticketHelp: '', dutyPid: '', foodPlan: '', reservations: '', checklist: '',
+    every: 0, until: '', skipTournaments: true,
+    days: this.fb.group({ d0: false, d1: false, d2: false, d3: false, d4: false, d5: false, d6: false })
+  });
+  readonly dayNames = DAYS;
+  private readonly values = signal(this.form.getRawValue());
+  readonly repeating = computed(() => this.values().every > 0 && this.values().kind !== 'tournament');
+  private pickedDays(v = this.values()) { return [0, 1, 2, 3, 4, 5, 6].filter((i) => v.days[`d${i}` as keyof typeof v.days]); }
+  /** "Weekly on Tue & Thu until Mar 31 · 34 dates" */
+  readonly preview = computed(() => {
+    const v = this.values();
+    const days = this.pickedDays(v);
+    if (!this.repeating() || !v.date || !v.until || !days.length || v.until < v.date) return '';
+    const n = expandPattern(v.date, v.until, days, v.every).length;
+    return `${describe({ every: v.every, days, until: v.until })} · ${n} date${n === 1 ? '' : 's'}`;
   });
   readonly teamCodeDefault = computed(() => this.store.settings()?.teamCode ?? '');
   readonly kind = signal<EventKind>('event');
@@ -115,6 +156,12 @@ export class EventForm {
 
   constructor() {
     this.form.controls.kind.valueChanges.subscribe((k) => this.kind.set(k));
+    this.form.valueChanges.subscribe(() => this.values.set(this.form.getRawValue()));
+    // Turning repeat on: start with the event's own weekday.
+    this.form.controls.every.valueChanges.subscribe((every) => {
+      const v = this.form.getRawValue();
+      if (every > 0 && !this.pickedDays(v).length && v.date) this.form.controls.days.patchValue({ [`d${pd(v.date).getDay()}`]: true });
+    });
     // Fill the form each time it opens.
     effect(() => {
       if (!this.open()) return;
@@ -129,8 +176,11 @@ export class EventForm {
           website: e?.website ?? '', parking: e?.parking ?? '', waves: e?.waves ?? '', arrival: e?.arrival ?? '', start: e?.start ?? '',
           meet: e?.meet ?? '', uniforms: e?.uniforms ?? '', admissions: e?.admissions ?? '', teamCode: e?.teamCode ?? '',
           scheduleLink: e?.scheduleLink ?? '', ticketHelp: e?.ticketHelp ?? '', dutyPid: e?.dutyPid ?? '', foodPlan: e?.foodPlan ?? '',
-          reservations: e?.reservations ?? '', checklist: (e?.checklist ?? []).join('\n')
+          reservations: e?.reservations ?? '', checklist: (e?.checklist ?? []).join('\n'),
+          every: e?.repeat?.every ?? 0, until: e?.repeat?.until ?? '', skipTournaments: e?.repeat?.skipTournaments ?? true,
+          days: Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((i) => [`d${i}`, !!e?.repeat?.days.includes(i)]))
         });
+        this.values.set(this.form.getRawValue());
         this.kind.set(k);
       });
     });
@@ -142,6 +192,12 @@ export class EventForm {
     if (!v.date) { this.error.set('Pick a date.'); return; }
     if (v.kind === 'tournament' && v.endDate && v.endDate < v.date) { this.error.set('The end date is before the start date.'); return; }
     const isT = v.kind === 'tournament';
+    const days = this.pickedDays(v);
+    if (!isT && v.every > 0) {
+      if (!days.length) { this.error.set('Pick at least one day for it to repeat on.'); return; }
+      if (!v.until) { this.error.set('Pick the date the series ends.'); return; }
+      if (v.until < v.date) { this.error.set('The series ends before it starts.'); return; }
+    }
     const next: TeamEvent = {
       ...(this.event() ?? {}),
       eid: this.event()?.eid ?? newId('e'),
@@ -160,6 +216,11 @@ export class EventForm {
       for (const k of text) next[k] = v[k].trim() || undefined;
       const list = v.checklist.split('\n').map((s) => s.trim()).filter(Boolean);
       next.checklist = list.length ? list : undefined;
+    }
+    if (!isT && v.every > 0) {
+      next.repeat = { every: v.every, days, until: v.until, skipTournaments: v.skipTournaments };
+    } else {
+      delete next.repeat; delete next.cancelled; delete next.skip;
     }
     // Drop bookkeeping fields the API sets itself.
     for (const k of ['type', 'updatedAt', 'updatedBy', 'GSI2PK', 'GSI2SK']) delete next[k];

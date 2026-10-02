@@ -108,6 +108,7 @@ Every call needs a Cognito access token (`Authorization: Bearer …`). The API l
 | `PUT /teams/{t}/handbook` | Coach, coordinator, team admin |
 | `PUT·DELETE /teams/{t}/players/{pid}` | Coordinator, team admin |
 | `PUT·DELETE /teams/{t}/events/{eid}` | Coach, coordinator, team admin |
+| `POST /teams/{t}/events/combine` | Coach, coordinator, team admin — turns one-off events into one repeating event; answers carry over |
 | `PUT /teams/{t}/events/{eid}/refjobs` | Coach, coordinator, team admin |
 | `PUT /teams/{t}/events/{eid}/agenda` | Coach, coordinator, food, team admin |
 | `PUT·DELETE /teams/{t}/events/{eid}/meals/{mid}` | Food, coordinator, team admin |
@@ -175,6 +176,14 @@ web/src/app/shared/               small UI pieces and the role checkbox helpers
 ```
 
 The site imports the API's role table directly (`@shared/permissions` → `api/src/shared/permissions.ts`), so the buttons a person sees always match what the API allows.
+
+## Repeating events and month view
+
+- A team event or deadline can repeat weekly, every 2 weeks or every 3 weeks on chosen weekdays until an end date. Tournament days are skipped unless the coach turns that off. The event is stored once with `repeat {every, days, until, skipTournaments}`, plus `cancelled[]` (struck through on the schedule) and `skip[]` (left off).
+- Each date of a series is answered separately. The answer key is `<eid>-<date>`, the same idea as `pr-<id>-<date>` for practices.
+- When a coach has entered the same event one date at a time (same name, time and place, on a steady weekly or every-other-week rhythm), the schedule offers **Combine into series**. `POST /events/combine` keeps the first event, makes it repeat, moves everyone's answers to the new keys and removes the rest.
+- Rows in a series (weekly practices too) show a ↻ pill. Add to calendar offers the single date or the whole series: Apple and Google get a repeating entry (RRULE, with skipped or cancelled dates as exceptions); Outlook gets the series as an .ics file, since Outlook web links can't carry a repeat.
+- The schedule has List and Month views. Month view uses a Sunday-first grid (dots only on phones); tap a day to list its items. The choice is remembered on that device.
 
 ## Local development
 
