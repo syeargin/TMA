@@ -36,6 +36,8 @@ export class TeamStore implements OnDestroy {
 
   readonly you = computed(() => this.bundle()?.you ?? { roles: [] });
   readonly settings = computed(() => this.bundle()?.settings ?? null);
+  /** The club this team belongs to: name, colors, and the links shown on Team Info. */
+  readonly club = computed(() => this.bundle()?.club ?? null);
   readonly players = computed<Player[]>(() => [...(this.bundle()?.players ?? [])].sort((a, b) =>
     (a.order ?? 999) - (b.order ?? 999) || String(a.last ?? '').localeCompare(String(b.last ?? '')) || a.first.localeCompare(b.first)));
   readonly events = computed<TeamEvent[]>(() => this.bundle()?.events ?? []);

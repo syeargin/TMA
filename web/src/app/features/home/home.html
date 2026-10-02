@@ -3,7 +3,7 @@
 @if (me(); as me) {
   <p class="muted small">
     Signed in as <b>{{ me.firstName ? me.firstName + ' ' + (me.lastName ?? '') : user()?.email }}</b>@if (me.firstName) { <span> ({{ user()?.email }})</span> · <button class="link" type="button" (click)="editingName.set(true)">Change name</button> }
-    @if (me.clubAdmin) { · <span class="pill">Club admin</span> }
+    @if (me.platformAdmin) { · <span class="pill">Site owner</span> } @else if (me.clubAdmin) { · <span class="pill">Club admin</span> }
   </p>
   @if (!me.firstName || editingName()) {
     <section class="namebox" [class.ask]="!me.firstName">
@@ -22,51 +22,73 @@
     </section>
   }
   @if (me.teams.length) {
+    @for (g of groups(); track g.club?.clubId ?? '-') {
+      @if (showClubNames()) {
+        <h3 class="club-h"><span class="swatch" aria-hidden="true" [style.background]="g.club?.colors?.primary" [style.border-color]="g.club?.colors?.accent"></span>{{ g.club?.name || 'Other teams' }}</h3>
+      }
+      <ul class="list">
+        @for (t of g.teams; track t.teamId) {
+          <li>
+            <a class="rowbtn" [routerLink]="['/teams', t.teamId]">
+              <b>{{ t.name || t.teamId }}</b>
+              <span>@for (r of t.roles; track r; let last = $last) {{{ roleLabel(r) }}@if (!last) { · }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  } @else {
+    <p class="muted">
+      You're not on a team yet.
+      {{ me.clubAdmin ? 'Open your club below to create a team or open one.' : 'Ask your coordinator for an invite.' }}
+    </p>
+  }
+
+  @if (adminClubs().length && !me.platformAdmin) {
+    <h3>{{ adminClubs().length > 1 ? 'Clubs you run' : 'Your club' }}</h3>
     <ul class="list">
-      @for (t of me.teams; track t.teamId) {
+      @for (c of adminClubs(); track c.clubId) {
         <li>
-          <a class="rowbtn" [routerLink]="['/teams', t.teamId]">
-            <b>{{ t.name || t.teamId }}</b>
-            <span>@for (r of t.roles; track r; let last = $last) {{{ roleLabel(r) }}@if (!last) { · }}</span>
+          <a class="rowbtn" [routerLink]="['/clubs', c.clubId]">
+            <b><span class="swatch" aria-hidden="true" [style.background]="c.colors.primary" [style.border-color]="c.colors.accent"></span>{{ c.name }}</b>
+            <span>Teams, colors, links and admins</span>
           </a>
         </li>
       }
     </ul>
-  } @else {
-    <p class="muted">
-      You're not on a team yet.
-      {{ me.clubAdmin ? 'Create one below, or open any team from the list.' : 'Ask your coordinator for an invite.' }}
-    </p>
   }
 
-  @if (me.clubAdmin) {
-    <h3>All club teams</h3>
-    @if (clubTeams(); as teams) {
-      @if (teams.length) {
-        <ul class="list">
-          @for (t of teams; track t.teamId) {
-            <li>
-              <a class="rowbtn" [routerLink]="['/teams', t.teamId]">
-                <b>{{ t.name }}</b><span>{{ t.teamId }}@if (t.age) { · {{ t.age }}}</span>
-              </a>
-            </li>
-          }
-        </ul>
-      } @else { <p class="muted small">No teams yet.</p> }
-    } @else {
-      <p class="muted small">{{ clubTeamsError() || 'Loading…' }}</p>
-    }
+  @if (me.platformAdmin) {
+    <h3>All clubs</h3>
+    @if (allClubs(); as clubs) {
+      <ul class="list">
+        @for (c of clubs; track c.clubId) {
+          <li>
+            <a class="rowbtn" [routerLink]="['/clubs', c.clubId]">
+              <b><span class="swatch" aria-hidden="true" [style.background]="c.colors.primary" [style.border-color]="c.colors.accent"></span>{{ c.name }}</b>
+              <span>{{ c.clubId }}</span>
+            </a>
+          </li>
+        } @empty { <li class="muted small">No clubs yet.</li> }
+      </ul>
+    } @else { <p class="muted small">Loading…</p> }
 
-    <h3>Create a team</h3>
-    <form [formGroup]="createForm" (ngSubmit)="createTeam()" novalidate>
-      <label for="teamId">Team id<input id="teamId" type="text" formControlName="teamId" required placeholder="a5-13tom" pattern="[a-z0-9-]+"></label>
-      <label for="name">Team name<input id="name" type="text" formControlName="name" required placeholder="A5 13 Tom"></label>
-      <div class="two">
-        <label for="season">Season<input id="season" type="text" formControlName="season" placeholder="2026-27"></label>
-        <label for="age">Age group<input id="age" type="text" formControlName="age" placeholder="13U"></label>
-      </div>
-      <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Create team' }}</button>
-    </form>
+    <details class="addclub">
+      <summary class="link">Add a club</summary>
+      <form [formGroup]="clubForm" (ngSubmit)="createClub()" novalidate>
+        <div class="two">
+          <label for="clubName">Club name<input id="clubName" formControlName="name" required placeholder="Rivals Volleyball"></label>
+          <label for="clubShort">Short name<input id="clubShort" formControlName="short" maxlength="12" placeholder="Rivals"></label>
+        </div>
+        <label for="clubId">Club id<input id="clubId" formControlName="clubId" required placeholder="rivals" pattern="[a-z0-9-]+"><span class="hint">Lowercase letters, numbers and dashes. It can't be changed later.</span></label>
+        <label for="clubAdmin">First club admin's email<input id="clubAdmin" type="email" formControlName="adminEmail" placeholder="director@example.com"><span class="hint">They can create an account with this email and will run the club.</span></label>
+        <div class="two">
+          <label for="clubPrimary">Main color<input id="clubPrimary" type="color" formControlName="primary"></label>
+          <label for="clubAccent">Accent color<input id="clubAccent" type="color" formControlName="accent"></label>
+        </div>
+        <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Add club' }}</button>
+      </form>
+    </details>
   }
 } @else {
   <p class="muted">Loading…</p>

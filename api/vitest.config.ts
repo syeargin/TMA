@@ -6,7 +6,8 @@ export default defineConfig({
       TABLE_NAME: "TeamHub-test",
       AWS_REGION: "us-east-1",
       CLUB_ID: "a5",
-      CLUB_ADMIN_EMAILS: "club@example.com"
+      CLUB_ADMIN_EMAILS: "club@example.com",
+      PLATFORM_ADMIN_EMAILS: "owner@example.com"
     },
     testTimeout: 20000,
     hookTimeout: 30000

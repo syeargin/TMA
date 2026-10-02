@@ -2,8 +2,18 @@
 export const normEmail = (email: string) => email.trim().toLowerCase();
 
 export const keys = {
+  // Clubs. CLUBS/CLUB#<c> lists every club; CLUB#<c>/META holds its name, colors and links.
+  clubDir: (clubId: string) => ({ PK: "CLUBS", SK: `CLUB#${clubId}` }),
+  club: (clubId: string) => ({ PK: `CLUB#${clubId}`, SK: "META" }),
   teamDir: (clubId: string, teamId: string) => ({ PK: `CLUB#${clubId}`, SK: `TEAM#${teamId}` }),
   clubAdmin: (clubId: string, sub: string) => ({ PK: `CLUB#${clubId}`, SK: `ADMIN#${sub}` }),
+  clubAdminGsi: (clubId: string, sub: string) => ({ GSI1PK: `USER#${sub}`, GSI1SK: `CLUB#${clubId}` }),
+  clubInvite: (email: string, clubId: string) => ({ PK: `INVITE#${normEmail(email)}`, SK: `CLUB#${clubId}` }),
+  clubInviteGsi: (email: string, clubId: string) => ({ GSI1PK: `CLUB#${clubId}`, GSI1SK: `INVITE#${normEmail(email)}` }),
+  /** Site owners: can create clubs and act as an admin of any club. */
+  platformAdmin: (sub: string) => ({ PK: "PLATFORM", SK: `ADMIN#${sub}` }),
+  /** Which club a team belongs to. Teams created before clubs existed have none and belong to the default club. */
+  teamClub: (t: string) => ({ PK: `TEAM#${t}`, SK: "META#CLUB" }),
   settings: (t: string) => ({ PK: `TEAM#${t}`, SK: "META#SETTINGS" }),
   handbook: (t: string) => ({ PK: `TEAM#${t}`, SK: "META#HANDBOOK" }),
   player: (t: string, pid: string) => ({ PK: `TEAM#${t}`, SK: `PLAYER#${pid}` }),

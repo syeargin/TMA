@@ -1,0 +1,153 @@
+<main>
+  <div class="sec-h">
+    <div>
+      <h2>{{ detail()?.club?.name || 'Club' }}</h2>
+      <p class="muted" style="margin-top:6px">Club settings apply to every team in the club. <a routerLink="/">Back to your teams</a></p>
+    </div>
+  </div>
+  <th-messages [error]="error() || loadError()" [notice]="notice()" />
+
+  @if (detail(); as d) {
+    <div class="grid g-home">
+      <div class="stack">
+        <form [formGroup]="form" (ngSubmit)="save()" novalidate class="stack">
+          <section class="card">
+            <div class="card-h"><h2>Name and colors</h2></div>
+            <div class="card-b">
+              <div class="two">
+                <label for="cName">Club name<input id="cName" formControlName="name" required maxlength="80"></label>
+                <label for="cShort">Short name<input id="cShort" formControlName="short" maxlength="12" placeholder="e.g. A5"><span class="hint">Used in sentences like “{{ form.controls.short.value || 'The club' }} reimburses the fee”.</span></label>
+              </div>
+
+              <div class="colors">
+                <div class="color-pick">
+                  <label for="cPrimary">Main color</label>
+                  <div class="color-row">
+                    <input id="cPrimary" type="color" formControlName="primary" aria-describedby="cPrimaryHint">
+                    <input class="hex" type="text" [value]="colors().primary" (change)="typedHex('primary', $any($event.target).value)" aria-label="Main color as a hex code" maxlength="7" spellcheck="false">
+                  </div>
+                  <span class="hint" id="cPrimaryHint">Header, buttons and links.</span>
+                </div>
+                <div class="color-pick">
+                  <label for="cAccent">Accent color</label>
+                  <div class="color-row">
+                    <input id="cAccent" type="color" formControlName="accent" aria-describedby="cAccentHint">
+                    <input class="hex" type="text" [value]="colors().accent" (change)="typedHex('accent', $any($event.target).value)" aria-label="Accent color as a hex code" maxlength="7" spellcheck="false">
+                  </div>
+                  <span class="hint" id="cAccentHint">The stripe under the header and highlights.</span>
+                </div>
+              </div>
+
+              <div class="presets" role="group" aria-label="Color ideas">
+                @for (p of presets; track p.name) {
+                  <button type="button" class="preset" (click)="usePreset(p)" [title]="p.name" [attr.aria-label]="'Use ' + p.name">
+                    <span [style.background]="p.primary"></span><span [style.background]="p.accent"></span>
+                  </button>
+                }
+              </div>
+
+              <div class="preview" aria-label="Preview">
+                <div class="pv-hdr"><b>{{ form.controls.name.value || d.club.name }}</b><span>13 Open · 2026-27 season</span></div>
+                <div class="pv-b">
+                  <button class="btn primary sm" type="button" tabindex="-1">Save</button>
+                  <span class="chip" aria-pressed="true">Selected</span>
+                  <span class="pill p-travel">Travel</span>
+                  <a href="#" (click)="$event.preventDefault()" tabindex="-1">A link</a>
+                </div>
+              </div>
+              <p class="hint">The whole page shows the new colors while you choose; nothing changes for teams until you save. Dark mode gets matching lighter shades automatically.</p>
+              @for (a of advice(); track a) { <p class="hint advice">{{ a }}</p> }
+              <div class="row" style="margin-top:12px">
+                <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save club' }}</button>
+                @if (unsavedColors()) { <button class="btn ghost" type="button" (click)="resetColors()">Undo color changes</button> }
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-h"><h2>On every team’s Team Info</h2></div>
+            <div class="card-b">
+              <label for="cNotes">Club notes<textarea id="cNotes" formControlName="notes" rows="4" maxlength="4000" placeholder="Club policies, fees, contacts…"></textarea></label>
+              <div class="label" style="margin-top:12px">Links</div>
+              <div formArrayName="links">
+                @for (l of links.controls; track l; let i = $index) {
+                  <div class="link-row" [formGroupName]="i">
+                    <input formControlName="label" placeholder="Registration" [attr.aria-label]="'Link ' + (i + 1) + ' name'" maxlength="80">
+                    <input formControlName="url" type="url" placeholder="https://" [attr.aria-label]="'Link ' + (i + 1) + ' web address'" maxlength="500">
+                    <button class="icon-btn" type="button" (click)="removeLink(i)" [attr.aria-label]="'Remove link ' + (i + 1)">×</button>
+                  </div>
+                }
+              </div>
+              @if (links.length < 12) { <button class="link-btn small" type="button" (click)="addLink()">+ Add a link</button> }
+              <div class="row" style="margin-top:12px">
+                <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save club' }}</button>
+              </div>
+            </div>
+          </section>
+        </form>
+      </div>
+
+      <div class="stack">
+        <section class="card">
+          <div class="card-h"><h2>Teams</h2><span class="muted small">{{ d.teams.length }}</span></div>
+          <div class="card-b">
+            @for (t of d.teams; track t.teamId) {
+              <div class="li"><a class="grow" [routerLink]="['/teams', t.teamId]"><b>{{ t.name }}</b></a><span class="muted small">{{ t.teamId }}@if (t.age) { · {{ t.age }}}</span></div>
+            } @empty { <div class="empty">No teams yet.</div> }
+            <h3 class="sub-h">Create a team</h3>
+            <form [formGroup]="teamForm" (ngSubmit)="createTeam()" novalidate>
+              <div class="two">
+                <label for="tName">Team name<input id="tName" formControlName="name" required placeholder="{{ d.club.short || d.club.name }} 13 Open"></label>
+                <label for="tId">Team id<input id="tId" formControlName="teamId" required pattern="[a-z0-9-]+"><span class="hint">Used in links. Can't be changed.</span></label>
+              </div>
+              <div class="two">
+                <label for="tSeason">Season<input id="tSeason" formControlName="season" placeholder="2026-27"></label>
+                <label for="tAge">Age group<input id="tAge" formControlName="age" placeholder="13U"></label>
+              </div>
+              <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Create team' }}</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-h"><h2>Club admins</h2></div>
+          <div class="card-b">
+            <p class="small muted" style="margin-bottom:6px">Club admins can change these settings, create teams, and act as team admin on every team in the club.</p>
+            @for (a of d.admins; track a.sub) {
+              <div class="li">
+                <div class="grow"><b>{{ fullName(a) || a.email || 'Admin' }}</b>@if (a.sub === mySub()) { <span class="muted small"> (you)</span> }@if (fullName(a) && a.email) { <div class="small muted">{{ a.email }}</div> }</div>
+                @if (d.admins.length > 1) {
+                  <button class="link-btn small" type="button" [class.confirm]="confirming() === 'admin:' + a.sub" (click)="removeAdmin(a.sub)">
+                    {{ confirming() === 'admin:' + a.sub ? 'Tap again to remove' : 'Remove' }}
+                  </button>
+                }
+              </div>
+            }
+            @for (i of d.invites; track i.email) {
+              <div class="li">
+                <div class="grow"><b>{{ fullName(i) || i.email }}</b> <span class="pill p-warn">Invited</span>@if (fullName(i)) { <div class="small muted">{{ i.email }}</div> }</div>
+                <button class="link-btn small" type="button" [class.confirm]="confirming() === 'invite:' + i.email" (click)="withdraw(i.email)">
+                  {{ confirming() === 'invite:' + i.email ? 'Tap again to withdraw' : 'Withdraw' }}
+                </button>
+              </div>
+            }
+            <h3 class="sub-h">Add an admin</h3>
+            <form [formGroup]="adminForm" (ngSubmit)="inviteAdmin()" novalidate>
+              <div class="two">
+                <label for="aFirst">First name<input id="aFirst" formControlName="firstName" autocomplete="off"></label>
+                <label for="aLast">Last name<input id="aLast" formControlName="lastName" autocomplete="off"></label>
+              </div>
+              <label for="aEmail">Email<input id="aEmail" type="email" formControlName="email" required autocomplete="off"></label>
+              <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Invite admin' }}</button>
+              <p class="hint">No email is sent yet. Tell them to sign in, or create an account at this site with that address.</p>
+            </form>
+          </div>
+        </section>
+      </div>
+    </div>
+  } @else if (!loadError()) {
+    <div class="card card-b" style="padding:20px"><div class="label">Loading club</div>
+      @for (i of [1, 2, 3, 4]; track i) { <div class="skel"></div> }
+    </div>
+  }
+</main>

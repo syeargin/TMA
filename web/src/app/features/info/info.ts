@@ -21,6 +21,8 @@ export class Info {
   /** From the route: /info or /info/tasks */
   readonly section = input<string>('');
   readonly store = inject(TeamStore);
+  /** "A5", or "the club" when the club has no short name. */
+  readonly clubShort = computed(() => this.store.club()?.short || 'the club');
   private readonly fb = inject(NonNullableFormBuilder);
   readonly statuses = STATUSES;
   readonly tasksView = computed(() => this.section() === 'tasks');

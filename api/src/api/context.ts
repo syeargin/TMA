@@ -1,10 +1,12 @@
 import { BatchGetCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE } from "../lib/db.js";
+import { clubOfTeam, DEFAULT_CLUB } from "../lib/clubs.js";
 import { keys } from "../lib/keys.js";
 import { can, type Permission } from "../shared/permissions.js";
 import { forbidden } from "./http.js";
 
-export const CLUB_ID = () => process.env.CLUB_ID ?? "a5";
+/** The default club (teams made before clubs existed). Most code should use access.clubId instead. */
+export const CLUB_ID = DEFAULT_CLUB;
 
 export type Membership = {
   sub: string; status: string; person?: string; pid?: string; roles: string[]; email?: string; at?: string;
@@ -18,7 +20,10 @@ export class TeamAccess {
     public caller: Caller,
     public teamId: string,
     public member: Membership | null,
-    public clubAdmin: boolean
+    /** Admin of this team's club (or a site owner): full admin on every team in the club. */
+    public clubAdmin: boolean,
+    public clubId: string = DEFAULT_CLUB(),
+    public platformAdmin = false
   ) {}
 
   get roles(): Set<string> {
@@ -42,15 +47,33 @@ export class TeamAccess {
 }
 
 export async function loadAccess(caller: Caller, teamId: string): Promise<TeamAccess> {
+  const clubId = await clubOfTeam(teamId);
   const res = await ddb.send(new BatchGetCommand({
     RequestItems: {
-      [TABLE]: { Keys: [keys.member(teamId, caller.sub), keys.clubAdmin(CLUB_ID(), caller.sub)] }
+      [TABLE]: { Keys: [keys.member(teamId, caller.sub), keys.clubAdmin(clubId, caller.sub), keys.platformAdmin(caller.sub)] }
     }
   }));
   const items = res.Responses?.[TABLE] ?? [];
   const member = items.find((i) => String(i.SK).startsWith("MEMBER#")) as Membership | undefined;
-  const clubAdmin = items.some((i) => String(i.SK).startsWith("ADMIN#"));
-  const access = new TeamAccess(caller, teamId, member ?? null, clubAdmin);
+  const platformAdmin = items.some((i) => i.PK === "PLATFORM");
+  const clubAdmin = platformAdmin || items.some((i) => i.PK === `CLUB#${clubId}`);
+  const access = new TeamAccess(caller, teamId, member ?? null, clubAdmin, clubId, platformAdmin);
   if (!access.isMember) throw forbidden("You're not a member of this team.");
   return access;
+}
+
+/** Club admins (and site owners) manage a club's settings, admins and teams. */
+export async function loadClubAccess(caller: Caller, clubId: string): Promise<{ clubId: string; platformAdmin: boolean }> {
+  const res = await ddb.send(new BatchGetCommand({
+    RequestItems: { [TABLE]: { Keys: [keys.clubAdmin(clubId, caller.sub), keys.platformAdmin(caller.sub)] } }
+  }));
+  const items = res.Responses?.[TABLE] ?? [];
+  const platformAdmin = items.some((i) => i.PK === "PLATFORM");
+  if (!platformAdmin && !items.length) throw forbidden("Only this club's admins can do that.");
+  return { clubId, platformAdmin };
+}
+
+export async function isPlatformAdmin(sub: string): Promise<boolean> {
+  const res = await ddb.send(new BatchGetCommand({ RequestItems: { [TABLE]: { Keys: [keys.platformAdmin(sub)] } } }));
+  return !!res.Responses?.[TABLE]?.length;
 }

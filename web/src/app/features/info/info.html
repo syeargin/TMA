@@ -50,21 +50,25 @@
         <div class="card-h"><h3>Players’ jobs</h3></div>
         <div class="card-b small">
           <ul style="margin:0;padding-left:18px">
-            <li>Bring the ball bags and ball cart from A5 to tournaments and keep track of them overnight (rotation on each tournament page).</li>
+            <li>Bring the ball bags and ball cart from {{ clubShort() }} to tournaments and keep track of them overnight (rotation on each tournament page).</li>
             <li>Line judging, keeping the score book, flipping the score, and libero tracking (see <i>Ref jobs</i> on each tournament).</li>
-            <li>If balls or the cart have to be checked on a flight, A5 reimburses the fee. Keep the receipt.</li>
+            <li>If balls or the cart have to be checked on a flight, {{ clubShort() }} reimburses the fee. Keep the receipt.</li>
           </ul>
         </div>
       </section>
-      <section class="card">
-        <div class="card-h"><h3>Useful links</h3></div>
-        <div class="card-b small">
-          <div class="li"><a href="https://a5volleyball.sprocketsports.com/" target="_blank" rel="noopener">A5 registration &amp; player-parent contract ↗</a></div>
-          <div class="li"><a href="https://www.srva.org/" target="_blank" rel="noopener">SRVA / USAV membership ↗</a></div>
-          <div class="li"><a href="https://sportwrench.com/" target="_blank" rel="noopener">SportWrench tournament tickets ↗</a></div>
-          <div class="li"><a href="https://www.a5tournaments.com/club-tournaments" target="_blank" rel="noopener">A5 club tournaments ↗</a></div>
-        </div>
-      </section>
+      @if (store.club(); as club) {
+        @if (club.notes || club.links.length) {
+          <section class="card">
+            <div class="card-h"><h3>From {{ club.name }}</h3>@if (store.you().clubAdmin) { <a class="link small" [routerLink]="['/clubs', club.clubId]">Edit</a> }</div>
+            <div class="card-b small">
+              @if (club.notes) { <p class="club-notes">{{ club.notes }}</p> }
+              @for (l of club.links; track $index) {
+                <div class="li"><a [href]="l.url" target="_blank" rel="noopener">{{ l.label }} ↗</a></div>
+              }
+            </div>
+          </section>
+        }
+      }
     </div>
   </div>
 } @else {

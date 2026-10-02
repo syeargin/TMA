@@ -1,8 +1,9 @@
 import { TransactWriteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
 import { ddb, TABLE } from "../../lib/db.js";
+import { DEFAULT_CLUB, getClub, getClubs } from "../../lib/clubs.js";
 import { keys } from "../../lib/keys.js";
-import { CLUB_ID, loadAccess } from "../context.js";
+import { isPlatformAdmin, loadAccess, loadClubAccess } from "../context.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { checkId, clean, getItem, now, optStr, putItem, queryAll, str } from "../util.js";
@@ -34,6 +35,8 @@ const MAX_CANCELLED = 500;
 const handbookSchema = z.object({ sections: z.array(z.object({ t: str(200), b: str(10_000) })).max(60) });
 
 const createTeamSchema = z.object({
+  /** Left out: the default club. */
+  clubId: z.string().regex(/^[a-z0-9][a-z0-9-]{1,29}$/).optional(),
   teamId: z.string().regex(/^[a-z0-9][a-z0-9-]{1,39}$/, "lowercase letters, numbers and dashes"),
   name: str(100).min(1),
   season: optStr(20),
@@ -50,6 +53,7 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
   const out = {
     teamId: access.teamId,
     you: { sub: access.caller.sub, roles: [...access.roles], pid: access.member?.pid ?? "", person: access.member?.person ?? "", clubAdmin: access.clubAdmin },
+    clubId: access.clubId,
     settings: null as unknown, handbook: null as unknown,
     players: [] as Record<string, unknown>[], events: [] as unknown[], meals: [] as unknown[],
     refjobs: {} as Record<string, unknown>, agenda: {} as Record<string, unknown>,
@@ -67,6 +71,7 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     const c = clean(it)!;
     if (sk === "META#SETTINGS") out.settings = c;
     else if (sk === "META#HANDBOOK") out.handbook = c;
+    else if (sk.startsWith("META#")) continue;
     else if (sk.startsWith("PLAYER#") && sk.endsWith("#CONTACTS")) { if (showContacts) contacts[sk.slice(7, -9)] = c; }
     else if (sk.startsWith("PLAYER#")) out.players.push({ pid: sk.slice(7), ...c });
     else if (sk.startsWith("EVENT#")) {
@@ -100,20 +105,35 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
 }
 
 export function teamRoutes(r: Router) {
+  /** Teams in the clubs you run (every club for site owners), with your roles on each. */
   r.on("GET", "/teams", async ({ caller }) => {
-    const [dir, mine] = await Promise.all([
-      queryAll({ KeyConditionExpression: "PK = :c AND begins_with(SK, :t)", ExpressionAttributeValues: { ":c": `CLUB#${CLUB_ID()}`, ":t": "TEAM#" } }),
-      queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :u AND begins_with(GSI1SK, :t)", ExpressionAttributeValues: { ":u": `USER#${caller.sub}`, ":t": "TEAM#" } })
+    const [adminOf, mine, owner] = await Promise.all([
+      queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :u AND begins_with(GSI1SK, :c)", ExpressionAttributeValues: { ":u": `USER#${caller.sub}`, ":c": "CLUB#" } }),
+      queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :u AND begins_with(GSI1SK, :t)", ExpressionAttributeValues: { ":u": `USER#${caller.sub}`, ":t": "TEAM#" } }),
+      isPlatformAdmin(caller.sub)
     ]);
+    let clubIds = adminOf.map((a) => String(a.GSI1SK).slice(5));
+    if (await getItem(keys.clubAdmin(DEFAULT_CLUB(), caller.sub))) clubIds.push(DEFAULT_CLUB());
+    if (owner) clubIds = (await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": "CLUBS" } })).map((c) => String(c.SK).slice(5));
     const roles = new Map(mine.filter((m) => m.status === "active").map((m) => [String(m.GSI1SK).slice(5), m.roles]));
-    return json(200, {
-      teams: dir.map((t) => ({ teamId: String(t.SK).slice(5), ...clean(t), yourRoles: roles.get(String(t.SK).slice(5)) ?? [] }))
-    });
+    const teams: Record<string, unknown>[] = [];
+    for (const clubId of new Set(clubIds)) {
+      const dir = await queryAll({ KeyConditionExpression: "PK = :c AND begins_with(SK, :t)", ExpressionAttributeValues: { ":c": `CLUB#${clubId}`, ":t": "TEAM#" } });
+      teams.push(...dir.map((d) => ({ teamId: String(d.SK).slice(5), ...clean(d), clubId, yourRoles: roles.get(String(d.SK).slice(5)) ?? [] })));
+    }
+    return json(200, { teams });
   });
 
   r.on("POST", "/teams", async ({ caller, body }) => {
-    if (!(await getItem(keys.clubAdmin(CLUB_ID(), caller.sub)))) throw forbidden("Only club admins can create teams.");
     const b = parseBody(createTeamSchema, body);
+    const clubId = b.clubId ?? DEFAULT_CLUB();
+    await loadClubAccess(caller, clubId).catch(() => { throw forbidden("Only club admins can create teams."); });
+    if (!(await getClub(clubId))) throw notFound("That club doesn't exist.");
+    if (b.copyFrom) {
+      // Only copy from a team in a club you run.
+      const from = await loadAccess(caller, b.copyFrom).catch(() => null);
+      if (!from?.clubAdmin) throw forbidden("You can only copy from a team in a club you run.");
+    }
     let src: Record<string, unknown> = {};
     let hb: Record<string, unknown> = { sections: [] };
     if (b.copyFrom) {
@@ -136,22 +156,24 @@ export function teamRoutes(r: Router) {
     try {
       await ddb.send(new TransactWriteCommand({
         TransactItems: [
+          // Team ids are unique across every club: the team's own records are keyed by the id alone.
+          { Put: { TableName: TABLE, ConditionExpression: "attribute_not_exists(PK)", Item: { ...keys.teamClub(b.teamId), type: "TeamClub", clubId, at } } },
           { Put: { TableName: TABLE, ConditionExpression: "attribute_not_exists(PK)", Item: {
-            ...keys.teamDir(CLUB_ID(), b.teamId), type: "Team", name: b.name, season: b.season ?? "", age: b.age ?? "",
+            ...keys.teamDir(clubId, b.teamId), type: "Team", name: b.name, season: b.season ?? "", age: b.age ?? "",
             coaches: b.coaches.map((c) => c.name), archived: false, createdAt: at, createdBy: caller.sub } } },
-          { Put: { TableName: TABLE, Item: settings } },
+          { Put: { TableName: TABLE, ConditionExpression: "attribute_not_exists(PK)", Item: settings } },
           { Put: { TableName: TABLE, Item: { ...keys.handbook(b.teamId), type: "Handbook", sections: copy.has("handbook") ? (hb.sections ?? []) : [], updatedAt: at } } }
         ]
       }));
-    } catch (e) { mapDbError(e, "A team with that id already exists."); }
-    return json(201, { teamId: b.teamId });
+    } catch (e) { mapDbError(e, "A team with that id already exists. Team ids have to be unique across all clubs."); }
+    return json(201, { teamId: b.teamId, clubId });
   });
 
   r.on("GET", "/teams/{teamId}", async ({ caller, params }) => {
     const access = await loadAccess(caller, checkId(params.teamId, "team"));
     const items = await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `TEAM#${access.teamId}` } });
-    const dir = await getItem(keys.teamDir(CLUB_ID(), access.teamId));
-    return json(200, { ...bundle(items, access), team: clean(dir) ?? null });
+    const [dir, clubs] = await Promise.all([getItem(keys.teamDir(access.clubId, access.teamId)), getClubs([access.clubId])]);
+    return json(200, { ...bundle(items, access), team: clean(dir) ?? null, club: clubs.get(access.clubId) ?? null });
   });
 
   r.on("PUT", "/teams/{teamId}/settings", async ({ caller, params, body }) => {
@@ -163,7 +185,7 @@ export function teamRoutes(r: Router) {
     const practices = b.practices ?? (saved?.practices as unknown[] | undefined) ?? [];
     const cancelled = b.cancelled ?? (saved?.cancelled as unknown[] | undefined) ?? [];
     const budget = b.budget ?? (saved?.budget as Record<string, number> | undefined) ?? {};
-    const dir = (await getItem(keys.teamDir(CLUB_ID(), access.teamId))) ?? { ...keys.teamDir(CLUB_ID(), access.teamId), type: "Team", archived: false, createdAt: at };
+    const dir = (await getItem(keys.teamDir(access.clubId, access.teamId))) ?? { ...keys.teamDir(access.clubId, access.teamId), type: "Team", archived: false, createdAt: at };
     await ddb.send(new TransactWriteCommand({
       TransactItems: [
         { Put: { TableName: TABLE, Item: { ...keys.settings(access.teamId), type: "Settings", ...b, practices, cancelled, budget, updatedAt: at, updatedBy: caller.sub } } },

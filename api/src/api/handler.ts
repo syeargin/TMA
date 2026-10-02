@@ -7,6 +7,7 @@ import { contentRoutes } from "./routes/content.js";
 import { familyRoutes } from "./routes/family.js";
 import { moneyRoutes } from "./routes/money.js";
 import { peopleRoutes } from "./routes/people.js";
+import { clubRoutes } from "./routes/clubs.js";
 
 export const router = new Router();
 meRoutes(router);
@@ -15,6 +16,7 @@ contentRoutes(router);
 familyRoutes(router);
 moneyRoutes(router);
 peopleRoutes(router);
+clubRoutes(router);
 
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyStructuredResultV2> {
   const method = event.requestContext.http.method;
