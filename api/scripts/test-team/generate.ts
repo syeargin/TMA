@@ -13,12 +13,15 @@
  * Like convert.ts it replays everything through the real API against a scratch DynamoDB, then writes the
  * team's items to one file for scripts/load-team.py.
  *
- *   DYNAMODB_ENDPOINT=http://127.0.0.1:8000 npx vite-node scripts/test-team/generate.ts -- <exportDir> <out.json> [teamId] [clubId] [sourceTeamId]
+ *   DYNAMODB_ENDPOINT=http://127.0.0.1:8000 npx vite-node scripts/test-team/generate.ts -- <exportDir> <out.json> [teamId] [clubId] [teamName] [sourceTeamId]
+ *
+ * For a club other than A5, "A5" in the shared text becomes "Test". The club itself must already exist in the
+ * target environment (add it from Your teams → Add a club); this file only holds the team.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const [exportDir, outFile, teamId = "a5-13test", clubId = "a5", sourceTeam = "a5-13tom"] = process.argv.slice(2).filter((a) => a !== "--");
+const [exportDir, outFile, teamId = "a5-13test", clubId = "a5", teamName = "A5 13 Test", sourceTeam = "a5-13tom"] = process.argv.slice(2).filter((a) => a !== "--");
 if (!exportDir || !outFile) {
   console.error("usage: generate.ts <exportDir> <out.json> [teamId] [clubId] [sourceTeamId]");
   process.exit(1);
@@ -68,7 +71,9 @@ const RENAME: [RegExp, string][] = [
   [/Coach Tom/g, "Coach Morgan"], [/Coach Kate/g, "Coach Riley"],
   [/Nikki Schreiber/g, "Dana Cole"], [/Kate Vaughn/g, "Pat Lane"], [/Krista Miller/g, "Jo Park"],
   [/Ashley Savage/g, "Casey Reed"], [/Sam Yeargin/g, "Test Admin"],
-  [/\bRyker\b/g, "Ava"], [/\bHarper\b/g, "Mia"], [/\bTom\b/g, "Morgan"]
+  [/\bRyker\b/g, "Ava"], [/\bHarper\b/g, "Mia"], [/\bTom\b/g, "Morgan"],
+  // Outside A5, the club's own name and gym become test ones too.
+  ...(clubId === "a5" ? [] : [[/A5 Volleyball/g, "Test Club"], [/A5 Sportsplex/g, "Test Sportsplex"], [/\bA5\b/g, "Test"]] as [RegExp, string][])
 ];
 const scrub = <T>(v: T): T => {
   if (typeof v === "string") return RENAME.reduce((s, [re, to]) => s.replace(re, to), v) as T;
@@ -88,14 +93,16 @@ const T = `/teams/${teamId}`;
 
 await freshTable();
 await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.clubAdmin(clubId, ADMIN), type: "ClubAdmin" } }));
+// The club has to exist for POST /teams; in the target environment it is created in the app, so it stays out of the file.
+if (clubId !== "a5") await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.club(clubId), type: "Club", clubId, name: "Test Club", short: "Test" } }));
 
 // ---------- team and settings ----------
 const s = scrub(src("meta").find(([id]) => id === "settings")?.[1] ?? {});
 const season = String(s.season ?? "2026-27").replace(/–/g, "-");
-await call("POST", "/teams", { clubId, teamId, name: "A5 13 Test", season, age: "13U", copy: [] });
+await call("POST", "/teams", { clubId, teamId, name: teamName, season, age: "13U", copy: [] });
 const practices = (s.practices ?? []).map((p: Doc) => compact({ id: p.id, label: p.label, dow: p.dow, start: p.start, end: p.end, from: p.from, until: p.until, location: p.location, note: p.note }));
 await call("PUT", `${T}/settings`, compact({
-  teamName: "A5 13 Test", season, age: "13U",
+  teamName, season, age: "13U",
   coaches: [{ name: "Coach Morgan", phone: tel() }, { name: "Coach Riley", phone: tel() }],
   teamCode: "TEST13CODE",
   dues: { amountCents: 40000, due: s.dues?.due ?? addDays(today, 30), label: "Initial team fund deposit" },

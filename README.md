@@ -214,11 +214,12 @@ The items file holds families' names, phone numbers and emails. Don't commit it.
 
 ### A test team with made-up people
 
-`api/scripts/test-team/generate.ts` builds a test team (`a5-13test`, "A5 13 Test") shaped like a real one: it takes the real team's schedule, practices, handbook and checklists from a hub export and invents every person (players, parents, phones, `@example.com` emails, allergies, sizes, travel, staff). Real names in shared text are replaced, and the run fails if any real player, parent or staff name, phone or email is left. It also fills in data for every feature: availability answers, travel plans, uniform sizes, ref jobs, claimed meals, a cancelled practice, a repeating event with a cancelled date, one-off events that form a pattern (for "Combine into series"), a team fund ledger and three pending payments.
+`api/scripts/test-team/generate.ts` builds a test team shaped like a real one (by default `a5-13test` in A5; pass a team id, club id and name to put it elsewhere, such as `test-13` in the Test Club): it takes the real team's schedule, practices, handbook and checklists from a hub export and invents every person (players, parents, phones, `@example.com` emails, allergies, sizes, travel, staff). Real names in shared text are replaced, and the run fails if any real player, parent or staff name, phone or email is left. It also fills in data for every feature: availability answers, travel plans, uniform sizes, ref jobs, claimed meals, a cancelled practice, a repeating event with a cancelled date, one-off events that form a pattern (for "Combine into series"), a team fund ledger and three pending payments.
 
 ```bash
-cd api && DYNAMODB_ENDPOINT=http://127.0.0.1:8000 npx vite-node scripts/test-team/generate.ts -- <exportDir> a5-13test-items.json
-python3 scripts/load-team.py dev a5-13test-items.json --yes   # from CloudShell
+# Test 13 in the Test Club (club id "test"; add the club in the app first)
+cd api && DYNAMODB_ENDPOINT=http://127.0.0.1:8000 npx vite-node scripts/test-team/generate.ts -- <exportDir> test-13-items.json test-13 test "Test 13"
+python3 scripts/load-team.py dev test-13-items.json --yes   # from CloudShell
 ```
 
 Dates for answers, the series and payments are set relative to the day you run it, so regenerate it when the test data gets stale.
