@@ -212,6 +212,17 @@ The site imports the API's role table directly (`@shared/permissions` → `api/s
 
 The items file holds families' names, phone numbers and emails. Don't commit it.
 
+### A test team with made-up people
+
+`api/scripts/test-team/generate.ts` builds a test team (`a5-13test`, "A5 13 Test") shaped like a real one: it takes the real team's schedule, practices, handbook and checklists from a hub export and invents every person (players, parents, phones, `@example.com` emails, allergies, sizes, travel, staff). Real names in shared text are replaced, and the run fails if any real player, parent or staff name, phone or email is left. It also fills in data for every feature: availability answers, travel plans, uniform sizes, ref jobs, claimed meals, a cancelled practice, a repeating event with a cancelled date, one-off events that form a pattern (for "Combine into series"), a team fund ledger and three pending payments.
+
+```bash
+cd api && DYNAMODB_ENDPOINT=http://127.0.0.1:8000 npx vite-node scripts/test-team/generate.ts -- <exportDir> a5-13test-items.json
+python3 scripts/load-team.py dev a5-13test-items.json --yes   # from CloudShell
+```
+
+Dates for answers, the series and payments are set relative to the day you run it, so regenerate it when the test data gets stale.
+
 ## Local development
 
 Node 24 is required (Angular 22 needs 22.22.3+ or 24).
