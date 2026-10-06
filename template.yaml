@@ -367,6 +367,8 @@ Resources:
       CodeUri: api/
       Handler: handler.handler
       MemorySize: 512
+      # Spreadsheet previews read every team in a club; the HTTP API itself stops waiting at 30 seconds.
+      Timeout: 29
       Environment:
         Variables:
           CLUB_ID: !Ref ClubId

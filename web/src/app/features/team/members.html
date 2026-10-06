@@ -90,3 +90,6 @@
     </section>
   </div>
 </div>
+@if (store.you().clubAdmin && !store.archived()) {
+  <div class="import-row"><th-import-panel [teamId]="store.teamId()" (imported)="afterImport($event)" /></div>
+}

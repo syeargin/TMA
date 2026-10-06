@@ -188,6 +188,7 @@
         </section>
       </div>
     </div>
+    <div class="import-row"><th-import-panel [clubId]="d.club.clubId" (imported)="afterImport($event)" /></div>
   } @else if (!loadError()) {
     <div class="card card-b" style="padding:20px"><div class="label">Loading club</div>
       @for (i of [1, 2, 3, 4]; track i) { <div class="skel"></div> }

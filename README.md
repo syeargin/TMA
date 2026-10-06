@@ -195,6 +195,38 @@ The site imports the API's role table directly (`@shared/permissions` → `api/s
 - **Club admins** open their club from **Your teams**. There they set the club name, short name and colors, the notes and links every team sees on Team Info, create teams, and add or remove other club admins. They act as team admin on every team in their club, and nowhere else.
 - **Colors:** a club picks a main color and an accent. The site derives the full set of light- and dark-mode colors from those two, darkening (or lightening in dark mode) only as far as needed to keep text readable (WCAG AA). The club page previews the colors on the whole page while choosing. Families see their club's colors on their team's pages; people in several clubs see the standard colors on **Your teams**.
 
+## Setting up clubs and teams from a spreadsheet
+
+Club admins and site owners can set up a whole club or one team from a workbook. The templates are in `web/public/templates/`, and the site serves them at `/templates/…`. They're built by `docs/templates/build-templates.py`.
+
+- **Club setup** (`Club-Setup-Template.xlsx`), uploaded on the club page. Its tabs:
+  - **Club**, **Club links** and **Club admins**: the club's settings.
+  - **Teams**: every team, with its Team ID, name, program, age group, season and dues. A team can copy its setup from another team.
+  - **Staff** and **Rosters**: one row per person or player, by Team ID.
+  - **Practice patterns** and **Shared schedule**: each row applies to a team, a list of teams, or a group like `13U National`, `All Regional` or `All`.
+  - **Defaults**: the starting handbook and lists for teams the import creates.
+- **Team setup** (`Team-Setup-Template.xlsx`) covers one team: Team, Staff, Roster, Practices, Schedule and Lists. Where to upload it:
+  - On the team's **Members** page, for that team.
+  - On the club page with a Team ID, which creates the team or updates it.
+
+How it works:
+- The browser reads the .xlsx (`read-excel-file`, loaded only on that page) and sends plain rows to the API. Dates go as `YYYY-MM-DD` and times as `6:30 PM`.
+  - The API endpoints are `POST /clubs/{c}/import` and `POST /teams/{t}/import`.
+  - The parser is `api/src/lib/import/parse.ts`; the code that writes to the database is `api/src/lib/import/apply.ts`.
+- The API checks everything and returns a **preview**: what each team gets, and every problem by tab and row. Nothing is saved while there are errors.
+- The upload is saved in parts so a large club stays within the API's time limit: the club first, then one team per request. The page shows progress as it goes.
+- **Uploading again updates instead of duplicating.** Records are matched like this:
+  - teams on Team ID
+  - players on jersey, then name
+  - events on type, date and title
+  - practices on name, so cancelled dates stay attached
+  - people on email
+- Blank cells keep what's saved, and nothing is removed. Players, events and people not in the workbook stay, and so does everything families entered.
+- Staff and parents are added as invites with the right roles, and parents are linked to their player. People get access when they sign in or create an account with that email; no email is sent.
+- Archived teams can't be imported into. A Team ID another club uses is an error.
+
+Tests: `api/test/import/`. The sample workbooks there are made by `make-samples.py`, then read the way the browser reads them by `to-json.mjs`.
+
 ## Importing a team from the claude.ai hub
 
 1. Export the hub's database for the team as JSON files (`teams/<t>.json` and `teams/<t>/<collection>/<doc>.json`).

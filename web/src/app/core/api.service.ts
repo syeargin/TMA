@@ -5,7 +5,8 @@ import type { Role } from '@shared/permissions';
 import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
 import type { Repeat } from './series';
-import type { Agenda, Club, ClubDetail, ClubTeam, Handbook, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, Practice, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
+import type { Sheets } from './xlsx';
+import type { Agenda, Club, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, Practice, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
   constructor(readonly status: number, body?: { message?: string; error?: string } | null) {
@@ -54,6 +55,11 @@ export class ApiService {
   setMyName(firstName: string, lastName: string) { return this.call('PUT', '/me', { firstName, lastName }); }
   clubTeams() { return this.call<{ teams: ClubTeam[] }>('GET', '/teams'); }
   createTeam(t: { clubId?: string; teamId: string; name: string; season?: string; age?: string }) { return this.call('POST', '/teams', t); }
+  /** Spreadsheet import. Without apply: a preview. Club imports save in parts: 'club', then each team id. */
+  importTeam(teamId: string, sheets: Sheets, apply = false) { return this.call<ImportResult>('POST', `/teams/${enc(teamId)}/import`, { sheets, apply }); }
+  importClub(clubId: string, sheets: Sheets, apply: false | string = false, teamId?: string) {
+    return this.call<ImportResult>('POST', `/clubs/${enc(clubId)}/import`, { sheets, apply, ...(teamId ? { teamId } : {}) });
+  }
   /** Site owners: archive (read-only, out of families' lists) or restore a team. */
   setArchived(teamId: string, archived: boolean) { return this.call<{ archived: boolean }>('POST', `/teams/${enc(teamId)}/${archived ? 'archive' : 'restore'}`); }
   /** Site owners: delete a team and all its data. `confirm` must repeat the team id. */

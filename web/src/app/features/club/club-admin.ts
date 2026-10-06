@@ -9,6 +9,7 @@ import { MeService, fullName } from '../../core/me.service';
 import type { ClubDetail, ClubLink, ClubTeam } from '../../core/models';
 import { DEFAULT_COLORS, colorAdvice, isHex } from '../../core/theme';
 import { ThemeService } from '../../core/theme.service';
+import { ImportPanel } from '../../shared/import-panel';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
 
@@ -28,7 +29,7 @@ const PRESETS: { name: string; primary: string; accent: string }[] = [
 /** /clubs/:clubId — a club admin's page: name and colors, Team Info links, teams, and admins. */
 @Component({
   selector: 'th-club-admin',
-  imports: [ReactiveFormsModule, RouterLink, Messages, DatePipe],
+  imports: [ReactiveFormsModule, RouterLink, Messages, DatePipe, ImportPanel],
   templateUrl: './club-admin.html'
 })
 export class ClubAdminPage extends Page {
@@ -146,6 +147,18 @@ export class ClubAdminPage extends Page {
       await this.api.createTeam({ clubId: this.clubId(), teamId, name: v.name.trim(), season: v.season.trim() || undefined, age: v.age.trim() || undefined });
       return this.go(`/teams/${encodeURIComponent(teamId)}`, { notice: 'Team created.' });
     });
+  }
+
+  /** After a spreadsheet import: the club's settings and team list may both have changed. */
+  async afterImport(message: string) {
+    this.notice.set(message);
+    try {
+      const d = await this.api.club(this.clubId());
+      this.detail.set(d);
+      if (!this.form.dirty) this.fill(d);
+      void this.meSvc.load(true).catch(() => {});
+    } catch (err) { this.error.set((err as Error).message); }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   manage(teamId: string) {
