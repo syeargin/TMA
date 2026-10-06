@@ -15,6 +15,25 @@ export interface Me {
   acceptedInvites?: number;
 }
 export interface ClubTeam { teamId: string; name: string; season?: string; age?: string; clubId?: string; archived?: boolean; archivedAt?: string }
+/** POST …/import: a preview (applied false) or the result of saving one part. */
+export interface ImportProblem { sheet: string; row?: number; message: string; level: 'error' | 'warning' }
+export interface ImportTeamSummary {
+  teamId: string; name: string; status: 'new' | 'update';
+  players: { add: number; update: number; kept: number };
+  events: { add: number; update: number };
+  practices: number | null;
+  invites: { staff: number; parents: number; alreadyOnTeam: number };
+  lists: string[];
+  copiedFrom?: string;
+}
+export interface ImportResult {
+  kind?: 'team' | 'club';
+  applied: false | string | boolean;
+  club?: { changes: string[]; admins: { invite: number; already: number } } | null;
+  teams?: ImportTeamSummary[];
+  order?: string[];
+  problems: ImportProblem[];
+}
 export interface ClubAdmin { sub: string; email: string; firstName?: string; lastName?: string }
 export interface ClubDetail { club: Club; teams: ClubTeam[]; admins: ClubAdmin[]; invites: { email: string; firstName?: string; lastName?: string }[] }
 export interface Member { sub?: string; email?: string; firstName?: string; lastName?: string; person?: string; roles: Role[]; pid?: string; status?: string }

@@ -1,0 +1,107 @@
+<section class="card import">
+  <div class="card-h"><h2>Import from a spreadsheet</h2></div>
+  <div class="card-b">
+    <p class="small muted">
+      @if (teamId()) {
+        Fill in the Team setup workbook for this team, then upload it.
+      } @else {
+        Set up the whole club, or one team, from a workbook.
+      }
+      You'll see a preview first; nothing is saved until you confirm. Uploading again updates what's there instead of adding duplicates.
+    </p>
+    <p class="small templates">
+      <span class="label">Templates</span>
+      @if (!teamId()) { <a href="/templates/Club-Setup-Template.xlsx" download>Club setup</a> <span class="muted">(every team)</span> · }
+      <a href="/templates/Team-Setup-Template.xlsx" download>Team setup</a> <span class="muted">(one team)</span>
+    </p>
+
+    @if (!preview() && !needsTeamId()) {
+      <label class="file-pick" [class.busy]="busy()">
+        <span class="btn sm">{{ busy() ? 'Reading…' : 'Choose a workbook' }}</span>
+        <span class="small muted">{{ fileName() || '.xlsx from Excel, Numbers or Google Sheets' }}</span>
+        <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" (change)="pick($event)" [disabled]="busy()">
+      </label>
+    }
+
+    @if (error()) { <p class="msg error" role="alert">{{ error() }}</p> }
+
+    @if (needsTeamId() && !preview()) {
+      <div class="ask-id">
+        <p class="small"><b>{{ fileName() }}</b> is a Team setup workbook. Which team is it for? Use a new Team ID to create the team, or an existing one in this club to update it.</p>
+        <label for="impTeamId">Team ID
+          <input id="impTeamId" [value]="newTeamId()" (input)="newTeamId.set($any($event.target).value.trim().toLowerCase())" placeholder="{{ clubId() }}-15-open" autocomplete="off" spellcheck="false">
+          <span class="hint">Lowercase letters, numbers and dashes. It becomes part of the team's web address.</span>
+        </label>
+        <div class="row">
+          <button class="btn primary sm" type="button" (click)="runPreview()" [disabled]="busy()">{{ busy() ? 'Checking…' : 'Preview' }}</button>
+          <button class="btn ghost sm" type="button" (click)="reset()">Choose another file</button>
+        </div>
+      </div>
+    }
+
+    @if (preview(); as p) {
+      <div class="preview-imp" aria-live="polite">
+        <p class="small"><b>{{ fileName() }}</b> · preview</p>
+
+        @if (errors().length) {
+          <div class="problems bad">
+            <h3>Fix {{ plural(errors().length, 'problem') }} in the workbook first</h3>
+            <ul>@for (x of errors(); track $index) { <li><b>{{ where(x) }}:</b> {{ x.message }}</li> }</ul>
+            <p class="small muted">Correct these in the workbook, save it, and choose it again.</p>
+          </div>
+        }
+
+        @if (p.club; as c) {
+          <h3 class="sub-h">Club</h3>
+          <ul class="small plain">
+            @for (ch of c.changes; track ch) { <li>{{ ch }}</li> } @empty { <li class="muted">No changes to the club's settings.</li> }
+            @if (c.admins.invite) { <li>{{ plural(c.admins.invite, 'club admin') }} invited</li> }
+            @if (c.admins.already) { <li class="muted">{{ plural(c.admins.already, 'admin') }} already run the club</li> }
+          </ul>
+        }
+
+        @if (p.teams?.length) {
+          <h3 class="sub-h">{{ plural(p.teams!.length, 'team') }}</h3>
+          <div class="table-wrap">
+            <table class="imp-table">
+              <thead><tr><th scope="col">Team</th><th scope="col">Players</th><th scope="col">Schedule</th><th scope="col">Practices</th><th scope="col">Invites</th></tr></thead>
+              <tbody>
+                @for (t of p.teams; track t.teamId) {
+                  <tr>
+                    <th scope="row"><b>{{ t.name }}</b> <span class="pill" [class.p-ok]="t.status === 'new'" [class.p-mute]="t.status === 'update'">{{ t.status === 'new' ? 'New' : 'Update' }}</span>
+                      <div class="small muted">{{ t.teamId }}@if (t.copiedFrom) { · copies {{ t.copiedFrom }}}</div></th>
+                    <td>{{ playersText(t) }}@if (t.players.kept) { <div class="small muted">{{ t.players.kept }} not in the file, kept</div> }</td>
+                    <td>{{ eventsText(t) }}</td>
+                    <td>{{ t.practices ?? '—' }}</td>
+                    <td>{{ invitesText(t) }}@if (t.invites.alreadyOnTeam) { <div class="small muted">{{ t.invites.alreadyOnTeam }} already on the team</div> }</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        @if (warnings().length) {
+          <details class="problems warn" [open]="warnings().length <= 5">
+            <summary>{{ plural(warnings().length, 'thing') }} to check (these won't stop the import)</summary>
+            <ul>@for (x of warnings(); track $index) { <li><b>{{ where(x) }}:</b> {{ x.message }}</li> }</ul>
+          </details>
+        }
+
+        <p class="small muted">Nothing already on a team is removed. Invited people get their roles when they sign in or create an account with that email; Team Hub doesn't email them yet, so let them know.</p>
+
+        @if (progress(); as pr) {
+          <div class="progress" role="progressbar" [attr.aria-valuenow]="pr.done" aria-valuemin="0" [attr.aria-valuemax]="pr.total" [attr.aria-label]="pr.label">
+            <div class="bar"><span [style.width.%]="(pr.done / pr.total) * 100"></span></div>
+            <span class="small">{{ pr.label }} ({{ pr.done }} of {{ pr.total }})</span>
+          </div>
+        }
+
+        <div class="row">
+          <button class="btn primary" type="button" (click)="apply()" [disabled]="!canImport()">{{ busy() && progress() ? 'Importing…' : importLabel() }}</button>
+          <button class="btn ghost" type="button" (click)="reset()" [disabled]="busy() && !!progress()">Choose another file</button>
+        </div>
+      </div>
+    }
+  </div>
+</section>

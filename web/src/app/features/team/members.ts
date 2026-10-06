@@ -6,6 +6,7 @@ import { ApiService } from '../../core/api.service';
 import { MeService, fullName } from '../../core/me.service';
 import type { Invite, Member } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
+import { ImportPanel } from '../../shared/import-panel';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
 import { RoleChecks, pickedRoles, roleChecks, roleLabel, roleList } from '../../shared/roles';
@@ -15,7 +16,7 @@ type MemberForm = FormGroup<{ roles: RoleChecks; pid: FormControl<string>; first
 /** Team admins: who's on the team, their roles and family, and pending invites. */
 @Component({
   selector: 'th-members',
-  imports: [ReactiveFormsModule, Messages],
+  imports: [ReactiveFormsModule, Messages, ImportPanel],
   templateUrl: './members.html'
 })
 export class Members extends Page {
@@ -69,6 +70,12 @@ export class Members extends Page {
     await this.loadInvites();
     this.inviteForm.reset({ firstName: '', lastName: '', email: '', roles: Object.fromEntries(ROLES.map((r) => [r, r === 'parent'])), pid: '' });
     this.confirming.set(null);
+  }
+
+  async afterImport(message: string) {
+    await this.reload();
+    this.notice.set(message);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   sendInvite() {

@@ -148,6 +148,38 @@ main.narrow{max-width:480px}
 .btn.danger.solid{background:var(--bad);color:#fff;border-color:var(--bad)}
 .btn.danger.solid:disabled{opacity:.45;cursor:not-allowed}
 .banner.archived{background:var(--sunken);border-color:var(--line)}
+/* Spreadsheet import panel (club page and team Members page). */
+.import .templates{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;margin:10px 0 12px}
+.import .templates .label{margin-right:4px}
+.file-pick{display:flex;flex-direction:row;justify-content:flex-start;gap:12px;align-items:center;flex-wrap:wrap;cursor:pointer;position:relative;font-weight:400;text-align:left}
+.file-pick .small{font-weight:400}
+.file-pick input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.file-pick:focus-within .btn{outline:2px solid var(--navy);outline-offset:2px}
+.file-pick.busy{opacity:.7;cursor:progress}
+.import .ask-id,.import .preview-imp{margin-top:12px}
+.import .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.problems{border-radius:var(--r);padding:10px 14px;margin:10px 0}
+.problems h3,.problems summary{font-size:14px;font-weight:700}
+.problems summary{cursor:pointer}
+.problems ul{margin:8px 0 4px 18px;font-size:13.5px;max-height:320px;overflow:auto}
+.problems li{margin:3px 0}
+.problems.bad{background:var(--bad-soft);color:var(--bad)}
+.problems.bad li,.problems.bad p{color:var(--ink)}
+.problems.warn{background:var(--warn-soft)}
+.problems.warn summary{color:var(--warn)}
+.import ul.plain{list-style:none;margin:0;padding:0}
+.import ul.plain li{padding:2px 0}
+.table-wrap{overflow-x:auto;margin:6px 0 10px}
+.imp-table th,.imp-table td{text-align:left;vertical-align:top;padding:8px 10px 8px 0;border-top:1px solid var(--line-2);font-weight:400}
+.imp-table thead th{font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.06em;font-size:12px;color:var(--ink-3);border-top:0}
+.imp-table tbody th{min-width:170px;background:none;text-transform:none;letter-spacing:normal;font-family:var(--f-body);font-size:14px;color:var(--ink)}
+.imp-table tbody th b{color:var(--ink)}
+.imp-table th,.imp-table td{border-bottom:0}
+.imp-table tbody tr:last-child>*{border-bottom:1px solid var(--line-2)}
+.import-row{margin-top:18px}
+.progress{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.progress .bar{height:8px;border-radius:99px;background:var(--sunken);overflow:hidden}
+.progress .bar span{display:block;height:100%;background:var(--navy);transition:width .3s}
 .archived-teams{margin-top:16px}
 .archived-teams .list{margin-top:8px}
 .role{display:inline-flex;align-items:center;border-radius:6px;padding:2px 8px;font-family:var(--f-cond);font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:12.5px;white-space:nowrap}
