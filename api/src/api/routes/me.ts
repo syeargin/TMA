@@ -1,4 +1,4 @@
-import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { BatchGetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
 import { ddb, TABLE } from "../../lib/db.js";
 import { emailSet, keys } from "../../lib/keys.js";
@@ -8,7 +8,22 @@ import { json, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { clean, getItem, now, putItem, queryAll, str } from "../util.js";
 
-const nameSchema = z.object({ firstName: str(60).min(1, "Enter your first name."), lastName: str(60) });
+/** Which of these teams are archived (from their entries in the club team lists). */
+async function archivedTeams(teamClub: Map<string, string>): Promise<Set<string>> {
+  const out = new Set<string>();
+  const all = [...teamClub].map(([t, c]) => keys.teamDir(c, t));
+  for (let i = 0; i < all.length; i += 100) {
+    let Keys: Record<string, unknown>[] = all.slice(i, i + 100);
+    for (let attempt = 0; Keys.length && attempt < 5; attempt++) {
+      const res = await ddb.send(new BatchGetCommand({ RequestItems: { [TABLE]: { Keys, ProjectionExpression: "SK, archived" } } }));
+      for (const d of res.Responses?.[TABLE] ?? []) if (d.archived) out.add(String(d.SK).slice(5));
+      Keys = (res.UnprocessedKeys?.[TABLE]?.Keys ?? []) as Record<string, unknown>[];
+    }
+  }
+  return out;
+}
+
+const nameSchema =z.object({ firstName: str(60).min(1, "Enter your first name."), lastName: str(60) });
 
 export function meRoutes(r: Router) {
   /** Who am I, which teams am I on, with what roles. Also accepts any invites waiting for my email. */
@@ -55,7 +70,7 @@ export function meRoutes(r: Router) {
 
     const active = memberships.filter((m) => m.status === "active");
     const teamClub = await clubsOfTeams(active.map((m) => String(m.GSI1SK).slice(5)));
-    const clubs = await getClubs([...adminClubs, ...teamClub.values()]);
+    const [clubs, archived] = await Promise.all([getClubs([...adminClubs, ...teamClub.values()]), archivedTeams(teamClub)]);
 
     // No name of their own yet: use one an admin set on a team, and keep it on the profile from now on.
     if (!name.firstName) {
@@ -83,7 +98,7 @@ export function meRoutes(r: Router) {
       clubs: [...clubs.values()].map((c) => ({ ...c, admin: platformAdmin || adminClubs.has(c.clubId) })),
       teams: active.map((m) => {
         const teamId = String(m.GSI1SK).slice(5);
-        return { teamId, ...clean(m), clubId: teamClub.get(teamId) };
+        return { teamId, ...clean(m), clubId: teamClub.get(teamId), ...(archived.has(teamId) ? { archived: true } : {}) };
       })
     });
   });

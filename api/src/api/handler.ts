@@ -8,6 +8,8 @@ import { familyRoutes } from "./routes/family.js";
 import { moneyRoutes } from "./routes/money.js";
 import { peopleRoutes } from "./routes/people.js";
 import { clubRoutes } from "./routes/clubs.js";
+import { assertTeamWritable } from "./context.js";
+import { ID } from "./util.js";
 
 export const router = new Router();
 meRoutes(router);
@@ -30,6 +32,9 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
     const m = router.match(method, path);
     if (m === null) throw new HttpError(404, "Not found.", "not_found");
     if (m === "method") throw new HttpError(405, "Method not allowed.", "method_not_allowed");
+    // Nothing on an archived team changes, except archiving itself.
+    const team = method !== "GET" ? /^\/teams\/[^/]+\/([^/]+)/.exec(path) : null;
+    if (team && team[1] !== "archive" && team[1] !== "restore" && ID.test(m.params.teamId ?? "")) await assertTeamWritable(m.params.teamId);
     const res = await m.handler({
       method, path, params: m.params,
       body: event.isBase64Encoded && event.body ? Buffer.from(event.body, "base64").toString("utf8") : event.body ?? null,

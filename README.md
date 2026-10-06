@@ -224,6 +224,22 @@ python3 scripts/load-team.py dev test-13-items.json --yes   # from CloudShell
 
 Dates for answers, the series and payments are set relative to the day you run it, so regenerate it when the test data gets stale.
 
+### Archiving and removing a team
+
+Site owners do both from the club page: open the club, then **Manage** next to the team.
+
+- **Archive** (when a season is over): the team and its data stay, but nothing on it can change. That covers every write under `/teams/{t}/`, by anyone, including site owners. Families find it under **Archived teams** on their home page. **Restore** undoes it. API: `POST /teams/{t}/archive`, `POST /teams/{t}/restore`.
+- **Delete**: removes the team and everything stored for it. You confirm by typing the team id (the API takes `DELETE /teams/{t}` with `{"confirm": "<t>"}`). It deletes the same records as the script below. Live connections are left to expire, so anyone with the team open is told they've lost access.
+
+The script does the same delete from CloudShell, for when the app isn't available. Without `--yes` it only lists what it would delete:
+
+```bash
+python3 scripts/delete-team.py dev jvc13e
+python3 scripts/delete-team.py dev jvc13e --yes
+```
+
+It deletes the team's whole partition (settings, handbook, roster and contacts, schedule with ref jobs, agendas and meals, families, payments, ledger, announcements, tasks, memberships), its entry in the club's team list, any invites still waiting for the team, and its live-update connections. It leaves alone other teams, the club, and people's accounts and profiles, since people can be on other teams. Point-in-time recovery keeps the deleted records for up to 35 days.
+
 ## Local development
 
 Node 24 is required (Angular 22 needs 22.22.3+ or 24).
@@ -237,6 +253,8 @@ sam validate --lint && sam build          # check and build the stack
 ```
 
 To run the site locally against dev, copy the dev site's `/config.json` into `web/public/config.json` (don't commit it; the committed copy only says `{"env":"local"}`). The dev API accepts calls from `http://localhost:4200`.
+
+To try the site with no AWS at all, build it (`cd web && npx ng build`), start DynamoDB Local or moto on port 8000, and run `cd api && npx vite-node scripts/preview-server.ts`. That serves the site and the real API code on http://127.0.0.1:4300, with a seeded site owner, a Test Club and three teams (one archived). It has no real sign-in: the browser needs a stored Cognito token whose `sub` is `u-owner` (site owner) or `u-mom` (a parent), and the server doesn't check the token's signature. Use it for screenshots and local checks only.
 
 ## Notes
 

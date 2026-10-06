@@ -16,6 +16,9 @@ import { ToastService } from './toast.service';
  * exactly as long as someone is on a team page. Live notices refresh it; the refresh is held while
  * someone is typing or has a pop-up form open, and the header offers "New changes · Show".
  */
+/** Permissions that only let you see things; everything else changes something. */
+const VIEW_ONLY = new Set<Permission>(['contacts', 'fundView']);
+
 @Injectable()
 export class TeamStore implements OnDestroy {
   private readonly api = inject(ApiService);
@@ -70,7 +73,12 @@ export class TeamStore implements OnDestroy {
     this.subs.add(this.live.denied.subscribe((id) => { if (id === this.teamId()) this.lost.next(id); }));
   }
 
-  can(perm: Permission): boolean { return roleCan(this.you().roles, perm); }
+  /** Archived teams are read-only: everyone keeps what they could see, nobody can change anything. */
+  readonly archived = computed(() => !!this.bundle()?.team?.archived);
+  can(perm: Permission): boolean {
+    if (this.archived() && !VIEW_ONLY.has(perm)) return false;
+    return roleCan(this.you().roles, perm);
+  }
   playerName(pid: string | undefined): string {
     const p = this.players().find((x) => x.pid === pid);
     return p ? p.first : '';

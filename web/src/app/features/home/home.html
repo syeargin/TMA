@@ -22,6 +22,7 @@
     </section>
   }
   @if (me.teams.length) {
+    @if (!groups().length) { <p class="muted">All your teams are archived.</p> }
     @for (g of groups(); track g.club?.clubId ?? '-') {
       @if (showClubNames()) {
         <h3 class="club-h"><span class="swatch" aria-hidden="true" [style.background]="g.club?.colors?.primary" [style.border-color]="g.club?.colors?.accent"></span>{{ g.club?.name || 'Other teams' }}</h3>
@@ -36,6 +37,21 @@
           </li>
         }
       </ul>
+    }
+    @if (archivedTeams().length) {
+      <details class="archived-teams" [open]="!groups().length">
+        <summary class="link">Archived teams ({{ archivedTeams().length }})</summary>
+        <ul class="list">
+          @for (t of archivedTeams(); track t.teamId) {
+            <li>
+              <a class="rowbtn" [routerLink]="['/teams', t.teamId]">
+                <b>{{ t.name || t.teamId }}</b>
+                <span>Read-only</span>
+              </a>
+            </li>
+          }
+        </ul>
+      </details>
     }
   } @else {
     <p class="muted">

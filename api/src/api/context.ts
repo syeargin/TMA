@@ -3,7 +3,8 @@ import { ddb, TABLE } from "../lib/db.js";
 import { clubOfTeam, DEFAULT_CLUB } from "../lib/clubs.js";
 import { keys } from "../lib/keys.js";
 import { can, type Permission } from "../shared/permissions.js";
-import { forbidden } from "./http.js";
+import { conflict, forbidden } from "./http.js";
+import { getItem } from "./util.js";
 
 /** The default club (teams made before clubs existed). Most code should use access.clubId instead. */
 export const CLUB_ID = DEFAULT_CLUB;
@@ -71,6 +72,12 @@ export async function loadClubAccess(caller: Caller, clubId: string): Promise<{ 
   const platformAdmin = items.some((i) => i.PK === "PLATFORM");
   if (!platformAdmin && !items.length) throw forbidden("Only this club's admins can do that.");
   return { clubId, platformAdmin };
+}
+
+/** Archived teams are read-only for everyone until a site owner restores them. */
+export async function assertTeamWritable(teamId: string) {
+  const dir = await getItem(keys.teamDir(await clubOfTeam(teamId), teamId));
+  if (dir?.archived) throw conflict("This team is archived, so it's read-only. A site owner can restore it.");
 }
 
 export async function isPlatformAdmin(sub: string): Promise<boolean> {

@@ -1,6 +1,6 @@
 import type { Role } from '@shared/permissions';
 
-export interface MyTeam { teamId: string; name?: string; roles: Role[]; pid?: string; clubId?: string }
+export interface MyTeam { teamId: string; name?: string; roles: Role[]; pid?: string; clubId?: string; archived?: boolean }
 export interface ClubLink { label: string; url: string }
 export interface Club { clubId: string; name: string; short: string; colors: { primary: string; accent: string }; links: ClubLink[]; notes: string }
 /** A club you're in through a team (admin: false) or run (admin: true). */
@@ -14,7 +14,7 @@ export interface Me {
   clubs?: MyClub[];
   acceptedInvites?: number;
 }
-export interface ClubTeam { teamId: string; name: string; season?: string; age?: string; clubId?: string; archived?: boolean }
+export interface ClubTeam { teamId: string; name: string; season?: string; age?: string; clubId?: string; archived?: boolean; archivedAt?: string }
 export interface ClubAdmin { sub: string; email: string; firstName?: string; lastName?: string }
 export interface ClubDetail { club: Club; teams: ClubTeam[]; admins: ClubAdmin[]; invites: { email: string; firstName?: string; lastName?: string }[] }
 export interface Member { sub?: string; email?: string; firstName?: string; lastName?: string; person?: string; roles: Role[]; pid?: string; status?: string }
@@ -97,6 +97,8 @@ export interface TeamBundle {
   you: { sub?: string; roles: Role[]; pid?: string; person?: string; clubAdmin?: boolean };
   clubId?: string;
   club?: Club | null;
+  /** The team's entry in its club's team list. */
+  team?: ClubTeam | null;
   settings: Settings | null;
   players: Player[];
   events: TeamEvent[];

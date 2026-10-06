@@ -30,6 +30,9 @@ import { AvailabilitySheet } from '../features/schedule/availability-sheet';
     </nav>
     <main (focusout)="store.applyHeldIfIdle()">
       @if (store.bundle()) {
+        @if (store.archived()) {
+          <div class="banner archived" role="status"><p><b>This team is archived.</b> Everything is still here to look back on, but nothing can be changed.@if (store.you().clubAdmin) { A site owner can restore it from the <a [routerLink]="['/clubs', store.bundle()?.clubId]">club page</a>.}</p></div>
+        }
         <router-outlet />
         <th-availability-sheet />
       } @else if (store.loadError()) {

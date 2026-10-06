@@ -37,6 +37,26 @@ describe('ApiService', () => {
     expect(await p).toEqual({ teamId: 'a5 13' });
   });
 
+  it('archives, restores and deletes teams with the confirmation in the body', async () => {
+    const a = api.setArchived('r14', true);
+    await flush();
+    const ar = http.expectOne('https://api.test/teams/r14/archive');
+    expect(ar.request.method).toBe('POST');
+    ar.flush({ archived: true });
+    expect(await a).toEqual({ archived: true });
+    const r = api.setArchived('r14', false);
+    await flush();
+    http.expectOne('https://api.test/teams/r14/restore').flush({ archived: false });
+    await r;
+    const d = api.deleteTeam('r16', 'r16');
+    await flush();
+    const dr = http.expectOne('https://api.test/teams/r16');
+    expect(dr.request.method).toBe('DELETE');
+    expect(dr.request.body).toEqual({ confirm: 'r16' });
+    dr.flush({ deleted: 12 });
+    expect(await d).toEqual({ deleted: 12 });
+  });
+
   it('does not send the token anywhere else', async () => {
     const p = firstValueFrom(TestBed.inject(HttpClient).get('https://elsewhere.test/x'));
     const req = http.expectOne('https://elsewhere.test/x');

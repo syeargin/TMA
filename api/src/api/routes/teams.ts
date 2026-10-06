@@ -1,12 +1,12 @@
 import { TransactWriteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
 import { ddb, TABLE } from "../../lib/db.js";
-import { DEFAULT_CLUB, getClub, getClubs } from "../../lib/clubs.js";
+import { clubOfTeam, DEFAULT_CLUB, forgetTeamClubs, getClub, getClubs } from "../../lib/clubs.js";
 import { keys } from "../../lib/keys.js";
 import { isPlatformAdmin, loadAccess, loadClubAccess } from "../context.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
-import { checkId, clean, getItem, now, optStr, putItem, queryAll, str } from "../util.js";
+import { checkId, clean, deleteMany, getItem, now, optStr, putItem, queryAll, str } from "../util.js";
 
 const coach = z.object({ name: str(100), phone: optStr(40) });
 const practice = z.object({
@@ -172,6 +172,8 @@ export function teamRoutes(r: Router) {
   r.on("GET", "/teams/{teamId}", async ({ caller, params }) => {
     const access = await loadAccess(caller, checkId(params.teamId, "team"));
     const items = await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `TEAM#${access.teamId}` } });
+    // Club admins and site owners pass the access check for any id; there has to be a team to open.
+    if (!items.length) throw notFound("There's no team with that id. It may have been deleted.");
     const [dir, clubs] = await Promise.all([getItem(keys.teamDir(access.clubId, access.teamId)), getClubs([access.clubId])]);
     return json(200, { ...bundle(items, access), team: clean(dir) ?? null, club: clubs.get(access.clubId) ?? null });
   });
@@ -244,6 +246,60 @@ export function teamRoutes(r: Router) {
       throw conflict("Someone else is changing the schedule. Try again.");
     });
   }
+
+  // ---------- archive, restore and delete (site owners) ----------
+  async function ownedTeam(caller: { sub: string }, rawId: string) {
+    const teamId = checkId(rawId, "team");
+    if (!(await isPlatformAdmin(caller.sub))) throw forbidden("Only site owners can archive or delete teams.");
+    const clubId = await clubOfTeam(teamId);
+    const [dir, settings] = await Promise.all([getItem(keys.teamDir(clubId, teamId)), getItem(keys.settings(teamId))]);
+    if (!dir && !settings) throw notFound("There's no team with that id.");
+    return { teamId, clubId, dir, settings };
+  }
+
+  /** Archive: the team stays, read-only, out of families' team lists. Restore undoes it. */
+  for (const [action, archived] of [["archive", true], ["restore", false]] as const) {
+    r.on("POST", `/teams/{teamId}/${action}`, async ({ caller, params }) => {
+      const { teamId, clubId, dir, settings } = await ownedTeam(caller, params.teamId);
+      const at = now();
+      // Teams made before the club team list existed get an entry now.
+      const base = dir ?? { ...keys.teamDir(clubId, teamId), type: "Team", name: settings?.teamName ?? teamId, season: settings?.season ?? "", age: settings?.age ?? "", createdAt: at };
+      const { archivedAt: _a, archivedBy: _b, ...rest } = base as Record<string, unknown>;
+      await ddb.send(new TransactWriteCommand({
+        TransactItems: [
+          { Put: { TableName: TABLE, Item: archived ? { ...rest, archived, archivedAt: at, archivedBy: caller.sub } : { ...rest, archived } } },
+          // Touching the settings tells anyone with the team open to reload it.
+          ...(settings ? [{ Update: { TableName: TABLE, Key: keys.settings(teamId), UpdateExpression: "SET archived = :a, updatedAt = :at", ExpressionAttributeValues: { ":a": archived, ":at": at } } }] : [])
+        ]
+      }));
+      return json(200, { teamId, clubId, archived });
+    });
+  }
+
+  /**
+   * Delete a team and everything stored for it: its whole partition, its line in the club's team list and
+   * invites still waiting for it. People's accounts stay (they can be on other teams). The body has to repeat
+   * the team id, so a stray request can't do it.
+   */
+  r.on("DELETE", "/teams/{teamId}", async ({ caller, params, body }) => {
+    const { teamId, clubId, dir } = await ownedTeam(caller, params.teamId);
+    const { confirm } = parseBody(z.object({ confirm: z.string() }), body);
+    if (confirm.trim() !== teamId) throw badRequest("Type the team id to confirm.");
+    const [records, invites] = await Promise.all([
+      queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `TEAM#${teamId}` }, ProjectionExpression: "PK, SK" }),
+      queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :t AND begins_with(GSI1SK, :i)", ExpressionAttributeValues: { ":t": `TEAM#${teamId}`, ":i": "INVITE#" }, ProjectionExpression: "PK, SK" })
+    ]);
+    const key = (i: Record<string, unknown>) => ({ PK: String(i.PK), SK: String(i.SK) });
+    // The club link goes last, so a run that stops partway can be repeated and still finds the club.
+    const clubLink = records.filter((i) => i.SK === "META#CLUB").map(key);
+    const rest = [...(dir ? [keys.teamDir(clubId, teamId)] : []), ...invites.map(key), ...records.filter((i) => i.SK !== "META#CLUB").map(key)];
+    await deleteMany(rest);
+    await deleteMany(clubLink);
+    forgetTeamClubs();
+    console.log(JSON.stringify({ msg: "team deleted", teamId, clubId, by: caller.sub, records: rest.length + clubLink.length }));
+    // Live connections are left to expire, so people with the team open still hear that it changed.
+    return json(200, { teamId, clubId, deleted: rest.length + clubLink.length });
+  });
 
   r.on("PUT", "/teams/{teamId}/handbook", async ({ caller, params, body }) => {
     const access = await loadAccess(caller, checkId(params.teamId, "team"));
