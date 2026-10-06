@@ -54,6 +54,10 @@ export class ApiService {
   setMyName(firstName: string, lastName: string) { return this.call('PUT', '/me', { firstName, lastName }); }
   clubTeams() { return this.call<{ teams: ClubTeam[] }>('GET', '/teams'); }
   createTeam(t: { clubId?: string; teamId: string; name: string; season?: string; age?: string }) { return this.call('POST', '/teams', t); }
+  /** Site owners: archive (read-only, out of families' lists) or restore a team. */
+  setArchived(teamId: string, archived: boolean) { return this.call<{ archived: boolean }>('POST', `/teams/${enc(teamId)}/${archived ? 'archive' : 'restore'}`); }
+  /** Site owners: delete a team and all its data. `confirm` must repeat the team id. */
+  deleteTeam(teamId: string, confirm: string) { return this.call<{ deleted: number }>('DELETE', `/teams/${enc(teamId)}`, { confirm }); }
 
   // ---------- clubs ----------
   clubs() { return this.call<{ platformAdmin: boolean; clubs: Club[] }>('GET', '/clubs'); }

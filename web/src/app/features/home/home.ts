@@ -37,7 +37,7 @@ export class Home extends Page {
     if (!me) return [];
     const clubs = new Map((me.clubs ?? []).map((c) => [c.clubId, c]));
     const out: { club: MyClub | null; teams: MyTeam[] }[] = [];
-    for (const t of me.teams) {
+    for (const t of me.teams.filter((x) => !x.archived)) {
       const club = (t.clubId && clubs.get(t.clubId)) || null;
       let g = out.find((x) => x.club?.clubId === club?.clubId);
       if (!g) out.push((g = { club, teams: [] }));
@@ -46,6 +46,8 @@ export class Home extends Page {
     return out.sort((a, b) => (a.club?.name ?? '').localeCompare(b.club?.name ?? ''));
   });
   readonly showClubNames = computed(() => this.groups().length > 1);
+  /** Past teams a site owner archived: still open to look back on, read-only. */
+  readonly archivedTeams = computed(() => (this.me()?.teams ?? []).filter((t) => t.archived));
 
   constructor() {
     super();

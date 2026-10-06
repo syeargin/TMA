@@ -91,8 +91,51 @@
         <section class="card">
           <div class="card-h"><h2>Teams</h2><span class="muted small">{{ d.teams.length }}</span></div>
           <div class="card-b">
-            @for (t of d.teams; track t.teamId) {
-              <div class="li"><a class="grow" [routerLink]="['/teams', t.teamId]"><b>{{ t.name }}</b></a><span class="muted small">{{ t.teamId }}@if (t.age) { · {{ t.age }}}</span></div>
+            @for (t of teams(); track t.teamId) {
+              <div class="li" [class.dim]="t.archived">
+                <a class="grow" [routerLink]="['/teams', t.teamId]"><b>{{ t.name }}</b></a>
+                @if (t.archived) { <span class="pill p-mute">Archived</span> }
+                <span class="muted small">{{ t.teamId }}@if (t.age) { · {{ t.age }}}</span>
+                @if (owner()) {
+                  <button class="link-btn small" type="button" (click)="manage(t.teamId)" [attr.aria-expanded]="managing() === t.teamId" [attr.aria-controls]="'manage-' + t.teamId">
+                    {{ managing() === t.teamId ? 'Close' : 'Manage' }}
+                  </button>
+                }
+              </div>
+              @if (owner() && managing() === t.teamId) {
+                <div class="team-manage" [id]="'manage-' + t.teamId">
+                  @if (t.archived) {
+                    <p class="small">Archived{{ t.archivedAt ? ' ' + (t.archivedAt | date: 'MMM d, y') : '' }}. Its families see it under Archived teams, read-only.</p>
+                    <div class="row" style="margin-top:8px">
+                      <button class="btn sm" type="button" [disabled]="busy()" (click)="setArchived(t, false)">Restore team</button>
+                    </div>
+                  } @else {
+                    <p class="small"><b>Archive</b> when a season is over. The team and its data stay, but nothing can be changed and it moves to Archived teams for its families. You can restore it any time.</p>
+                    <div class="row" style="margin-top:8px">
+                      <button class="btn sm" type="button" [class.confirm]="confirming() === 'archive:' + t.teamId" [disabled]="busy()" (click)="setArchived(t, true)">
+                        {{ confirming() === 'archive:' + t.teamId ? 'Tap again to archive' : 'Archive team' }}
+                      </button>
+                    </div>
+                  }
+                  <div class="danger-zone">
+                    <h4>Delete this team</h4>
+                    <p class="small">Permanently removes the team and everything stored for it:</p>
+                    <ul class="small">
+                      <li>roster, parent contacts and family answers (availability, travel, sizes)</li>
+                      <li>schedule, tournaments, ref jobs, agendas and meals</li>
+                      <li>team fund, payments, announcements, tasks and handbook</li>
+                      <li>who's on the team, and invites still waiting</li>
+                    </ul>
+                    <p class="small muted">People's accounts stay, since they may be on other teams. This can't be undone in the app.</p>
+                    <label [for]="'del-' + t.teamId"><span>Type “{{ t.teamId }}” to confirm</span>
+                      <input [id]="'del-' + t.teamId" autocomplete="off" spellcheck="false" [value]="deleteText()" (input)="deleteText.set($any($event.target).value)">
+                    </label>
+                    <div class="row" style="margin-top:8px">
+                      <button class="btn sm danger solid" type="button" [disabled]="busy() || deleteText().trim() !== t.teamId" (click)="deleteTeam(t)">{{ busy() ? 'Deleting…' : 'Delete team' }}</button>
+                    </div>
+                  </div>
+                </div>
+              }
             } @empty { <div class="empty">No teams yet.</div> }
             <h3 class="sub-h">Create a team</h3>
             <form [formGroup]="teamForm" (ngSubmit)="createTeam()" novalidate>

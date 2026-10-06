@@ -30,7 +30,7 @@ All writes go through the API, which checks the caller's membership (`TEAM#<t>` 
 |---|---|---|---|---|
 | Club list entry | `CLUBS` | `CLUB#<c>` | | |
 | Club (name, short name, colors, links, notes) | `CLUB#<c>` | `META` | | |
-| Team (directory) | `CLUB#<c>` | `TEAM#<t>` | | |
+| Team (directory; `archived` makes the team read-only) | `CLUB#<c>` | `TEAM#<t>` | | |
 | Club admin | `CLUB#<c>` | `ADMIN#<uid>` | `USER#<uid>` / `CLUB#<c>` | |
 | Club admin invite | `INVITE#<email>` | `CLUB#<c>` | `CLUB#<c>` / `INVITE#<email>` | |
 | Site owner | `PLATFORM` | `ADMIN#<uid>` | | |

@@ -504,4 +504,53 @@ describe("clubs", () => {
     expect((await call("GET", "/clubs/rivals", RPARENT)).status).toBe(403);
     expect((await call("GET", "/teams/r14", RPARENT)).body.you.roles).toEqual(["parent"]);
   });
+
+  it("site owners archive a team: it goes read-only for everyone until it's restored", async () => {
+    expect((await asBoss("POST", "/teams/r14/archive")).status).toBe(403);
+    expect((await asOwner("POST", "/teams/nope/archive")).status).toBe(404);
+    const r = await asOwner("POST", "/teams/r14/archive");
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ teamId: "r14", clubId: "rivals", archived: true });
+    expect((await asBoss("GET", "/clubs/rivals")).body.teams.find((t: any) => t.teamId === "r14")).toMatchObject({ archived: true, archivedBy: OWNER });
+    expect((await call("GET", "/me", RPARENT, undefined, "mom@rivals.com")).body.teams[0]).toMatchObject({ teamId: "r14", archived: true });
+    const team = (await call("GET", "/teams/r14", RPARENT)).body;
+    expect(team.team.archived).toBe(true);
+    // Still readable, but nothing changes: not settings, not players, not a family's own answers.
+    expect((await asBoss("PUT", "/teams/r14/settings", { teamName: "Rivals 14" })).status).toBe(409);
+    expect((await asOwner("PUT", "/teams/r14/players/x1", { first: "New" })).status).toBe(409);
+    expect((await asBoss("POST", "/teams/r14/invites", { email: "late@rivals.com", roles: ["parent"] })).status).toBe(409);
+    expect((await asOwner("POST", "/teams/r14/restore")).body.archived).toBe(false);
+    expect((await call("GET", "/me", RPARENT, undefined, "mom@rivals.com")).body.teams[0].archived).toBeUndefined();
+    expect((await asBoss("GET", "/clubs/rivals")).body.teams.find((t: any) => t.teamId === "r14").archivedBy).toBeUndefined();
+    expect((await asBoss("PUT", "/teams/r14/settings", { teamName: "Rivals 14" })).status).toBe(200);
+  });
+
+  it("site owners delete a team and everything stored for it, and nothing else", async () => {
+    expect((await asBoss("POST", "/teams", { clubId: "rivals", teamId: "r16", name: "Rivals 16" })).status).toBe(201);
+    expect((await asBoss("PUT", "/teams/r16/players/p1", { first: "Ana", parents: [{ name: "Mom", cell: "555" }] })).status).toBe(200);
+    expect((await asBoss("PUT", "/teams/r16/events/e1", { kind: "tournament", title: "Cup", date: "2027-02-06" })).status).toBe(200);
+    expect((await asBoss("POST", "/teams/r16/invites", { email: "mom@rivals.com", roles: ["parent"], pid: "p1" })).status).toBe(201);
+    expect((await asBoss("POST", "/teams/r16/invites", { email: "pending@rivals.com", roles: ["parent"] })).status).toBe(201);
+    expect((await call("GET", "/me", RPARENT, undefined, "mom@rivals.com")).body.teams.map((t: any) => t.teamId).sort()).toEqual(["r14", "r16"]);
+
+    expect((await asBoss("DELETE", "/teams/r16", { confirm: "r16" })).status).toBe(403);
+    expect((await asOwner("DELETE", "/teams/r16")).status).toBe(400);
+    expect((await asOwner("DELETE", "/teams/r16", { confirm: "r14" })).status).toBe(400);
+    const r = await asOwner("DELETE", "/teams/r16", { confirm: "r16" });
+    expect(r.status).toBe(200);
+    expect(r.body.deleted).toBeGreaterThanOrEqual(8);
+
+    const { QueryCommand, ScanCommand } = await import("@aws-sdk/lib-dynamodb");
+    const left = (await ddb.send(new ScanCommand({ TableName: TABLE }))).Items!.filter((i) => `${i.PK}|${i.SK}`.includes("r16"));
+    expect(left).toEqual([]);
+    expect((await ddb.send(new QueryCommand({ TableName: TABLE, KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": "TEAM#r14" } }))).Items!.length).toBeGreaterThan(2);
+    expect((await asOwner("GET", "/teams/r16")).status).toBe(404);
+    expect((await asOwner("DELETE", "/teams/r16", { confirm: "r16" })).status).toBe(404);
+    expect((await asBoss("GET", "/clubs/rivals")).body.teams.map((t: any) => t.teamId)).toEqual(["r14"]);
+    const me = (await call("GET", "/me", RPARENT, undefined, "mom@rivals.com")).body;
+    expect(me.teams.map((t: any) => t.teamId)).toEqual(["r14"]);
+    expect(me.firstName !== undefined).toBe(true);
+    // The id is free again.
+    expect((await asBoss("POST", "/teams", { clubId: "rivals", teamId: "r16", name: "Rivals 16 again" })).status).toBe(201);
+  });
 });

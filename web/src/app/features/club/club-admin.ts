@@ -1,11 +1,12 @@
 import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { DatePipe } from '@angular/common';
 import { FormArray, FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { HeaderService } from '../../core/header.service';
 import { MeService, fullName } from '../../core/me.service';
-import type { ClubDetail, ClubLink } from '../../core/models';
+import type { ClubDetail, ClubLink, ClubTeam } from '../../core/models';
 import { DEFAULT_COLORS, colorAdvice, isHex } from '../../core/theme';
 import { ThemeService } from '../../core/theme.service';
 import { Messages } from '../../shared/messages';
@@ -27,7 +28,7 @@ const PRESETS: { name: string; primary: string; accent: string }[] = [
 /** /clubs/:clubId — a club admin's page: name and colors, Team Info links, teams, and admins. */
 @Component({
   selector: 'th-club-admin',
-  imports: [ReactiveFormsModule, RouterLink, Messages],
+  imports: [ReactiveFormsModule, RouterLink, Messages, DatePipe],
   templateUrl: './club-admin.html'
 })
 export class ClubAdminPage extends Page {
@@ -44,6 +45,13 @@ export class ClubAdminPage extends Page {
   readonly presets = PRESETS;
   readonly fullName = fullName;
   readonly mySub = computed(() => this.meSvc.me()?.sub ?? '');
+  /** Site owners archive, restore and delete teams. */
+  readonly owner = computed(() => !!this.meSvc.me()?.platformAdmin);
+  readonly managing = signal<string | null>(null);
+  readonly deleteText = signal('');
+  /** Current teams first, then archived ones. */
+  readonly teams = computed(() => [...(this.detail()?.teams ?? [])].sort((a, b) =>
+    Number(!!a.archived) - Number(!!b.archived) || a.name.localeCompare(b.name)));
 
   readonly form = this.fb.group({
     name: '', short: '', primary: DEFAULT_COLORS.primary, accent: DEFAULT_COLORS.accent, notes: '',
@@ -137,6 +145,36 @@ export class ClubAdminPage extends Page {
     return this.run(async () => {
       await this.api.createTeam({ clubId: this.clubId(), teamId, name: v.name.trim(), season: v.season.trim() || undefined, age: v.age.trim() || undefined });
       return this.go(`/teams/${encodeURIComponent(teamId)}`, { notice: 'Team created.' });
+    });
+  }
+
+  manage(teamId: string) {
+    this.managing.set(this.managing() === teamId ? null : teamId);
+    this.deleteText.set('');
+    this.confirming.set(null);
+  }
+
+  setArchived(t: ClubTeam, archived: boolean) {
+    const done = archived ? `${t.name} is archived. Its families can still look back at it, read-only.` : `${t.name} is restored and can be changed again.`;
+    const action = () => this.api.setArchived(t.teamId, archived);
+    // Archiving asks for a second tap; restoring is harmless.
+    if (!archived) this.confirming.set(`restore:${t.teamId}`);
+    return this.confirmThen(`${archived ? 'archive' : 'restore'}:${t.teamId}`, done, action, async () => {
+      this.managing.set(null);
+      this.notice.set(done);
+      await this.refresh();
+    });
+  }
+
+  deleteTeam(t: ClubTeam) {
+    if (this.deleteText().trim() !== t.teamId) { this.error.set(`Type ${t.teamId} to confirm.`); return; }
+    return this.run(async () => {
+      await this.api.deleteTeam(t.teamId, this.deleteText().trim());
+      this.managing.set(null);
+      this.deleteText.set('');
+      this.notice.set(`${t.name} and all its data are deleted.`);
+      await this.refresh();
+      void this.meSvc.load(true).catch(() => {});
     });
   }
 
