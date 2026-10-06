@@ -224,6 +224,17 @@ python3 scripts/load-team.py dev test-13-items.json --yes   # from CloudShell
 
 Dates for answers, the series and payments are set relative to the day you run it, so regenerate it when the test data gets stale.
 
+### Removing a team
+
+The app can archive a team but not delete it. To remove a team and everything stored for it, run this from CloudShell. Without `--yes` it only lists what it would delete:
+
+```bash
+python3 scripts/delete-team.py dev jvc13e
+python3 scripts/delete-team.py dev jvc13e --yes
+```
+
+It deletes the team's whole partition (settings, handbook, roster and contacts, schedule with ref jobs, agendas and meals, families, payments, ledger, announcements, tasks, memberships), its entry in the club's team list, any invites still waiting for the team, and its live-update connections. It leaves alone other teams, the club, and people's accounts and profiles, since people can be on other teams. Point-in-time recovery keeps the deleted records for up to 35 days.
+
 ## Local development
 
 Node 24 is required (Angular 22 needs 22.22.3+ or 24).
