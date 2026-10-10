@@ -224,6 +224,72 @@ describe("repeating events", () => {
   });
 });
 
+describe("practice events", () => {
+  const PR = { kind: "practice", title: "Team practice", date: "2026-11-03", time: "6:30 PM", endTime: "8:30 PM", location: "A5 Gym", court: "3",
+    uniformColor: "Navy", repeat: { every: 2, days: [2], until: "2027-01-26" } };
+
+  it("the team keeps a list of practice uniform colors", async () => {
+    const base = { teamName: "A5 13 Test", season: "2026-27", age: "13U", coaches: [{ name: "Coach Tom" }] };
+    expect((await call("PUT", `/teams/${T}/settings`, ROLE_SUBS.coordinator, { ...base, practiceColors: ["Navy", "White", "Red"] })).status).toBe(200);
+    expect((await call("PUT", `/teams/${T}/settings`, ROLE_SUBS.coordinator, base)).status).toBe(200);
+    expect((await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.settings.practiceColors).toEqual(["Navy", "White", "Red"]);
+  });
+
+  it("saves a practice series with its court, uniform and end time; one date can change on its own", async () => {
+    expect((await call("PUT", `/teams/${T}/events/prs`, ROLE_SUBS.parent, PR)).status).toBe(403);
+    expect((await call("PUT", `/teams/${T}/events/prs`, ROLE_SUBS.coach, PR)).status).toBe(200);
+    const withDate = { ...PR, overrides: { "2026-11-17": { time: "7:00 PM", court: "5", uniformColor: "White", notes: "Gym B this week" } } };
+    expect((await call("PUT", `/teams/${T}/events/prs`, ROLE_SUBS.coach, withDate)).status).toBe(200);
+    const e = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.events.find((x: any) => x.eid === "prs");
+    expect(e).toMatchObject({ kind: "practice", court: "3", uniformColor: "Navy", endTime: "8:30 PM", overrides: { "2026-11-17": { court: "5" } } });
+    expect((await call("PUT", `/teams/${T}/events/prs`, ROLE_SUBS.coach, { ...PR, overrides: { "Nov 17": {} } })).status).toBe(400);
+    // Single events have no per-date changes.
+    expect((await call("PUT", `/teams/${T}/events/one`, ROLE_SUBS.coach, { ...PR, repeat: undefined, overrides: { "2026-11-03": { court: "1" } } })).status).toBe(200);
+    expect((await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.events.find((x: any) => x.eid === "one").overrides).toBeUndefined();
+  });
+
+  it("splits a series at a date; later cancellations, date changes and answers move to the new series", async () => {
+    const withAll = { ...PR, cancelled: ["2026-11-03", "2026-12-15"], overrides: { "2026-11-17": { court: "5" }, "2026-12-29": { notes: "Holiday hours" } } };
+    expect((await call("PUT", `/teams/${T}/events/prs`, ROLE_SUBS.coach, withAll)).status).toBe(200);
+    expect((await call("PUT", `/teams/${T}/family/p1`, ROLE_SUBS.parent, { rsvp: { "prs-2026-11-17": "yes", "prs-2026-12-29": "maybe" } })).status).toBe(200);
+    const later = { ...PR, date: "2026-12-01", time: "5:30 PM", endTime: "7:30 PM", court: "1" };
+    expect((await call("POST", `/teams/${T}/events/prs/split`, ROLE_SUBS.coach, { from: "2026-11-03", event: later })).status).toBe(400);
+    expect((await call("POST", `/teams/${T}/events/prs/split`, ROLE_SUBS.coach, { from: "2026-12-01", event: { ...later, date: "2026-11-20" } })).status).toBe(400);
+    const r = await call("POST", `/teams/${T}/events/prs/split`, ROLE_SUBS.coach, { from: "2026-12-01", event: later });
+    expect(r.status).toBe(200);
+    expect(r.body.answersMoved).toBe(1);
+    const b = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body;
+    const first = b.events.find((x: any) => x.eid === "prs");
+    const second = b.events.find((x: any) => x.eid === r.body.eid);
+    expect(first).toMatchObject({ time: "6:30 PM", court: "3", repeat: { until: "2026-11-30" }, cancelled: ["2026-11-03"], overrides: { "2026-11-17": { court: "5" } } });
+    expect(first.overrides["2026-12-29"]).toBeUndefined();
+    expect(second).toMatchObject({ kind: "practice", date: "2026-12-01", time: "5:30 PM", court: "1", repeat: { every: 2, until: "2027-01-26" }, cancelled: ["2026-12-15"], overrides: { "2026-12-29": { notes: "Holiday hours" } } });
+    expect(b.family.p1.rsvp["prs-2026-11-17"].v).toBe("yes");
+    expect(b.family.p1.rsvp[`${r.body.eid}-2026-12-29`].v).toBe("maybe");
+    expect(b.family.p1.rsvp["prs-2026-12-29"]).toBeUndefined();
+  });
+
+  it("converts the weekly practice times once, keeping cancelled dates and answers", async () => {
+    // From the "practices" tests: Wednesday practice with 11-18 and 12-02…12-23 cancelled.
+    expect((await call("PUT", `/teams/${T}/family/p1`, ROLE_SUBS.parent, { rsvp: { "pr-wed-2026-11-25": "no" } })).status).toBe(200);
+    expect((await call("POST", `/teams/${T}/practices/convert`, ROLE_SUBS.parent)).status).toBe(403);
+    const r = await call("POST", `/teams/${T}/practices/convert`, ROLE_SUBS.coach);
+    expect(r.body).toEqual({ converted: 1, skipped: [] });
+    expect((await call("POST", `/teams/${T}/practices/convert`, ROLE_SUBS.coach)).body.converted).toBe(0);
+    const b = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body;
+    expect(b.settings.practices).toEqual([]);
+    expect(b.settings.cancelled.some((k: string) => k.startsWith("pr-wed-"))).toBe(false);
+    const e = b.events.find((x: any) => x.eid === "pr-wed");
+    expect(e).toMatchObject({
+      kind: "practice", title: "Wednesday practice", date: "2026-11-04", time: "6:30 PM", endTime: "8:30 PM", location: "A5 Gym",
+      repeat: { every: 1, days: [3], until: "2027-03-31", skipTournaments: true }
+    });
+    expect(e.cancelled.sort()).toEqual(["2026-11-18", "2026-12-02", "2026-12-09", "2026-12-16", "2026-12-23"]);
+    // The answer's key is already the series date's key.
+    expect(b.family.p1.rsvp["pr-wed-2026-11-25"].v).toBe("no");
+  });
+});
+
 describe("meal claims", () => {
   it("first family wins; others get 409; only that family or food can release", async () => {
     const path = `/teams/${T}/events/e1/meals/m1/claim`;

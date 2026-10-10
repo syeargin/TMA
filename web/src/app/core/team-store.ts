@@ -4,7 +4,7 @@ import { Permission, can as roleCan } from '@shared/permissions';
 import { ApiError, ApiService } from './api.service';
 import { explain } from './errors';
 import { LiveService } from './live.service';
-import type { Agenda, Announcement, Handbook, Settings, Task, LedgerEntry, Meal, Member, MoneyKind, Payment, Player, Practice, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
+import type { Agenda, Announcement, Handbook, Settings, Task, LedgerEntry, Meal, Member, MoneyKind, Occurrence, Payment, Player, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
 import { duesFor, fundStats } from './money';
 import { fullName } from './me.service';
 import type { PatternSuggestion } from './series';
@@ -104,6 +104,29 @@ export class TeamStore implements OnDestroy {
     const b = await this.api.team(this.teamId());
     this.bundle.set(b);
     this.live.held.set(false);
+    void this.convertPracticeTimes();
+  }
+
+  private converting = false;
+  /**
+   * Teams set up before practices were events still have weekly "practice times". The first time someone who
+   * can edit the schedule opens the team, they become practice series (answers and cancelled dates carry over).
+   */
+  private async convertPracticeTimes() {
+    const s = this.settings();
+    if (this.converting || this.archived() || !this.can('schedule') || !(s?.practices ?? []).some((p) => p.from)) return;
+    this.converting = true;
+    try {
+      const r = await this.api.convertPractices(this.teamId());
+      if (r.converted) {
+        this.toast.show(`Weekly practices are now on the schedule as ${r.converted === 1 ? 'a practice series' : `${r.converted} practice series`}. Edit them from any practice date.`);
+        await this.load();
+      }
+    } catch (err) {
+      console.warn('Practice conversion failed', err);
+    } finally {
+      this.converting = false;
+    }
   }
 
   /** A form or panel registers "am I mid-edit?" so live refreshes wait for it. */
@@ -180,7 +203,19 @@ export class TeamStore implements OnDestroy {
     for (const k of ['type', 'updatedAt', 'updatedBy', 'GSI2PK', 'GSI2SK']) delete next[k];
     return this.save(cancel ? 'Cancelled for that date' : 'Restored', (t) => this.api.saveEvent(t, next));
   }
-  savePractices(p: Practice[]) { return this.save('Practice times saved', (t) => this.api.savePractices(t, p)); }
+  /** Change one date of a series on its own; null puts it back to match the series. */
+  saveOccurrence(e: TeamEvent, date: string, change: Occurrence | null) {
+    const overrides = { ...(e.overrides ?? {}) };
+    if (change && Object.values(change).some(Boolean)) overrides[date] = change; else delete overrides[date];
+    const next = { ...e, overrides } as TeamEvent & Record<string, unknown>;
+    for (const k of ['type', 'updatedAt', 'updatedBy', 'GSI2PK', 'GSI2SK']) delete next[k];
+    return this.save(change ? 'Saved for that date' : 'That date matches the series again', (t) => this.api.saveEvent(t, next));
+  }
+  /** "This and following dates": the series ends before `from` and `next` carries on. Answers move with the dates. */
+  splitSeries(e: TeamEvent, from: string, next: TeamEvent) {
+    return this.save('Saved from that date on', (t) => this.api.splitEvent(t, e.eid, from, next));
+  }
+  /** Old weekly practice times still showing until the team is converted. */
   setPracticeCancelled(key: string, cancelled: boolean) {
     return this.save(cancelled ? 'Practice cancelled' : 'Practice restored', (t) => this.api.setPracticeCancelled(t, key, cancelled));
   }

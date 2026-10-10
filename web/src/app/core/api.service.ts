@@ -6,7 +6,7 @@ import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
 import type { Repeat } from './series';
 import type { Sheets } from './xlsx';
-import type { Agenda, Club, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, Practice, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
+import type { Agenda, Club, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
   constructor(readonly status: number, body?: { message?: string; error?: string } | null) {
@@ -88,7 +88,12 @@ export class ApiService {
     return this.call<{ eid: string; combined: number; answersMoved: number }>('POST', `/teams/${enc(teamId)}/events/combine`, body);
   }
   deleteEvent(teamId: string, eid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}`); }
-  savePractices(teamId: string, practices: Practice[]) { return this.call('PUT', `/teams/${enc(teamId)}/practices`, { practices }); }
+  /** "This and following dates": the series stops before `from`; `event` carries on from there with a new id. */
+  splitEvent(teamId: string, eid: string, from: string, event: TeamEvent) {
+    return this.call<{ eid: string; answersMoved: number }>('POST', `/teams/${enc(teamId)}/events/${enc(eid)}/split`, { from, event });
+  }
+  /** One-time move of the old weekly practice times onto the schedule as practice series. */
+  convertPractices(teamId: string) { return this.call<{ converted: number; skipped: string[] }>('POST', `/teams/${enc(teamId)}/practices/convert`); }
   setPracticeCancelled(teamId: string, key: string, cancelled: boolean) {
     return this.call(cancelled ? 'PUT' : 'DELETE', `/teams/${enc(teamId)}/practices/cancelled/${enc(key)}`);
   }
@@ -146,7 +151,7 @@ export class ApiService {
   deleteTask(teamId: string, kid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/tasks/${enc(kid)}`); }
   /** Team settings. Practices and cancellations are left out, so the API keeps what coaches saved. */
   saveSettings(teamId: string, s: Settings) {
-    const { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems } = s;
-    return this.call('PUT', `/teams/${enc(teamId)}/settings`, { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems });
+    const { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems, practiceColors } = s;
+    return this.call('PUT', `/teams/${enc(teamId)}/settings`, { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems, practiceColors });
   }
 }

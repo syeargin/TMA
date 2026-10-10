@@ -11,6 +11,7 @@ import { DEFAULT_CLUB } from "../clubs.js";
 import { keys, normEmail } from "../keys.js";
 import { getItem, newId, now, queryAll } from "../../api/util.js";
 import type { Role } from "../../shared/permissions.js";
+import { convertPractices, firstOnOrAfter, practiceEvent, seasonEnd } from "../practices.js";
 import { eventKey, playerName, type ClubPlan, type Problem, type TeamPlan } from "./parse.js";
 
 export const DEFAULT_CHECKLIST = ["Court shoes", "Extra pair of socks", "Knee and elbow pads", "2 pairs of spandex", "Both jerseys", "Warmups", "Hair ties, ribbons, brush", "Volleyball backpack", "Water bottle", "Snacks", "Lunch"];
@@ -80,7 +81,15 @@ export async function importTeam(opts: {
     return null;
   }
 
-  const saved = isNew ? [] : await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `TEAM#${t.teamId}` } });
+  const loadTeam = () => queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `TEAM#${t.teamId}` } });
+  let saved = isNew ? [] : await loadTeam();
+  // Teams still on weekly practice times: convert them first (a preview pretends they were converted).
+  const legacySettings = saved.find((i) => i.SK === "META#SETTINGS");
+  const legacy = ((legacySettings?.practices ?? []) as Item[]).filter((p) => p && p.from && p.id);
+  if (legacy.length) {
+    if (write) { await convertPractices(t.teamId, by); saved = await loadTeam(); }
+    else saved = [...saved, ...legacy.map((p) => practiceEvent(t.teamId, p as never, (legacySettings?.cancelled ?? []) as string[], by, at).item as Item)];
+  }
   const bySk = new Map(saved.map((i) => [String(i.SK), i]));
   const puts: Item[] = [];
 
@@ -116,14 +125,16 @@ export async function importTeam(opts: {
   let base: Item = savedSettings ? { ...savedSettings } : {
     ...keys.settings(t.teamId), type: "Settings", teamName: t.name, season: "", age: "", coaches: [], teamCode: "",
     dues: { amountCents: 0, due: "", label: "Team fund deposit" }, budget: { costPerMealCents: 2000, mealsPerDay: 2, people: 15 },
-    practices: [], cancelled: [], checklist: DEFAULT_CHECKLIST, uniformItems: []
+    practices: [], cancelled: [], checklist: DEFAULT_CHECKLIST, uniformItems: [], practiceColors: []
   };
+  let copiedPractices: Item[] = [];
   let handbook: Item | undefined;
   let copiedFrom: string | undefined;
   if (isNew) {
     const d = opts.defaults;
     if (d?.checklist.length) base.checklist = d.checklist;
     if (d?.uniformItems.length) base.uniformItems = d.uniformItems;
+    if (d?.practiceColors.length) base.practiceColors = d.practiceColors;
     if (d?.handbook.length) handbook = { ...keys.handbook(t.teamId), type: "Handbook", sections: d.handbook, updatedAt: at };
     if (t.copyFrom) {
       const src = await getItem(keys.settings(t.copyFrom));
@@ -131,7 +142,16 @@ export async function importTeam(opts: {
       if (src && srcOwner?.clubId === clubId) {
         const hb = await getItem(keys.handbook(t.copyFrom));
         if (hb) handbook = { ...keys.handbook(t.teamId), type: "Handbook", sections: hb.sections ?? [], updatedAt: at };
-        base = { ...base, checklist: src.checklist ?? base.checklist, uniformItems: src.uniformItems ?? base.uniformItems, practices: src.practices ?? [] };
+        base = { ...base, checklist: src.checklist ?? base.checklist, uniformItems: src.uniformItems ?? base.uniformItems, practiceColors: src.practiceColors ?? base.practiceColors };
+        // Its practice series (not their cancelled or changed dates), unless the workbook has practices of its own.
+        if (!t.practices) {
+          const srcEvents = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :e)", ExpressionAttributeValues: { ":p": `TEAM#${t.copyFrom}`, ":e": "EVENT#" } });
+          copiedPractices = srcEvents.filter((e) => e.kind === "practice" && String(e.SK).split("#").length === 2).map((e) => {
+            const eid = newId("pr");
+            const { PK: _p, SK: _s, cancelled: _c, skip: _k, overrides: _o, convertedFrom: _f, ...rest } = e;
+            return { ...rest, ...keys.event(t.teamId, eid), GSI2PK: `TEAM#${t.teamId}#CAL`, GSI2SK: `${e.date}#${eid}`, updatedAt: at, updatedBy: by };
+          });
+        }
         copiedFrom = t.copyFrom;
       } else if (!opts.teamsInFile?.has(t.copyFrom)) {
         problems.push({ ...where, level: "error", message: `Copy setup from: there's no team "${t.copyFrom}" in this club.` });
@@ -144,15 +164,15 @@ export async function importTeam(opts: {
   }
   const coaches = t.staff.filter((s) => s.roles.includes("coach")).slice(0, 6).map((s) => defined({ name: `${s.first} ${s.last}`.trim(), phone: s.showPhone ? s.mobile : undefined }));
   const savedDues = (base.dues ?? {}) as Item, savedBudget = (base.budget ?? {}) as Item;
-  // Practices keep their ids by name, so cancelled dates stay attached.
-  const oldPractices = (base.practices ?? []) as Item[];
-  const practices = t.practices?.map((p) => {
-    const old = oldPractices.find((o) => String(o.label ?? "").toLowerCase() === p.label.toLowerCase());
-    return defined({ id: old?.id ?? newId("pr"), ...p });
-  });
   const lists: string[] = [];
   if (t.checklist) lists.push("packing checklist");
   if (t.uniformItems) lists.push("uniform items");
+  if (t.practiceColors) lists.push("practice uniform colors");
+  // Uniform colors used on practices join the team's list, so coaches can pick them later.
+  const colors = [...((t.practiceColors ?? base.practiceColors ?? []) as string[])];
+  for (const c of [...(t.practices ?? []).map((p) => p.uniformColor), ...t.events.map((e) => e.uniformColor)]) {
+    if (c && !colors.some((x) => x.toLowerCase() === c.toLowerCase())) colors.push(c);
+  }
   const settings = defined({
     ...base,
     teamName: t.name ?? base.teamName, season: t.season ?? base.season, age: t.age ?? base.age, level: t.level ?? base.level,
@@ -160,8 +180,8 @@ export async function importTeam(opts: {
     coaches: coaches.length ? coaches : base.coaches ?? [],
     dues: defined({ ...savedDues, ...defined(t.dues as Item) }),
     budget: defined({ ...savedBudget, ...defined(t.budget as Item) }),
-    practices: practices ?? base.practices ?? [],
     checklist: t.checklist ?? base.checklist, uniformItems: t.uniformItems ?? base.uniformItems,
+    practiceColors: colors.slice(0, 20),
     updatedAt: at, updatedBy: by
   });
 
@@ -186,6 +206,27 @@ export async function importTeam(opts: {
     if (!e.repeat) delete item.repeat;
     planned.set(k, item);
   }
+
+  // ---------- practices ----------
+  // Each row is a practice series, matched to a saved one by name, so cancelled dates, single-date changes and answers stay.
+  const savedPractices = savedEvents.filter((e) => e.kind === "practice");
+  const usedPractice = new Set<string>();
+  for (const p of t.practices ?? []) {
+    const match = savedPractices.find((e) => !usedPractice.has(String(e.SK)) && String(e.title ?? "").toLowerCase() === p.label.toLowerCase());
+    if (match) usedPractice.add(String(match.SK));
+    const eid = match ? String(match.SK).slice(6) : newId("pr");
+    const date = firstOnOrAfter(p.from, p.dow);
+    const end = p.until || seasonEnd(p.from);
+    const item: Item = {
+      ...(match ?? {}), ...keys.event(t.teamId, eid), type: "Event",
+      ...defined({ kind: "practice", title: p.label, date, time: p.start, endTime: p.end, location: p.location, court: p.court, uniformColor: p.uniformColor, notes: p.note }),
+      travel: false, GSI2PK: `TEAM#${t.teamId}#CAL`, GSI2SK: `${date}#${eid}`, updatedAt: at, updatedBy: by
+    };
+    if (p.every) item.repeat = { every: p.every, days: [p.dow], until: end < date ? date : end, skipTournaments: true };
+    else { delete item.repeat; delete item.overrides; delete item.cancelled; delete item.skip; }
+    planned.set(`practice|${eid}`, item);
+  }
+  if (!t.practices) for (const c of copiedPractices) planned.set(`practice|${c.SK}`, c);
   puts.push(...planned.values());
 
   // ---------- people ----------
@@ -232,7 +273,7 @@ export async function importTeam(opts: {
 
   const summary: TeamSummary = {
     teamId: t.teamId, name: String(settings.teamName ?? t.teamId), status: isNew ? "new" : "update",
-    players, events, practices: practices ? practices.length : null, invites: counts, lists, copiedFrom
+    players, events, practices: t.practices ? t.practices.length : copiedPractices.length || null, invites: counts, lists, copiedFrom
   };
   if (!write) return summary;
 

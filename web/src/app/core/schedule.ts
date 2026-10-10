@@ -16,6 +16,11 @@ export interface ScheduleItem {
   note: string;
   travel: boolean;
   cancelled: boolean;
+  /** Practices: which court and which practice uniform. */
+  court?: string;
+  uniformColor?: string;
+  /** This date of a series was changed on its own. */
+  edited?: boolean;
   event?: TeamEvent;
   practice?: Practice;
   /** Set when this date is one of a repeating series. */
@@ -35,8 +40,9 @@ export function buildItems(events: TeamEvent[], settings: Settings | null): Sche
   const onTournament = (ds: string) => tournaments.some((t) => ds >= t.date && ds <= (t.endDate || t.date));
   for (const e of events) {
     const base = {
-      kind: e.kind, title: e.title, time: e.time || '', location: e.location || e.city || '',
-      note: e.kind === 'tournament' ? '' : e.notes || '', travel: !!e.travel, event: e
+      kind: e.kind, title: e.title, time: timeText(e.time, e.endTime), location: e.location || e.city || '',
+      note: e.kind === 'tournament' ? '' : e.notes || '', travel: !!e.travel, event: e,
+      court: e.court || undefined, uniformColor: e.uniformColor || undefined
     };
     if (!e.repeat) {
       out.push({ ...base, key: e.eid, date: e.date, end: e.endDate || e.date, cancelled: false });
@@ -48,7 +54,9 @@ export function buildItems(events: TeamEvent[], settings: Settings | null): Sche
     const shown = dates.filter((d) => !skip.has(d) && !(r.skipTournaments !== false && onTournament(d)));
     const cancelled = new Set(e.cancelled ?? []);
     const series: Series = { id: e.eid, source: 'event', every: r.every, days: r.days, until: r.until, dates, active: shown.filter((d) => !cancelled.has(d)) };
-    for (const d of shown) out.push({ ...base, key: `${e.eid}-${d}`, date: d, end: d, cancelled: cancelled.has(d), series });
+    for (const d of shown) {
+      out.push({ ...base, ...occurrence(e, d), key: `${e.eid}-${d}`, date: d, end: d, cancelled: cancelled.has(d), series });
+    }
   }
   const cancelled = new Set(settings?.cancelled ?? []);
   for (const p of settings?.practices ?? []) {
@@ -71,6 +79,26 @@ export function buildItems(events: TeamEvent[], settings: Settings | null): Sche
   }
   return out.sort((a, b) => a.date.localeCompare(b.date) || tmin(a.time) - tmin(b.time));
 }
+
+/** "6:30 PM – 8:30 PM", or just the start. */
+export const timeText = (start?: string, end?: string) => (start ? start + (end ? ` – ${end}` : '') : '');
+
+/** What one date of a series shows: the series, with that date's own changes on top. */
+export function occurrence(e: TeamEvent, date: string): Partial<ScheduleItem> {
+  const o = e.overrides?.[date];
+  if (!o || !Object.values(o).some(Boolean)) return {};
+  const out: Partial<ScheduleItem> = { edited: true };
+  if (o.title) out.title = o.title;
+  if (o.time || o.endTime) out.time = timeText(o.time || e.time, o.endTime || e.endTime);
+  if (o.location) out.location = o.location;
+  if (o.court) out.court = o.court;
+  if (o.uniformColor) out.uniformColor = o.uniformColor;
+  if (o.notes) out.note = o.notes;
+  return out;
+}
+
+/** "Court 3" for a number, otherwise as typed ("Courts 3–4", "Aux gym"). */
+export const courtLabel = (c?: string) => (!c ? '' : /^\d+[a-z]?$/i.test(c.trim()) ? `Court ${c.trim()}` : c.trim());
 
 export const practiceKey = (practiceId: string, date: string) => `pr-${practiceId}-${date}`;
 

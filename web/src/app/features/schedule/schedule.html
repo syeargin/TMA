@@ -6,7 +6,7 @@
   <span class="spacer"></span>
   @if (store.can('schedule')) {
     <div class="row">
-      <button class="btn sm" type="button" (click)="practicesOpen.set(true)">Practice times</button>
+      <button class="btn sm" type="button" (click)="add('practice')">Add practice</button>
       <button class="btn sm" type="button" (click)="add('tournament')">Add tournament</button>
       <button class="btn sm primary" type="button" (click)="add('event')">Add event</button>
     </div>
@@ -63,6 +63,9 @@
         <span class="sr-only">{{ fmt(it.date, { weekday: 'long', month: 'long', day: 'numeric' }) }}</span>
         @if (when(it)) { <span>{{ when(it) }}</span> }
         @if (it.location) { <span>{{ it.location }}</span> }
+        @if (it.court) { <span>{{ courtLabel(it.court) }}</span> }
+        @if (it.uniformColor) { <span>{{ it.uniformColor }} practice uniform</span> }
+        @if (it.edited) { <span class="pill p-warn" title="This date was changed on its own">Changed this date</span> }
         @if (it.note) { <span>{{ it.note }}</span> }
       </div>
     </div>
@@ -71,12 +74,21 @@
       <th-counts [item]="it" />
       <th-add-to-calendar [item]="it" [path]="it.kind === 'tournament' ? '/teams/' + store.teamId() + '/tournaments/' + it.key : '/teams/' + store.teamId() + '/schedule'" />
       @if (store.can('schedule')) {
-        @if (it.kind === 'practice') {
+        @if (it.practice) {
           <button class="link-btn small" type="button" (click)="toggleCancelled(it)">{{ it.cancelled ? 'Restore practice' : 'Cancel practice' }}</button>
-        } @else if (it.series) {
+        } @else if (it.series && it.event) {
           <span class="row" style="gap:10px">
             <button class="link-btn small" type="button" (click)="toggleCancelled(it)">{{ it.cancelled ? 'Restore this date' : 'Cancel this date' }}</button>
-            <button class="link-btn small" type="button" (click)="edit(it)">Edit series</button>
+            <details class="edit-menu" #menu>
+              <summary class="link-btn small">Edit</summary>
+              <div class="edit-pop" role="group" [attr.aria-label]="'Edit ' + it.title">
+                <button type="button" (click)="menu.open = false; edit(it, 'date')">This date only</button>
+                @if (it.date !== it.event.date) {
+                  <button type="button" (click)="menu.open = false; edit(it, 'following')">This and following dates</button>
+                }
+                <button type="button" (click)="menu.open = false; edit(it, 'series')">Whole series</button>
+              </div>
+            </details>
           </span>
         } @else {
           <button class="link-btn small" type="button" (click)="edit(it)">Edit</button>
@@ -95,7 +107,7 @@
   } @empty {
     <div class="empty" style="margin-top:16px">
       Nothing scheduled in this range.
-      @if (store.can('schedule') && !store.settings()?.practices?.length) { Add practice times or an event to get started. }
+      @if (store.can('schedule')) { Add a practice or an event to get started. }
     </div>
   }
 } @else {
@@ -142,6 +154,5 @@
 }
 
 @if (store.can('schedule')) {
-  <th-event-form [open]="eventOpen()" [event]="editing()" [defaultKind]="newKind()" (closed)="eventOpen.set(false)" />
-  <th-practices-form [open]="practicesOpen()" (closed)="practicesOpen.set(false)" />
+  <th-event-form [open]="eventOpen()" [event]="editing()" [defaultKind]="newKind()" [mode]="editMode()" [at]="editAt()" (closed)="eventOpen.set(false)" />
 }

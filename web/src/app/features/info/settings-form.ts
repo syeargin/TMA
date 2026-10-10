@@ -59,6 +59,8 @@ const dollars = (cents?: number) => (cents ? String(cents / 100) : '');
         <label>What-to-bring checklist<textarea formControlName="checklist" rows="6"></textarea><span class="hint">One item per line. Tournaments use this unless they have their own list.</span></label>
         <label>Uniform order items<textarea formControlName="uniformItems" rows="5"></textarea>
           <span class="hint">One item per line. Families’ sizes follow the line order, so add new items at the end.</span></label>
+        <label>Practice uniform colors<textarea formControlName="practiceColors" rows="4" placeholder="Navy&#10;White&#10;Red"></textarea>
+          <span class="hint">One color per line. Coaches pick from this list when they add a practice.</span></label>
         <div class="form-actions">
           <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save settings' }}</button>
           <button class="btn ghost" type="button" (click)="closed.emit()">Cancel</button>
@@ -77,7 +79,7 @@ export class SettingsForm {
   readonly coaches = new FormArray<CoachGroup>([]);
   readonly form = this.fb.group({
     teamName: '', season: '', age: '', teamCode: '', coaches: this.coaches,
-    duesAmount: '', duesDue: '', duesLabel: '', costPerMeal: '', mealsPerDay: '', people: '', checklist: '', uniformItems: ''
+    duesAmount: '', duesDue: '', duesLabel: '', costPerMeal: '', mealsPerDay: '', people: '', checklist: '', uniformItems: '', practiceColors: ''
   });
 
   constructor() {
@@ -94,7 +96,8 @@ export class SettingsForm {
           duesAmount: dollars(s.dues?.amountCents), duesDue: s.dues?.due ?? '', duesLabel: s.dues?.label ?? '',
           costPerMeal: dollars(s.budget?.costPerMealCents), mealsPerDay: s.budget?.mealsPerDay ? String(s.budget.mealsPerDay) : '',
           people: s.budget?.people ? String(s.budget.people) : '',
-          checklist: (s.checklist ?? []).join('\n'), uniformItems: (s.uniformItems ?? []).join('\n')
+          checklist: (s.checklist ?? []).join('\n'), uniformItems: (s.uniformItems ?? []).join('\n'),
+          practiceColors: (s.practiceColors ?? []).join('\n')
         });
         this.form.markAsPristine();
       });
@@ -115,7 +118,8 @@ export class SettingsForm {
       teamName: v.teamName.trim(), season: v.season.trim() || undefined, age: v.age.trim() || undefined, teamCode: v.teamCode.trim() || undefined,
       coaches: v.coaches.filter((c) => c.name.trim()).map((c) => ({ name: c.name.trim(), ...(c.phone.trim() ? { phone: c.phone.trim() } : {}) })),
       dues: { amountCents: toCents(v.duesAmount), ...(v.duesDue ? { due: v.duesDue } : {}), ...(v.duesLabel.trim() ? { label: v.duesLabel.trim() } : {}) },
-      budget, checklist: lines(v.checklist), uniformItems: lines(v.uniformItems)
+      budget, checklist: lines(v.checklist), uniformItems: lines(v.uniformItems),
+      practiceColors: [...new Set(lines(v.practiceColors).map((c) => c.slice(0, 40)))].slice(0, 20)
     };
     this.busy.set(true);
     const ok = await this.store.saveSettings(next);

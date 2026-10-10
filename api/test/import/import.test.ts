@@ -62,10 +62,13 @@ describe("reading workbooks", () => {
       { name: "Sam Ruiz", email: "sam.ruiz@example.com", cell: undefined, invite: false }
     ]);
     expect(t.practices).toEqual([
-      expect.objectContaining({ label: "Tuesday practice", dow: 2, start: "6:30 PM", end: "8:30 PM", from: "2026-10-06" }),
-      expect.objectContaining({ label: "Saturday practice", dow: 6, until: "2027-05-29" })
+      expect.objectContaining({ label: "Tuesday practice", dow: 2, start: "6:30 PM", end: "8:30 PM", from: "2026-10-06", every: 2, court: "3", uniformColor: "Navy" }),
+      expect.objectContaining({ label: "Saturday practice", dow: 6, until: "2027-05-29", every: 1, uniformColor: "Gray" })
     ]);
-    expect(t.events.map((e) => e.title)).toEqual(["Peach Classic", "Team dinner", "Fund deposit due"]);
+    expect(t.events.map((e) => e.title)).toEqual(["Peach Classic", "Team dinner", "Fund deposit due", "Extra serving practice"]);
+    expect(t.events[3]).toMatchObject({ kind: "practice", court: "1", uniformColor: "White", time: "10:00 AM" });
+    expect(t.events[3].repeat).toBeUndefined();
+    expect(t.practiceColors).toEqual(["Navy", "White"]);
     expect(t.events[0]).toMatchObject({ kind: "tournament", cartJersey: "8", ballsJersey: "na", travel: false, endDate: "2026-12-06" });
     expect(t.events[1].repeat).toEqual({ every: 1, days: [3], until: "2026-11-04", skipTournaments: true });
     expect(t.checklist).toEqual(["Water bottle", "Snacks"]);
@@ -81,7 +84,7 @@ describe("reading workbooks", () => {
       expect.stringMatching(/^error Roster 5: Jersey 3 is also on row 3/),
       expect.stringMatching(/^error Schedule 3: Start date isn't a date/),
       expect.stringMatching(/^error Schedule 3: Tournaments can't repeat/),
-      expect.stringMatching(/^error Schedule 4: Type should be Tournament, Event or Deadline/)
+      expect.stringMatching(/^error Schedule 4: Type should be Practice, Tournament, Event or Deadline/)
     ]));
   });
 
@@ -111,13 +114,16 @@ describe("team import", () => {
     expect((await boss("POST", "/teams/test-15/import", { sheets: CLUB })).status).toBe(400);
   });
 
-  it("previews without saving, then saves", async () => {
+  it("previews without saving, then saves; weekly practice times are converted and matched by name", async () => {
+    // The team still has an old weekly practice with the same name, a cancelled date and an answer.
+    expect((await boss("PUT", "/teams/test-15/practices", { practices: [{ id: "tue1", label: "Tuesday practice", dow: 2, start: "6:00 PM", from: "2026-10-06" }] })).status).toBe(200);
+    expect((await boss("PUT", "/teams/test-15/practices/cancelled/pr-tue1-2026-10-20")).status).toBe(200);
     const before = (await partition("test-15")).length;
     const prev = await boss("POST", "/teams/test-15/import", { sheets: TEAM });
     expect(prev.status).toBe(200);
     expect(prev.body.teams[0]).toMatchObject({
       teamId: "test-15", status: "update", name: "Test 15",
-      players: { add: 4, update: 0, kept: 0 }, events: { add: 3, update: 0 }, practices: 2,
+      players: { add: 4, update: 0, kept: 0 }, events: { add: 4, update: 0 }, practices: 2,
       // Dana is already on the team; Kim is staff and a parent (one invite, both roles); Bo has two players.
       invites: { staff: 2, parents: 2, alreadyOnTeam: 1 }
     });
@@ -135,6 +141,12 @@ describe("team import", () => {
     expect(peach.cartPid).toBe(team.players.find((p: any) => p.jersey === "8").pid);
     expect(peach.ballsPid).toBe("na");
     expect(team.events.find((e: any) => e.title === "Team dinner").repeat.days).toEqual([3]);
+    // The old weekly practice became a series, and the workbook updated it in place.
+    expect(team.settings.practices).toEqual([]);
+    const tue = team.events.find((e: any) => e.title === "Tuesday practice");
+    expect(tue).toMatchObject({ eid: "pr-tue1", kind: "practice", time: "6:30 PM", endTime: "8:30 PM", court: "3", uniformColor: "Navy", repeat: { every: 2, days: [2] }, cancelled: ["2026-10-20"] });
+    expect(team.events.find((e: any) => e.title === "Saturday practice")).toMatchObject({ kind: "practice", repeat: { every: 1, days: [6], until: "2027-05-29" } });
+    expect(team.settings.practiceColors).toEqual(["Navy", "White", "Gray"]);
     const invites = (await boss("GET", "/teams/test-15/invites")).body.invites;
     const kim = invites.find((i: any) => i.email === "kim.ruiz@example.com");
     expect(kim.roles.sort()).toEqual(["finance", "parent"]);
@@ -149,19 +161,19 @@ describe("team import", () => {
     const peach = team.events.find((e: any) => e.title === "Peach Classic");
     // A family answers; a coach adds game-day details and cancels a practice date.
     expect((await boss("PUT", `/teams/test-15/events/${peach.eid}`, { ...peach, eid: undefined, parking: "Lot C" })).status).toBe(200);
-    const tue = team.settings.practices.find((p: any) => p.label === "Tuesday practice").id;
-    expect((await boss("PUT", `/teams/test-15/practices/cancelled/pr-${tue}-2026-10-13`)).status).toBe(200);
+    const tue = team.events.find((e: any) => e.title === "Tuesday practice");
+    const { eid: _e, type: _t, updatedAt: _u, updatedBy: _b, GSI2PK: _g1, GSI2SK: _g2, ...tueBody } = tue;
+    expect((await boss("PUT", `/teams/test-15/events/${tue.eid}`, { ...tueBody, cancelled: ["2026-10-20", "2026-11-03"], overrides: { "2026-11-17": { court: "6" } } })).status).toBe(200);
     expect((await boss("PUT", `/teams/test-15/players/extra`, { first: "Walk", last: "On" })).status).toBe(200);
 
     const again = await boss("POST", "/teams/test-15/import", { sheets: TEAM, apply: true });
-    expect(again.body.teams[0]).toMatchObject({ players: { add: 0, update: 4, kept: 1 }, events: { add: 0, update: 3 } });
+    expect(again.body.teams[0]).toMatchObject({ players: { add: 0, update: 4, kept: 1 }, events: { add: 0, update: 4 }, practices: 2 });
     const after = (await boss("GET", "/teams/test-15")).body;
     expect(after.players).toHaveLength(5);
     expect(after.players.find((p: any) => p.first === "Ivy").pid).toBe(ivy);
-    expect(after.events).toHaveLength(3);
+    expect(after.events).toHaveLength(6);
     expect(after.events.find((e: any) => e.title === "Peach Classic")).toMatchObject({ eid: peach.eid, parking: "Lot C" });
-    expect(after.settings.practices.find((p: any) => p.label === "Tuesday practice").id).toBe(tue);
-    expect(after.settings.cancelled).toContain(`pr-${tue}-2026-10-13`);
+    expect(after.events.find((e: any) => e.title === "Tuesday practice")).toMatchObject({ eid: tue.eid, cancelled: ["2026-10-20", "2026-11-03"], overrides: { "2026-11-17": { court: "6" } } });
   });
 
   it("refuses to save a workbook with errors", async () => {
@@ -210,8 +222,11 @@ describe("club import", () => {
     expect(a.settings.checklist).toEqual(["Knee pads"]);
     expect(a.events.find((e: any) => e.title === "National Qualifier")).toMatchObject({ travel: true, hotelCode: "QUAL27", endDate: "2027-02-15" });
     const t16 = (await boss("GET", "/teams/test-16")).body;
-    // Copied test-15a's practices, then the workbook's own practice for 16U replaced them.
-    expect(t16.settings.practices.map((p: any) => p.label)).toEqual(["Thursday practice"]);
+    // The workbook's own practice for 16U, not test-15a's.
+    expect(t16.events.filter((e: any) => e.kind === "practice").map((e: any) => [e.title, e.repeat.every, e.court, e.uniformColor])).toEqual([["Thursday practice", 3, "2", "Red"]]);
+    expect(t16.settings.practiceColors).toEqual(["Black", "Red"]);
+    expect(a.settings.practiceColors).toEqual(["Black"]);
+    expect(a.events.filter((e: any) => e.kind === "practice").map((e: any) => e.title)).toEqual(["Monday practice"]);
     expect(t16.handbook.sections).toEqual(a.handbook.sections);
   });
 

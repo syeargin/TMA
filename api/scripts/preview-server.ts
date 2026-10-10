@@ -40,6 +40,11 @@ for (const [id, name, age] of [["test-13", "Test 13", "13U"], ["test-14", "Test 
 await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("test-12", MOM), ...keys.memberGsi("test-12", MOM), type: "Membership", status: "active", sub: MOM, roles: ["parent"], pid: "p1", email: "mom@example.com", firstName: "Mia", at: new Date().toISOString() } }));
 await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("test-13", MOM), ...keys.memberGsi("test-13", MOM), type: "Membership", status: "active", sub: MOM, roles: ["parent"], pid: "p1", email: "mom@example.com", firstName: "Mia", at: new Date().toISOString() } }));
 await api("POST", "/teams/test-12/archive", OWNER);
+// test-13 is on the old weekly practice times (converted when a coach opens it) and has practice uniform colors.
+await api("PUT", "/teams/test-13/settings", OWNER, { teamName: "Test 13", season: "2026-27", age: "13U", coaches: [], practiceColors: ["Navy", "White", "Red"] });
+await api("PUT", "/teams/test-13/practices", OWNER, { practices: [{ id: "wed", label: "Wednesday practice", dow: 3, start: "6:30 PM", end: "8:30 PM", from: "2026-10-07", until: "2027-03-31", location: "Test Gym" }] });
+await api("PUT", "/teams/test-13/practices/cancelled/pr-wed-2026-10-21", OWNER);
+await api("PUT", "/teams/test-13/family/p1", MOM, { rsvp: { "pr-wed-2026-10-14": "yes" } });
 
 const DIST = join(import.meta.dirname, "../../web/dist");
 const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon" };

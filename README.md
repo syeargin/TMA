@@ -188,6 +188,16 @@ The site imports the API's role table directly (`@shared/permissions` → `api/s
 - Rows in a series (weekly practices too) show a ↻ pill. Add to calendar offers the single date or the whole series: Apple and Google get a repeating entry (RRULE, with skipped or cancelled dates as exceptions); Outlook gets the series as an .ics file, since Outlook web links can't carry a repeat.
 - The schedule has List and Month views. Month view uses a Sunday-first grid that always shows six weeks at a fixed size (dots only on phones); tap a day to list its items. The choice is remembered on that device.
 
+### Practices
+
+- **Practice** is an event type (**Add practice** on the Schedule page). Besides the name, times, place and details, a practice has a **court** and a **practice uniform color**. The colors come from a list each team keeps under Team Info › Team settings (`settings.practiceColors`). Practices repeat like team events: weekly, every 2 or every 3 weeks, from a start date to an end date, skipping tournament days.
+- Each row of a series has **Edit ▾** with three choices:
+  - **This date only** saves just the changes as `overrides[<date>]` on the series, such as a new time, court, uniform or note. Blank fields follow the series, and the answer key stays `<eid>-<date>`. The row shows "Changed this date", and **Match the series again** removes the change.
+  - **This and following dates** (`POST /events/{eid}/split`) ends the series the day before that date and starts a new one with the changes. Later cancelled dates, single-date changes and families' answers move to the new series.
+  - **Whole series** changes every date except ones changed on their own. If a change drops dates families have already answered, the form says how many before saving.
+- **The old Practice times sheet is retired.** The first time someone who can edit the schedule opens a team that still has weekly practice times, `POST /teams/{t}/practices/convert` turns each one into a weekly practice series with id `pr-<practice id>`. Answers were already keyed `pr-<id>-<date>`, so they carry over untouched, and cancelled dates move onto the series. It runs once; the settings update is conditional, so two coaches can't convert twice.
+- Spreadsheet import does the same. Practices rows (with optional **Repeats**, **Court** and **Uniform color**) become practice series, matched to saved ones by name. A team still on practice times is converted first. The Schedule tab also takes **Practice** rows for one-off practices, and the Lists and Defaults tabs take **Practice uniform colors**. Colors used on practices are added to the team's list.
+
 ## Clubs
 
 - The site runs any number of clubs. Each team belongs to one club (`TEAM#<t>/META#CLUB`). Teams made before clubs existed have no such record and belong to the default club (`ClubId`), so existing data needs no migration. The default club's record (A5's name and Team Info links) is written the first time it's needed.

@@ -48,6 +48,8 @@ export interface Settings {
   teamName?: string; season?: string; age?: string; teamCode?: string;
   coaches?: Coach[]; practices?: Practice[]; cancelled?: string[];
   checklist?: string[]; uniformItems?: string[];
+  /** Practice uniform colors offered when adding a practice. */
+  practiceColors?: string[];
   dues?: { amountCents?: number; due?: string; label?: string };
   budget?: { costPerMealCents?: number; mealsPerDay?: number; people?: number; families?: number };
   [key: string]: unknown;
@@ -57,11 +59,15 @@ export interface Player {
   pid: string; first: string; last?: string; jersey?: string; shirt?: string; town?: string;
   allergies?: string; refTeam?: 'A' | 'B'; order?: number; parents?: Parent[];
 }
-export type EventKind = 'tournament' | 'event' | 'deadline';
+export type EventKind = 'tournament' | 'event' | 'deadline' | 'practice';
+/** One date of a series changed on its own. Blank fields fall back to the series. */
+export interface Occurrence { title?: string; time?: string; endTime?: string; location?: string; court?: string; uniformColor?: string; notes?: string }
 export interface TeamEvent {
   eid: string; kind: EventKind; title: string; date: string; endDate?: string;
   time?: string; location?: string; city?: string; division?: string; website?: string;
   travel?: boolean; notes?: string;
+  // Practices
+  endTime?: string; court?: string; uniformColor?: string;
   // Game day (tournaments)
   parking?: string; waves?: string; arrival?: string; start?: string; meet?: string; uniforms?: string;
   admissions?: string; teamCode?: string; scheduleLink?: string; ticketHelp?: string; dutyPid?: string; cartPid?: string; ballsPid?: string;
@@ -72,6 +78,8 @@ export interface TeamEvent {
   repeat?: { every: number; days: number[]; until: string; skipTournaments?: boolean };
   cancelled?: string[];
   skip?: string[];
+  /** Dates of a series changed on their own ("Edit this date"), by YYYY-MM-DD. */
+  overrides?: Record<string, Occurrence>;
   [key: string]: unknown;
 }
 

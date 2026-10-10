@@ -17,9 +17,13 @@ export type PlayerPlan = {
   row: number; sheet: string; jersey?: string; first: string; last: string; shirt?: string; town?: string; allergies?: string;
   refTeam?: "A" | "B"; parents: ParentPlan[]; order: number;
 };
-export type PracticePlan = { label: string; dow: number; start: string; end?: string; from: string; until?: string; location?: string; note?: string };
+export type PracticePlan = {
+  label: string; dow: number; start: string; end?: string; from: string; until?: string; location?: string; note?: string;
+  /** 1 = weekly, 2 or 3 = every 2 or 3 weeks, 0 = one date only. */
+  every: number; court?: string; uniformColor?: string;
+};
 export type EventPlan = {
-  row: number; sheet: string; kind: "tournament" | "event" | "deadline"; title: string; date: string; endDate?: string; time?: string;
+  row: number; sheet: string; kind: "tournament" | "event" | "deadline" | "practice"; court?: string; uniformColor?: string; title: string; date: string; endDate?: string; time?: string;
   location?: string; city?: string; division?: string; travel?: boolean; website?: string; admissions?: string;
   hotel?: string; hotelLink?: string; hotelCode?: string; hotelBy?: string; notes?: string;
   /** Jersey numbers of the families bringing the ball cart and volleyballs, or "na" (not needed). */
@@ -36,14 +40,14 @@ export type TeamPlan = {
   /** Undefined: the workbook has no practices for this team, so the saved ones stay. */
   practices?: PracticePlan[];
   events: EventPlan[];
-  checklist?: string[]; uniformItems?: string[];
+  checklist?: string[]; uniformItems?: string[]; practiceColors?: string[];
 };
 export type ClubPlan = {
   clubId?: string; name?: string; short?: string; colors?: { primary?: string; accent?: string }; notes?: string;
   links?: { label: string; url: string }[];
   admins: { row: number; email: string; firstName: string; lastName: string }[];
   /** Starting handbook and lists for teams the import creates. */
-  defaults: { handbook: { t: string; b: string }[]; checklist: string[]; uniformItems: string[] };
+  defaults: { handbook: { t: string; b: string }[]; checklist: string[]; uniformItems: string[]; practiceColors: string[] };
 };
 export type Parsed =
   | { kind: "team"; team: TeamPlan; problems: Problem[] }
@@ -246,15 +250,30 @@ function practiceRow(r: Row): PracticePlan | null {
   const from = r.date("First date", true);
   const until = r.date("Last date");
   if (from && until && until < from) r.err("Last date is before the first date.");
-  if (!label || dow === undefined || !start || !from) return null;
-  return { label, dow, start, end: r.time("End time"), from, until, location: r.opt("Location", 200), note: r.opt("Note", 300) };
+  const every = repeatEvery(r, "Repeats", 1);
+  if (!label || dow === undefined || !start || !from || every === null) return null;
+  return { label, dow, start, end: r.time("End time"), from, until, location: r.opt("Location", 200), note: r.opt("Note", 300),
+    every, court: r.opt("Court", 40), uniformColor: r.opt("Uniform color", 40) };
+}
+
+/** "Weekly", "Every 2 weeks", "Every 3 weeks"; blank gives `blank`; "None" gives 0. Null (with an error) otherwise. */
+function repeatEvery(r: Row, col: string, blank: number): number | null {
+  const v = r.str(col).toLowerCase();
+  if (!v) return blank;
+  if (v === "none" || v === "no" || v === "does not repeat") return 0;
+  if (v.startsWith("weekly") || v === "every week") return 1;
+  const n = Number(/every (\d)/.exec(v)?.[1] ?? NaN);
+  if (Number.isInteger(n) && n >= 1 && n <= 4) return n;
+  r.err(`${col} should be None, Weekly, Every 2 weeks or Every 3 weeks (it says "${r.str(col)}").`);
+  return null;
 }
 
 function eventRow(r: Row, withFamilies: boolean): EventPlan | null {
   const type = r.str("Type").toLowerCase();
-  const kind = type.startsWith("tour") ? "tournament" : type.startsWith("dead") ? "deadline" : type === "event" || type === "team event" ? "event" : null;
+  const kind = type.startsWith("tour") ? "tournament" : type.startsWith("dead") ? "deadline" : type.startsWith("prac") ? "practice"
+    : type === "event" || type === "team event" ? "event" : null;
   if (!type) r.err("Type is required.");
-  else if (!kind) r.err(`Type should be Tournament, Event or Deadline (it says "${r.str("Type")}").`);
+  else if (!kind) r.err(`Type should be Practice, Tournament, Event or Deadline (it says "${r.str("Type")}").`);
   const title = r.need("Title", 160);
   const date = r.date("Start date", true);
   const endDate = r.date("End date");
@@ -286,7 +305,8 @@ function eventRow(r: Row, withFamilies: boolean): EventPlan | null {
     row: r.n, sheet: r.tab.name, kind, title, date, endDate, time: r.time("Time"), location: r.opt("Venue", 200), city: r.opt("City", 120),
     division: r.opt("Division", 60), travel: kind === "tournament" ? r.yes("Travel") : undefined, website: r.url("Website"),
     admissions: r.url("Admission link"), hotel: r.opt("Hotel", 200), hotelLink: r.url("Hotel link"), hotelCode: r.opt("Hotel block code", 100),
-    hotelBy: r.date("Book hotel by"), notes: r.opt("Notes", 2000), cartJersey: family("Ball cart family"), ballsJersey: family("Volleyballs family"), repeat
+    hotelBy: r.date("Book hotel by"), notes: r.opt("Notes", 2000),
+    court: kind === "practice" ? r.opt("Court", 40) : undefined, uniformColor: kind === "practice" ? r.opt("Uniform color", 40) : undefined, cartJersey: family("Ball cart family"), ballsJersey: family("Volleyballs family"), repeat
   };
 }
 
@@ -303,13 +323,13 @@ function teamColumns(r: Row, t: TeamPlan) {
   t.budget = { costPerMealCents: r.money("Meal cost per person"), mealsPerDay: r.int("Meals per day", 10), people: r.int("People fed", 99) };
 }
 
-function listsTab(tab: Tab, kindCol: string, itemCol: string, kinds: Record<string, "checklist" | "uniformItems" | "handbook">, titleCol?: string) {
-  const out = { checklist: [] as string[], uniformItems: [] as string[], handbook: [] as { t: string; b: string }[] };
+function listsTab(tab: Tab, kindCol: string, itemCol: string, kinds: Record<string, "checklist" | "uniformItems" | "practiceColors" | "handbook">, titleCol?: string) {
+  const out = { checklist: [] as string[], uniformItems: [] as string[], practiceColors: [] as string[], handbook: [] as { t: string; b: string }[] };
   for (const r of tab.rows()) {
     const k = r.str(kindCol).toLowerCase();
     const which = kinds[k];
     if (!which) { r.err(`${kindCol} should be one of: ${Object.keys(kinds).map((x) => x.replace(/\b\w/g, (c) => c.toUpperCase())).join(", ")}.`); continue; }
-    const item = r.need(itemCol, which === "handbook" ? 10_000 : 200);
+    const item = r.need(itemCol, which === "handbook" ? 10_000 : which === "practiceColors" ? 40 : 200);
     if (!item) continue;
     if (which === "handbook") out.handbook.push({ t: (titleCol && r.str(titleCol, 200)) || "", b: item });
     else out[which].push(item);
@@ -350,9 +370,10 @@ export function parseTeamWorkbook(sheets: Sheets, teamId: string): Parsed {
   for (const r of pr.rows()) { const p = practiceRow(r); if (p) practices.push(p); }
   if (practices.length) t.practices = practices;
   for (const r of tab(sheets, "Schedule", problems).rows()) { const e = eventRow(r, true); if (e) t.events.push(e); }
-  const lists = listsTab(tab(sheets, "Lists", problems), "List", "Item", { "packing checklist": "checklist", "uniform items": "uniformItems" });
+  const lists = listsTab(tab(sheets, "Lists", problems), "List", "Item", { "packing checklist": "checklist", "uniform items": "uniformItems", "practice uniform colors": "practiceColors" });
   if (lists.checklist.length) t.checklist = lists.checklist;
   if (lists.uniformItems.length) t.uniformItems = lists.uniformItems;
+  if (lists.practiceColors.length) t.practiceColors = [...new Set(lists.practiceColors)].slice(0, 20);
   checkTeam(t, problems);
   return { kind: "team", team: t, problems };
 }
@@ -360,7 +381,7 @@ export function parseTeamWorkbook(sheets: Sheets, teamId: string): Parsed {
 /** The Club setup workbook: the club's settings and every team in it. */
 export function parseClubWorkbook(sheets: Sheets, clubId: string): Parsed {
   const problems: Problem[] = [];
-  const club: ClubPlan = { admins: [], defaults: { handbook: [], checklist: [], uniformItems: [] } };
+  const club: ClubPlan = { admins: [], defaults: { handbook: [], checklist: [], uniformItems: [], practiceColors: [] } };
 
   let seen = 0;
   for (const r of tab(sheets, "Club", problems).rows()) {
@@ -448,7 +469,7 @@ export function parseClubWorkbook(sheets: Sheets, clubId: string): Parsed {
     if (e) for (const t of targets) t.events.push({ ...e });
   }
   const d = listsTab(tab(sheets, "Defaults", problems), "Kind", "Text or item",
-    { "handbook section": "handbook", "packing checklist": "checklist", "uniform items": "uniformItems" }, "Title");
+    { "handbook section": "handbook", "packing checklist": "checklist", "uniform items": "uniformItems", "practice uniform colors": "practiceColors" }, "Title");
   club.defaults = d;
 
   for (const t of all) {

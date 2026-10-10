@@ -16,13 +16,13 @@ MAXROW=1000
 CHOICES={
  "YesNo":["Y","N"],
  "Days":["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],
- "EventTypes":["Tournament","Event","Deadline"],
+ "EventTypes":["Practice","Tournament","Event","Deadline"],
  "Repeats":["None","Weekly","Every 2 weeks","Every 3 weeks"],
  "Shirts":["Youth S","Youth M","Youth L","Youth XL","Adult XS","Adult S","Adult M","Adult L","Adult XL","Adult 2XL"],
  "RefGroups":["A","B"],
- "Lists":["Packing checklist","Uniform items"],
+ "Lists":["Packing checklist","Uniform items","Practice uniform colors"],
  "Programs":["National","Regional","Boys"],
- "DefaultKinds":["Handbook section","Packing checklist","Uniform items"],
+ "DefaultKinds":["Handbook section","Packing checklist","Uniform items","Practice uniform colors"],
 }
 
 def add_choices(wb):
@@ -113,15 +113,18 @@ ROSTER_RULES={"Shirt size":("list","Shirts"),"Ref group":("list","RefGroups"),**
 ROSTER_EX=["7","Ava","Carter","Adult S","Duluth, GA","None","A","Jen Carter","jen.carter@example.com","555-0102","Y","Ryan Carter","ryan.carter@example.com","555-0103","Y","","","","","","","",""]
 
 PRACTICE=[("Name",True,18,None),("Day",True,12,None),("Start time",True,11,"Like 6:30 PM. Leave the end blank if it isn't set yet."),("End time",False,11,None),
- ("First date",True,12,None),("Last date",False,12,"Blank = end of the season (June 30)."),("Location",False,22,None),("Note",False,30,None)]
-PRACTICE_RULES={"Day":("list","Days"),"First date":("date",),"Last date":("date",)}
-PRACTICE_EX=["Saturday practice","Saturday","7:30 AM","10:00 AM",D("2026-09-19"),D("2027-06-19"),"A5 Sportsplex","Bring both jerseys"]
+ ("First date",True,12,None),("Last date",False,12,"Blank = end of the season (June 30)."),
+ ("Repeats",False,13,"Blank = weekly. Or Every 2 weeks, Every 3 weeks, or None for this one date only."),
+ ("Location",False,22,None),("Court",False,9,"Like 3, or Courts 3-4."),("Uniform color",False,13,"Practice uniform color. New colors are added to the team's list."),("Note",False,30,None)]
+PRACTICE_RULES={"Day":("list","Days"),"First date":("date",),"Last date":("date",),"Repeats":("list","Repeats")}
+PRACTICE_EX=["Saturday practice","Saturday","7:30 AM","10:00 AM",D("2026-09-19"),D("2027-06-19"),"Weekly","A5 Sportsplex","3","Navy","Bring both jerseys"]
 
 SCHED=[("Type",True,12,None),("Title",True,28,None),("Start date",True,12,None),("End date",False,12,"For tournaments over more than one day."),("Time",False,11,None),
  ("Venue",False,24,None),("City",False,16,None),("Division",False,12,None),("Travel",False,8,"Y for tournaments that need hotels or flights."),
  ("Website",False,24,None),("Admission link",False,24,None),("Hotel",False,20,None),("Hotel link",False,24,None),("Hotel block code",False,14,None),("Book hotel by",False,12,None)]
 SCHED_FAMILY=[("Ball cart family",False,12,"Jersey number of the player whose family brings the ball cart, or 'Not needed'."),("Volleyballs family",False,12,"Jersey number, or 'Not needed'.")]
-SCHED_REPEAT=[("Repeats",False,13,"For team events only; tournaments don't repeat."),("Repeat days",False,14,"Days of the week, like 'Tue, Thu'."),("Repeat until",False,12,None),("Notes",False,36,None)]
+SCHED_PRACTICE=[("Court",False,9,"Practices only."),("Uniform color",False,13,"Practices only.")]
+SCHED_REPEAT=[("Repeats",False,13,"For practices and team events; tournaments don't repeat."),("Repeat days",False,14,"Days of the week, like 'Tue, Thu'."),("Repeat until",False,12,None),("Notes",False,36,None)]
 SCHED_RULES={"Type":("list","EventTypes"),"Start date":("date",),"End date":("date",),"Travel":("list","YesNo"),"Book hotel by":("date",),"Repeats":("list","Repeats"),"Repeat until":("date",)}
 SCHED_EX=["Tournament","Winter Invitational Classic",D("2026-12-12"),D("2026-12-13"),"","Georgia World Congress Center","Atlanta, GA","13 Open","N",
  "https://www.a5tournaments.com","https://sportwrench.com","","","",None]
@@ -167,8 +170,8 @@ def readme(wb, title, intro, tabs, extra):
 wb=Workbook(); add_choices(wb)
 readme(wb,"Team setup","Fill in this workbook to set up one team in Team Hub: who's on it, its staff and practices, and its season schedule. Club admins upload it from the team's Members page, or from the club page to create a new team.",
  [("Team","One row: the team's name, season and fund settings.","A"),("Staff","One row per coach, coordinator or other staff member.","C"),
-  ("Roster","One row per player, with up to four parents.","B"),("Practices","One row per weekly practice.","A"),
-  ("Schedule","One row per tournament, team event or deadline.","B"),("Lists","Optional: packing checklist and uniform items.","B")],[])
+  ("Roster","One row per player, with up to four parents.","B"),("Practices","One row per practice series: weekly, every 2 weeks or every 3 weeks.","A"),
+  ("Schedule","One row per tournament, team event, deadline or one-off practice.","B"),("Lists","Optional: packing checklist, uniform items and practice uniform colors.","B")],[])
 sheet(wb,"Team",[("Team name",True,18,None),("Season",True,10,"Like 2026-27."),("Age group",True,10,"Like 13U."),("Level / division",False,14,None),
  ("Team code",False,16,"The tournament registration code, shown on game-day pages."),("Dues amount",False,12,"Each family's team fund deposit, in dollars."),
  ("Dues due date",False,13,None),("Dues label",False,24,None),("Meal cost per person",False,12,"For the tournament meal budget."),("Meals per day",False,10,None),("People fed",False,10,"Players plus coaches.")],
@@ -177,7 +180,7 @@ sheet(wb,"Team",[("Team name",True,18,None),("Season",True,10,"Like 2026-27."),(
 sheet(wb,"Staff",STAFF,STAFF_EX,STAFF_RULES)
 sheet(wb,"Roster",ROSTER,ROSTER_EX,ROSTER_RULES)
 sheet(wb,"Practices",PRACTICE,PRACTICE_EX,PRACTICE_RULES)
-sheet(wb,"Schedule",SCHED+SCHED_FAMILY+SCHED_REPEAT,SCHED_EX+["Not needed","Not needed","None","","","Schedules post the Wednesday before."],SCHED_RULES)
+sheet(wb,"Schedule",SCHED+SCHED_FAMILY+SCHED_REPEAT+SCHED_PRACTICE,SCHED_EX+["Not needed","Not needed","None","","","Schedules post the Wednesday before.","",""],SCHED_RULES)
 sheet(wb,"Lists",[("List",True,20,None),("Item",True,40,None)],["Packing checklist","Knee and elbow pads"],{"List":("list","Lists")})
 wb.move_sheet("Choices", offset=len(wb.sheetnames))
 wb.save("web/public/templates/Team-Setup-Template.xlsx")
@@ -188,8 +191,8 @@ readme(wb,"Club setup","Fill in this workbook to set up a whole club in Team Hub
  [("Club","One row: the club's name, colors and notes for every team.","A"),("Club links","Links every team sees on Team Info.","A"),
   ("Club admins","People who run the club; they get club-admin invites.","C"),("Teams","One row per team. Every other tab refers to teams by Team ID.","A"),
   ("Staff","One row per person per team. A coach on two teams has two rows.","A"),("Rosters","One row per player, all teams together.","A"),
-  ("Practice patterns","One row per weekly practice, for a team or a whole group.","A"),("Shared schedule","Tournaments and events, each listed once for all the teams going.","A"),
-  ("Defaults","Optional: the starting handbook and lists for every team.","A")],
+  ("Practice patterns","One row per practice series, for a team or a whole group.","A"),("Shared schedule","Tournaments and events, each listed once for all the teams going.","A"),
+  ("Defaults","Optional: the starting handbook, lists and practice uniform colors for every team.","A")],
  [("Team ID","Lowercase letters, numbers and dashes, like a5-13-tom. It becomes part of the team's web address and can't be changed later."),
   ("Groups","On Practice patterns and Shared schedule you can name a group instead of listing teams: All, All National, All Regional, All Boys, an age group like 13U, or both like 13U National. Or list Team IDs separated by commas.")])
 sheet(wb,"Club",[("Club name",True,20,None),("Short name",False,11,"Used in sentences like 'A5 reimburses the fee'."),("Club ID",True,12,"Lowercase, like a5. Can't be changed later."),
@@ -206,8 +209,8 @@ tid=("Team ID",True,14,"Must match a Team ID on the Teams tab.")
 sheet(wb,"Staff",[tid]+STAFF,["a5-13-tom"]+STAFF_EX,{"Team ID":("teamid",),**STAFF_RULES})
 sheet(wb,"Rosters",[tid]+ROSTER,["a5-13-tom"]+ROSTER_EX,{"Team ID":("teamid",),**ROSTER_RULES})
 sheet(wb,"Practice patterns",[("Applies to",True,18,"A Team ID, Team IDs separated by commas, or a group like 13U National.")]+PRACTICE,["13U National"]+PRACTICE_EX,PRACTICE_RULES)
-sheet(wb,"Shared schedule",[("Teams",True,18,"Team IDs separated by commas, or a group like All 13U.")]+SCHED+SCHED_REPEAT,
- ["All National"]+SCHED_EX+["None","","","Schedules post the Wednesday before."],SCHED_RULES)
+sheet(wb,"Shared schedule",[("Teams",True,18,"Team IDs separated by commas, or a group like All 13U.")]+SCHED+SCHED_REPEAT+SCHED_PRACTICE,
+ ["All National"]+SCHED_EX+["None","","","Schedules post the Wednesday before.","",""],SCHED_RULES)
 sheet(wb,"Defaults",[("Kind",True,18,None),("Title",False,24,"For handbook sections."),("Text or item",True,60,None)],
  ["Handbook section","Attendance","Practices are mandatory. Tell your coach by text if you'll miss one."],{"Kind":("list","DefaultKinds")})
 wb.move_sheet("Choices", offset=len(wb.sheetnames))
