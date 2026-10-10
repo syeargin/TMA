@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ddb, TABLE } from "../../lib/db.js";
 import { clubOfTeam, DEFAULT_CLUB, forgetTeamClubs, getClub, getClubs } from "../../lib/clubs.js";
 import { keys } from "../../lib/keys.js";
+import { convertPractices } from "../../lib/practices.js";
 import { isPlatformAdmin, loadAccess, loadClubAccess } from "../context.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
@@ -26,7 +27,9 @@ const settingsSchema = z.object({
   practices: z.array(practice).max(20).optional(),
   cancelled: z.array(str(80)).max(500).optional(),
   checklist: z.array(str(200)).max(60).default([]),
-  uniformItems: z.array(str(200)).max(60).default([])
+  uniformItems: z.array(str(200)).max(60).default([]),
+  /** Practice uniform colors offered when adding a practice. Left out = keep what's saved. */
+  practiceColors: z.array(str(40).min(1)).max(20).optional()
 });
 
 const practicesSchema = z.object({ practices: z.array(practice).max(20) });
@@ -187,10 +190,11 @@ export function teamRoutes(r: Router) {
     const practices = b.practices ?? (saved?.practices as unknown[] | undefined) ?? [];
     const cancelled = b.cancelled ?? (saved?.cancelled as unknown[] | undefined) ?? [];
     const budget = b.budget ?? (saved?.budget as Record<string, number> | undefined) ?? {};
+    const practiceColors = b.practiceColors ?? (saved?.practiceColors as string[] | undefined) ?? [];
     const dir = (await getItem(keys.teamDir(access.clubId, access.teamId))) ?? { ...keys.teamDir(access.clubId, access.teamId), type: "Team", archived: false, createdAt: at };
     await ddb.send(new TransactWriteCommand({
       TransactItems: [
-        { Put: { TableName: TABLE, Item: { ...keys.settings(access.teamId), type: "Settings", ...b, practices, cancelled, budget, updatedAt: at, updatedBy: caller.sub } } },
+        { Put: { TableName: TABLE, Item: { ...keys.settings(access.teamId), type: "Settings", ...saved, ...b, practices, cancelled, budget, practiceColors, updatedAt: at, updatedBy: caller.sub } } },
         { Put: { TableName: TABLE, Item: { ...dir, name: b.teamName, season: b.season ?? "", age: b.age ?? "", coaches: b.coaches.map((c) => c.name) } } }
       ]
     }));
@@ -211,6 +215,13 @@ export function teamRoutes(r: Router) {
       }));
     } catch (e) { mapDbError(e, "This team has no settings yet."); }
     return json(200, { practices });
+  });
+
+  /** One-time move of the weekly practice times onto the schedule as practice series (answers carry over). */
+  r.on("POST", "/teams/{teamId}/practices/convert", async ({ caller, params }) => {
+    const access = await loadAccess(caller, checkId(params.teamId, "team"));
+    access.require("schedule");
+    return json(200, await convertPractices(access.teamId, caller.sub));
   });
 
   /** Cancel (PUT) or restore (DELETE) one practice date. Key: pr-<practiceId>-<YYYY-MM-DD>. */

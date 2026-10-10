@@ -33,16 +33,18 @@ fill(wb["Roster"], [
     roster("15", "Tess", "Cole", "Bo Cole", "bo.cole@example.com", ref="B"),
 ])
 fill(wb["Practices"], [
-    ["Tuesday practice", "Tuesday", dt.time(18, 30), dt.time(20, 30), D("2026-10-06"), None, "Test Gym", ""],
-    ["Saturday practice", "Sat", "9:00 AM", "11:00 AM", D("2026-10-10"), D("2027-05-29"), "Test Gym", "Both jerseys"],
+    ["Tuesday practice", "Tuesday", dt.time(18, 30), dt.time(20, 30), D("2026-10-06"), None, "Every 2 weeks", "Test Gym", "3", "Navy", ""],
+    ["Saturday practice", "Sat", "9:00 AM", "11:00 AM", D("2026-10-10"), D("2027-05-29"), "", "Test Gym", "", "Gray", "Both jerseys"],
 ])
 fill(wb["Schedule"], [
     ["Tournament", "Peach Classic", D("2026-12-05"), D("2026-12-06"), "8:00 AM", "Test Center", "Atlanta, GA", "15 Open", "N",
      "https://example.com/peach", "", "", "", "", None, "8", "Not needed", "None", "", None, "Arrive 45 minutes early."],
     ["Event", "Team dinner", D("2026-10-14"), None, "6:00 PM", "Pizza place", "", "", "", "", "", "", "", "", None, "", "", "Weekly", "Wed", D("2026-11-04"), ""],
     ["Deadline", "Fund deposit due", D("2026-11-15"), None, "", "", "", "", "", "", "", "", "", "", None, "", "", "", "", None, ""],
+    ["Practice", "Extra serving practice", D("2026-12-12"), None, "10:00 AM", "Test Gym", "", "", "", "", "", "", "", "", None, "", "", "None", "", None, "", "1", "White"],
 ])
-fill(wb["Lists"], [["Packing checklist", "Water bottle"], ["Packing checklist", "Snacks"], ["Uniform items", "Home jersey"]])
+fill(wb["Lists"], [["Packing checklist", "Water bottle"], ["Packing checklist", "Snacks"], ["Uniform items", "Home jersey"],
+                    ["Practice uniform colors", "Navy"], ["Practice uniform colors", "White"]])
 wb.save(OUT + "team-sample.xlsx")
 
 # ---------- team, with mistakes ----------
@@ -80,14 +82,15 @@ fill(wb["Rosters"], [
     ["test-16"] + roster("11", "Pia", "Ng", "Vi Ng", "vi.ng@example.com"),
 ])
 fill(wb["Practice patterns"], [
-    ["15U", "Monday practice", "Monday", "6:00 PM", "8:00 PM", D("2026-10-05"), None, "Test Gym", ""],
-    ["test-16", "Thursday practice", "Thursday", "7:00 PM", "9:00 PM", D("2026-10-08"), None, "Test Gym", ""],
+    ["15U", "Monday practice", "Monday", "6:00 PM", "8:00 PM", D("2026-10-05"), None, "", "Test Gym", "", "", ""],
+    ["test-16", "Thursday practice", "Thursday", "7:00 PM", "9:00 PM", D("2026-10-08"), None, "Every 3 weeks", "Test Gym", "2", "Red", ""],
 ])
 fill(wb["Shared schedule"], [
     ["All National", "Tournament", "National Qualifier", D("2027-02-13"), D("2027-02-15"), "", "Test Expo", "Orlando, FL", "", "Y",
      "", "", "Test Hotel", "https://example.com/hotel", "QUAL27", D("2027-01-10"), "None", "", None, ""],
     ["All", "Deadline", "Club fees due", D("2026-08-31"), None, "", "", "", "", "", "", "", "", "", "", None, "", "", None, ""],
 ])
-fill(wb["Defaults"], [["Handbook section", "Playing time", "Playing time is earned at practice."], ["Packing checklist", "", "Knee pads"]])
+fill(wb["Defaults"], [["Handbook section", "Playing time", "Playing time is earned at practice."], ["Packing checklist", "", "Knee pads"],
+                       ["Practice uniform colors", "", "Black"]])
 wb.save(OUT + "club-sample.xlsx")
 print("ok")

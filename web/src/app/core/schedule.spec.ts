@@ -1,6 +1,6 @@
 import { addDays, daysUntil, fmtRange, tmin } from './dates';
 import type { Settings, TeamEvent } from './models';
-import { buildItems, countsFor, practiceKey, rsvpOf, takesRsvp } from './schedule';
+import { buildItems, countsFor, courtLabel, practiceKey, rsvpOf, takesRsvp } from './schedule';
 
 describe('dates', () => {
   it('adds days across months and years', () => {
@@ -100,5 +100,33 @@ describe('repeating events', () => {
     const s = { practices: [{ id: 'tue', label: 'Tuesday', dow: 2, start: '6:00 PM', from: '2026-11-03', until: '2026-11-17' }] } as Settings;
     const rows = buildItems([], s);
     expect(rows[0].series).toMatchObject({ source: 'practice', every: 1, days: [2] });
+  });
+});
+
+describe('practice events', () => {
+  const pr: TeamEvent = {
+    eid: 'prs', kind: 'practice', title: 'Team practice', date: '2026-11-03', time: '6:30 PM', endTime: '8:30 PM', location: 'A5 Gym',
+    court: '3', uniformColor: 'Navy', repeat: { every: 2, days: [2], until: '2026-12-15' },
+    overrides: { '2026-11-17': { time: '7:00 PM', court: '5', uniformColor: 'White', notes: 'Gym B' }, '2026-12-01': {} }
+  };
+  const items = buildItems([pr], null);
+
+  it('expand every two weeks as practices with times, court and uniform', () => {
+    expect(items.map((i) => i.date)).toEqual(['2026-11-03', '2026-11-17', '2026-12-01', '2026-12-15']);
+    expect(items[0]).toMatchObject({ kind: 'practice', time: '6:30 PM – 8:30 PM', court: '3', uniformColor: 'Navy', key: 'prs-2026-11-03' });
+    expect(items[0].series?.every).toBe(2);
+  });
+
+  it('show a single date changed on its own, and fall back to the series for anything left blank', () => {
+    expect(items[1]).toMatchObject({ time: '7:00 PM – 8:30 PM', court: '5', uniformColor: 'White', note: 'Gym B', location: 'A5 Gym', edited: true, key: 'prs-2026-11-17' });
+    expect(items[2].edited).toBeUndefined();
+    expect(items[2].court).toBe('3');
+  });
+
+  it('label courts', () => {
+    expect(courtLabel('3')).toBe('Court 3');
+    expect(courtLabel('12b')).toBe('Court 12b');
+    expect(courtLabel('Courts 3–4')).toBe('Courts 3–4');
+    expect(courtLabel('')).toBe('');
   });
 });

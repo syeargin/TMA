@@ -4,11 +4,10 @@ import { RouterLink } from '@angular/router';
 import { addDays, fmt, fmtRange, iso, pd, today } from '../../core/dates';
 import { PatternSuggestion, describe, findPatterns, shortLabel } from '../../core/series';
 import type { EventKind, TeamEvent } from '../../core/models';
-import { ScheduleItem } from '../../core/schedule';
+import { ScheduleItem, courtLabel } from '../../core/schedule';
 import { TeamStore } from '../../core/team-store';
 import { AddToCalendar } from '../../shared/add-to-calendar';
-import { EventForm } from './event-form';
-import { PracticesForm } from './practices-form';
+import { EditMode, EventForm } from './event-form';
 import { KindPill, RsvpButtons, RsvpCounts } from './rsvp';
 
 type Filter = 'all' | 'practice' | 'tournament' | 'event';
@@ -24,7 +23,7 @@ export interface MonthCell { date: string; inMonth: boolean; isToday: boolean; i
 
 @Component({
   selector: 'th-schedule',
-  imports: [NgTemplateOutlet, RouterLink, AddToCalendar, EventForm, PracticesForm, KindPill, RsvpButtons, RsvpCounts],
+  imports: [NgTemplateOutlet, RouterLink, AddToCalendar, EventForm, KindPill, RsvpButtons, RsvpCounts],
   templateUrl: './schedule.html'
 })
 export class Schedule {
@@ -48,7 +47,10 @@ export class Schedule {
   readonly eventOpen = signal(false);
   readonly editing = signal<TeamEvent | null>(null);
   readonly newKind = signal<EventKind>('event');
-  readonly practicesOpen = signal(false);
+  readonly editMode = signal<EditMode>('series');
+  /** The schedule date picked for "this date" and "this and following". */
+  readonly editAt = signal('');
+  readonly courtLabel = courtLabel;
 
   readonly pid = this.store.myPid;
 
@@ -137,10 +139,16 @@ export class Schedule {
     return it.end !== it.date ? fmtRange(it.date, it.end) : '';
   }
 
-  add(kind: EventKind) { this.editing.set(null); this.newKind.set(kind); this.eventOpen.set(true); }
-  edit(it: ScheduleItem) { if (it.event) { this.editing.set(it.event); this.eventOpen.set(true); } }
+  add(kind: EventKind) { this.editing.set(null); this.editMode.set('series'); this.editAt.set(''); this.newKind.set(kind); this.eventOpen.set(true); }
+  edit(it: ScheduleItem, mode: EditMode = 'series') {
+    if (!it.event) return;
+    this.editing.set(it.event);
+    this.editMode.set(it.series ? mode : 'series');
+    this.editAt.set(it.date);
+    this.eventOpen.set(true);
+  }
   toggleCancelled(it: ScheduleItem) {
-    if (it.kind === 'practice') void this.store.setPracticeCancelled(it.key, !it.cancelled);
+    if (it.practice) void this.store.setPracticeCancelled(it.key, !it.cancelled);
     else if (it.event && it.series) void this.store.setOccurrenceCancelled(it.event, it.date, !it.cancelled);
   }
 }

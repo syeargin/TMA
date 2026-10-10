@@ -5,7 +5,7 @@ import { keys } from "../../lib/keys.js";
 import { loadAccess } from "../context.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
-import { cents, checkId, date, deleteItem, deleteMany, getItem, now, optStr, putItem, queryAll, str } from "../util.js";
+import { cents, checkId, date, deleteItem, deleteMany, getItem, newId, now, optStr, putItem, queryAll, str } from "../util.js";
 
 const parent = z.object({ name: str(120), cell: optStr(40), email: z.string().trim().max(200).optional() });
 const playerSchema = z.object({
@@ -14,12 +14,19 @@ const playerSchema = z.object({
   parents: z.array(parent).max(4).default([])
 });
 
+/** One date of a series changed on its own ("Edit this date"). Blank fields fall back to the series. */
+const occurrenceSchema = z.object({
+  title: optStr(160), time: optStr(40), endTime: optStr(40), location: optStr(200), court: optStr(40), uniformColor: optStr(40), notes: optStr(2000)
+});
+
 const eventSchema = z.object({
-  kind: z.enum(["tournament", "event", "deadline"]),
+  kind: z.enum(["tournament", "event", "deadline", "practice"]),
   title: str(160).min(1),
   date,
   endDate: date.optional(),
   time: optStr(40), location: optStr(200), city: optStr(120), division: optStr(60), website: optStr(500),
+  // Practices: when it ends, which court, and which practice uniform (from the team's list).
+  endTime: optStr(40), court: optStr(40), uniformColor: optStr(40),
   // Which family brings the ball cart and the volleyballs: a player id, "na" (not needed), or empty. dutyPid is the older single field.
   travel: z.boolean().default(false), dutyPid: optStr(64), cartPid: optStr(64), ballsPid: optStr(64),
   parking: optStr(500), waves: optStr(200), arrival: optStr(100), start: optStr(100), meet: optStr(300),
@@ -35,9 +42,16 @@ const eventSchema = z.object({
     skipTournaments: z.boolean().default(true)
   }).optional(),
   cancelled: z.array(date).max(400).optional(), // occurrences shown as cancelled
-  skip: z.array(date).max(400).optional()       // occurrences left out entirely
+  skip: z.array(date).max(400).optional(),      // occurrences left out entirely
+  overrides: z.record(date, occurrenceSchema).optional() // single dates edited on their own
 }).refine((e) => !e.repeat || e.kind !== "tournament", "Tournaments can't repeat.")
-  .refine((e) => !e.repeat || e.repeat.until >= e.date, "The series ends before it starts.");
+  .refine((e) => !e.repeat || e.repeat.until >= e.date, "The series ends before it starts.")
+  .refine((e) => Object.keys(e.overrides ?? {}).length <= 400, "Too many dates edited on their own.");
+
+/** "This and following dates": the series ends the day before `from`, and `event` carries on from there. */
+const splitSchema = z.object({ from: date, event: eventSchema });
+
+const dayBefore = (d: string) => { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() - 1); return t.toISOString().slice(0, 10); };
 
 /** Turn separate events that follow a weekly pattern into one repeating event. */
 const combineSchema = z.object({
@@ -94,6 +108,7 @@ export function contentRoutes(r: Router) {
     a.require("schedule");
     const eid = checkId(params.eid, "event");
     const ev = parseBody(eventSchema, body);
+    if (!ev.repeat) delete ev.overrides; // only a series has dates of its own
     await putItem({
       ...keys.event(a.teamId, eid), type: "Event", ...ev,
       GSI2PK: `TEAM#${a.teamId}#CAL`, GSI2SK: `${ev.date}#${eid}`,
@@ -139,6 +154,59 @@ export function contentRoutes(r: Router) {
     }
     await deleteMany(evs.slice(1).map((e) => keys.event(a.teamId, e.eid)));
     return json(200, { eid: seriesId, combined: evs.length, answersMoved: moved });
+  });
+
+  /**
+   * "This and following dates": the series stops the day before `from`, and a new series (with whatever changed)
+   * carries on. Cancelled dates, dates edited on their own, and families' answers from `from` on move to the new one.
+   */
+  r.on("POST", "/teams/{teamId}/events/{eid}/split", async ({ caller, params, body }) => {
+    const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.require("schedule");
+    const eid = checkId(params.eid, "event");
+    const { from, event: next } = parseBody(splitSchema, body);
+    const old = await getItem(keys.event(a.teamId, eid));
+    if (!old) throw notFound("That event no longer exists. Refresh and try again.");
+    const rep = old.repeat as { every: number; days: number[]; until: string; skipTournaments?: boolean } | undefined;
+    if (!rep) throw badRequest("Only a repeating event can be split.");
+    if (from <= String(old.date)) throw badRequest("That's the first date of the series. Edit the whole series instead.");
+    if (from > rep.until) throw badRequest("That date is after the series ends.");
+    if (next.date < from) throw badRequest("The new series can't start before the date you're changing from.");
+
+    const newEid = newId("e");
+    const later = (d: string) => d >= from;
+    const pick = (list: unknown) => ((list as string[] | undefined) ?? []);
+    const oldOverrides = (old.overrides ?? {}) as Record<string, unknown>;
+    const at = now();
+    const { PK: _pk, SK: _sk, GSI2PK: _g1, GSI2SK: _g2, updatedAt: _u, updatedBy: _ub, ...oldRest } = old;
+    const first: Record<string, unknown> = {
+      ...oldRest, repeat: { ...rep, until: dayBefore(from) },
+      cancelled: pick(old.cancelled).filter((d) => !later(d)), skip: pick(old.skip).filter((d) => !later(d)),
+      overrides: Object.fromEntries(Object.entries(oldOverrides).filter(([d]) => !later(d)))
+    };
+    const second: Record<string, unknown> = {
+      ...next,
+      cancelled: [...new Set([...pick(next.cancelled), ...pick(old.cancelled).filter(later)])],
+      skip: [...new Set([...pick(next.skip), ...pick(old.skip).filter(later)])],
+      overrides: { ...Object.fromEntries(Object.entries(oldOverrides).filter(([d]) => later(d))), ...(next.overrides ?? {}) }
+    };
+    if (!next.repeat) { delete second.overrides; delete second.cancelled; delete second.skip; }
+    await putItem({ ...keys.event(a.teamId, eid), ...first, type: "Event", GSI2PK: `TEAM#${a.teamId}#CAL`, GSI2SK: `${first.date}#${eid}`, updatedAt: at, updatedBy: caller.sub });
+    await putItem({ ...keys.event(a.teamId, newEid), ...second, type: "Event", GSI2PK: `TEAM#${a.teamId}#CAL`, GSI2SK: `${next.date}#${newEid}`, updatedAt: at, updatedBy: caller.sub });
+
+    // Answers are keyed "<eid>-<date>" (or the bare new id when the rest is a single date).
+    const families = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :f)", ExpressionAttributeValues: { ":p": `TEAM#${a.teamId}`, ":f": "FAMILY#" } });
+    const keyRe = new RegExp(`^${eid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-(\\d{4}-\\d{2}-\\d{2})$`);
+    let moved = 0;
+    for (const f of families) {
+      const rsvp = (f.rsvp ?? {}) as Record<string, unknown>;
+      const moves = Object.keys(rsvp).map((k) => [k, keyRe.exec(k)?.[1]] as const).filter(([, d]) => d && later(d) && (next.repeat || d === next.date));
+      if (!moves.length) continue;
+      const out = { ...rsvp };
+      for (const [k, d] of moves) { out[next.repeat ? `${newEid}-${d}` : newEid] = out[k]; delete out[k]; moved++; }
+      await ddb.send(new UpdateCommand({ TableName: TABLE, Key: { PK: String(f.PK), SK: String(f.SK) }, UpdateExpression: "SET rsvp = :r", ExpressionAttributeValues: { ":r": out } }));
+    }
+    return json(200, { eid: newEid, answersMoved: moved });
   });
 
   r.on("DELETE", "/teams/{teamId}/events/{eid}", async ({ caller, params }) => {
