@@ -28,7 +28,7 @@ function at(date: string, t: string): Date | null {
 export function toCalEvent(it: ScheduleItem, link: string): CalEvent {
   const base = {
     title: it.kind === 'practice' && !/practice/i.test(it.title) ? `${it.title} practice` : it.title,
-    location: [it.location, courtLabel(it.court)].filter(Boolean).join(', '),
+    location: [it.location, courtLabel(it.court), it.address].filter(Boolean).join(', '),
     details: [it.uniformColor ? `Practice uniform: ${it.uniformColor}` : '', it.note, `Team Hub: ${link}`].filter(Boolean).join('\n\n'),
     uid: `${it.key}@a5-team-hub`
   };
@@ -55,7 +55,7 @@ export function toSeriesCalEvent(it: ScheduleItem, link: string, from = today())
   if (!startDate) return null;
   // The series' own details, not the clicked date's (that one may have been changed on its own).
   const e = it.event;
-  const series = e ? { ...it, title: e.title, time: timeText(e.time, e.endTime) || it.time, location: e.location || e.city || '', court: e.court, uniformColor: e.uniformColor, note: e.notes || '' } : it;
+  const series = e ? { ...it, title: e.title, time: timeText(e.time, e.endTime) || it.time, location: e.location || e.city || '', address: e.address, court: e.court, uniformColor: e.uniformColor, note: e.notes || '' } : it;
   const base = toCalEvent({ ...series, date: startDate, end: startDate, cancelled: false }, link);
   const changed = Object.entries(e?.overrides ?? {}).filter(([d, o]) => d >= startDate && Object.values(o).some(Boolean)).length;
   if (changed) base.details = `${changed === 1 ? 'One date has' : `${changed} dates have`} its own time or details. Check Team Hub for the latest.\n\n${base.details}`;

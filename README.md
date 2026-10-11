@@ -198,6 +198,14 @@ The site imports the API's role table directly (`@shared/permissions` → `api/s
 - **The old Practice times sheet is retired.** The first time someone who can edit the schedule opens a team that still has weekly practice times, `POST /teams/{t}/practices/convert` turns each one into a weekly practice series with id `pr-<practice id>`. Answers were already keyed `pr-<id>-<date>`, so they carry over untouched, and cancelled dates move onto the series. It runs once; the settings update is conditional, so two coaches can't convert twice.
 - Spreadsheet import does the same. Practices rows (with optional **Repeats**, **Court** and **Uniform color**) become practice series, matched to saved ones by name. A team still on practice times is converted first. The Schedule tab also takes **Practice** rows for one-off practices, and the Lists and Defaults tabs take **Practice uniform colors**. Colors used on practices are added to the team's list.
 
+### Addresses and map links
+
+- Practices, team events and tournaments have an optional street **Address** (`address`, up to 300 characters). Travel tournaments also have a **Hotel address** (`hotelAddress`) on the team hotel card. A single date of a series can have its own address under **This date only**; a date that changes only its location drops the series address, so the map doesn't point at the old place.
+- Every place shown on the site (Schedule, Home, the tournament header, the game-day sheet and the team hotel) is a map link (`shared/map-link.ts`, `core/maps.ts`). The address is the link; a ▾ menu next to it offers **Open in Apple Maps** and **Open in Google Maps**. The main link opens Apple Maps on iPhone, iPad and Mac, and Google Maps everywhere else.
+- Without an address, the link searches for the venue and city (or just the location), so older events still get a map.
+- Add to calendar puts the place, court and address in the calendar entry's location.
+- Spreadsheet import reads an **Address** column on Practices, Schedule and Shared schedule rows, and **Hotel address** for tournaments.
+
 ## Clubs
 
 - The site runs any number of clubs. Each team belongs to one club (`TEAM#<t>/META#CLUB`). Teams made before clubs existed have no such record and belong to the default club (`ClubId`), so existing data needs no migration. The default club's record (A5's name and Team Info links) is written the first time it's needed.

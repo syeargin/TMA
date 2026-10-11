@@ -33,15 +33,16 @@ fill(wb["Roster"], [
     roster("15", "Tess", "Cole", "Bo Cole", "bo.cole@example.com", ref="B"),
 ])
 fill(wb["Practices"], [
-    ["Tuesday practice", "Tuesday", dt.time(18, 30), dt.time(20, 30), D("2026-10-06"), None, "Every 2 weeks", "Test Gym", "3", "Navy", ""],
+    ["Tuesday practice", "Tuesday", dt.time(18, 30), dt.time(20, 30), D("2026-10-06"), None, "Every 2 weeks", "Test Gym", "3", "Navy", "", "1 Gym Way, Roswell, GA 30076"],
     ["Saturday practice", "Sat", "9:00 AM", "11:00 AM", D("2026-10-10"), D("2027-05-29"), "", "Test Gym", "", "Gray", "Both jerseys"],
 ])
 fill(wb["Schedule"], [
     ["Tournament", "Peach Classic", D("2026-12-05"), D("2026-12-06"), "8:00 AM", "Test Center", "Atlanta, GA", "15 Open", "N",
-     "https://example.com/peach", "", "", "", "", None, "8", "Not needed", "None", "", None, "Arrive 45 minutes early."],
+     "https://example.com/peach", "", "Peach Inn", "", "", None, "8", "Not needed", "None", "", None, "Arrive 45 minutes early.", "", "",
+     "100 Expo Dr, Atlanta, GA 30303", "5 Hotel Row, Atlanta, GA 30303"],
     ["Event", "Team dinner", D("2026-10-14"), None, "6:00 PM", "Pizza place", "", "", "", "", "", "", "", "", None, "", "", "Weekly", "Wed", D("2026-11-04"), ""],
     ["Deadline", "Fund deposit due", D("2026-11-15"), None, "", "", "", "", "", "", "", "", "", "", None, "", "", "", "", None, ""],
-    ["Practice", "Extra serving practice", D("2026-12-12"), None, "10:00 AM", "Test Gym", "", "", "", "", "", "", "", "", None, "", "", "None", "", None, "", "1", "White"],
+    ["Practice", "Extra serving practice", D("2026-12-12"), None, "10:00 AM", "Test Gym", "", "", "", "", "", "", "", "", None, "", "", "None", "", None, "", "1", "White", "1 Gym Way, Roswell, GA 30076"],
 ])
 fill(wb["Lists"], [["Packing checklist", "Water bottle"], ["Packing checklist", "Snacks"], ["Uniform items", "Home jersey"],
                     ["Practice uniform colors", "Navy"], ["Practice uniform colors", "White"]])

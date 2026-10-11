@@ -5,6 +5,7 @@ import type { ScheduleItem } from '../../core/schedule';
 import { TeamStore } from '../../core/team-store';
 import { safeUrl } from '../../core/tournament';
 import { EventForm } from '../schedule/event-form';
+import { MapLink } from '../../shared/map-link';
 import { RsvpButtons, RsvpCounts } from '../schedule/rsvp';
 import { AddToCalendar } from '../../shared/add-to-calendar';
 import { Agenda } from './agenda';
@@ -19,7 +20,7 @@ const LABELS: Record<Section, string> = { gameday: 'Game day', ref: 'Ref jobs', 
 /** /teams/:id/tournaments/:eid[/:section] */
 @Component({
   selector: 'th-tournament',
-  imports: [RouterLink, AddToCalendar, RsvpButtons, RsvpCounts, EventForm, GameDay, RefJobs, Meals, TravelPlans, Agenda],
+  imports: [MapLink, RouterLink, AddToCalendar, RsvpButtons, RsvpCounts, EventForm, GameDay, RefJobs, Meals, TravelPlans, Agenda],
   template: `
     <a class="link-btn small" [routerLink]="['/teams', store.teamId(), 'tournaments']" style="display:inline-block;margin-bottom:10px">‹ All tournaments</a>
     @if (event(); as e) {
@@ -32,7 +33,7 @@ const LABELS: Record<Section, string> = { gameday: 'Game day', ref: 'Ref jobs', 
           <h2>{{ e.title }}</h2>
           <div class="meta" style="margin-top:8px">
             <span>{{ fmtRange(e.date, e.endDate) }}</span>
-            @if (e.location || e.city) { <span>{{ e.location || e.city }}</span> }
+            @if (e.location || e.city || e.address) { <span><th-map-link [address]="e.address" [place]="e.location || e.city" [city]="e.location ? e.city : ''" /></span> }
             @if (website()) { <a [href]="website()" target="_blank" rel="noopener">Tournament website ↗</a> }
           </div>
         </div>

@@ -95,8 +95,8 @@ describe('practice details in calendar entries', () => {
     uniformColor: 'Navy', repeat: { every: 1, days: [2], until: '2026-12-15' }, overrides: { '2026-11-17': { court: '5' } } };
   const series = { id: 'prs', source: 'event' as const, every: 1, days: [2], until: '2026-12-15', dates: ['2026-11-03', '2026-11-10', '2026-11-17'], active: ['2026-11-03', '2026-11-10', '2026-11-17'] };
   it('put the court in the location and the uniform in the details', () => {
-    const e = toCalEvent(item({ kind: 'practice', title: 'Team practice', time: '6:30 PM – 8:30 PM', location: 'A5 Gym', court: '3', uniformColor: 'Navy' }), LINK);
-    expect(e.location).toBe('A5 Gym, Court 3');
+    const e = toCalEvent(item({ kind: 'practice', title: 'Team practice', time: '6:30 PM – 8:30 PM', location: 'A5 Gym', court: '3', uniformColor: 'Navy', address: '1 Gym Way, Roswell, GA' }), LINK);
+    expect(e.location).toBe('A5 Gym, Court 3, 1 Gym Way, Roswell, GA');
     expect(e.details).toContain('Practice uniform: Navy');
   });
   it('a whole-series entry uses the series details even from a changed date, and says some dates differ', () => {

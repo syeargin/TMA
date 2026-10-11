@@ -5,11 +5,12 @@ import type { TeamEvent, Travel } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { TRAVEL_MODES, safeUrl, shortUrl } from '../../core/tournament';
 import { Sheet } from '../../shared/sheet';
+import { MapLink } from '../../shared/map-link';
 
 /** Team hotel and each family's travel plans for a travel weekend. */
 @Component({
   selector: 'th-travel',
-  imports: [ReactiveFormsModule, Sheet],
+  imports: [ReactiveFormsModule, Sheet, MapLink],
   template: `
     <div class="grid g-2" style="margin-bottom:16px">
       <section class="card">
@@ -18,7 +19,7 @@ import { Sheet } from '../../shared/sheet';
         </div>
         <div class="card-b">
           <div class="kv">
-            <div>Hotel</div><div>@if (event().hotel) { {{ event().hotel }} } @else { <span class="tbd">TBD</span> }</div>
+            <div>Hotel</div><div>@if (event().hotel || event().hotelAddress) { <th-map-link [address]="event().hotelAddress" [place]="event().hotel" [city]="event().city" /> } @else { <span class="tbd">TBD</span> }</div>
             <div>Booking link</div><div>@if (hotelLink()) { <a [href]="hotelLink()" target="_blank" rel="noopener">{{ short(hotelLink()) }}</a> } @else if (event().hotelLink) { {{ event().hotelLink }} } @else { <span class="tbd">TBD</span> }</div>
             <div>Group / res. code</div><div>@if (event().hotelCode) { {{ event().hotelCode }} } @else { <span class="tbd">TBD</span> }</div>
             <div>Book by</div><div>@if (event().hotelBy) { {{ event().hotelBy }} } @else { <span class="tbd">TBD</span> }</div>
@@ -88,6 +89,7 @@ import { Sheet } from '../../shared/sheet';
       <th-sheet heading="Team hotel" [open]="hotelOpen()" (closed)="hotelOpen.set(false)">
         <form [formGroup]="hotelForm" (ngSubmit)="saveHotel()" novalidate>
           <label>Hotel<input formControlName="hotel"></label>
+          <label>Hotel address<input formControlName="hotelAddress" placeholder="3700 Grand Ave, Columbus, OH 43215" autocomplete="off"></label>
           <label>Booking link<input formControlName="hotelLink" placeholder="https://"></label>
           <div class="two">
             <label>Group / reservation code<input formControlName="hotelCode"></label>
@@ -119,7 +121,7 @@ export class TravelPlans {
   readonly confirmClear = signal(false);
   readonly travelForm = this.fb.group({ mode: '', flight: '', hotel: '', conf: '', arrive: '', depart: '', notes: '' });
   readonly hotelOpen = signal(false);
-  readonly hotelForm = this.fb.group({ hotel: '', hotelLink: '', hotelCode: '', hotelBy: '' });
+  readonly hotelForm = this.fb.group({ hotel: '', hotelAddress: '', hotelLink: '', hotelCode: '', hotelBy: '' });
 
   openTravel(pid: string) {
     const t = this.store.travelOf(pid, this.event().eid);
@@ -148,7 +150,7 @@ export class TravelPlans {
 
   openHotel() {
     const e = this.event();
-    this.hotelForm.reset({ hotel: e.hotel ?? '', hotelLink: e.hotelLink ?? '', hotelCode: e.hotelCode ?? '', hotelBy: e.hotelBy ?? '' });
+    this.hotelForm.reset({ hotel: e.hotel ?? '', hotelAddress: e.hotelAddress ?? '', hotelLink: e.hotelLink ?? '', hotelCode: e.hotelCode ?? '', hotelBy: e.hotelBy ?? '' });
     this.hotelOpen.set(true);
   }
 

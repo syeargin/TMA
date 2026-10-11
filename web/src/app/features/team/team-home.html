@@ -16,7 +16,7 @@
           <h3>{{ n.title }}</h3>
           <div class="meta">
             <span>{{ fmt(n.date, { weekday: 'long', month: 'long', day: 'numeric' }) }}@if (whenOf(n)) { · {{ whenOf(n) }}}</span>
-            @if (n.location) { <span>{{ n.location }}</span> }
+            @if (n.location || n.address) { <span><th-map-link [address]="n.address" [place]="n.location" [city]="n.city" /></span> }
             <th-kind-pill [item]="n" />
           </div>
           <div class="row">
@@ -63,7 +63,7 @@
             <div class="grow">
               @if (i.kind === 'tournament') { <a [routerLink]="['tournaments', i.key]"><b>{{ i.title }}</b></a> } @else { <b [style.text-decoration]="i.cancelled ? 'line-through' : null">{{ i.title }}</b> }
               @if (i.cancelled) { <span class="pill p-bad">Cancelled</span> }
-              <div class="small muted">{{ whenOf(i) }}@if (i.location) { · {{ i.location }}}</div>
+              <div class="small muted">{{ whenOf(i) }}@if (i.location || i.address) { · <th-map-link [address]="i.address" [place]="i.location" [city]="i.city" />}</div>
             </div>
             @if (pid() && !i.cancelled && i.kind !== 'deadline') { <th-status [value]="store.rsvp(pid(), i.key)" /> }
           </div>

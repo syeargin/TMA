@@ -248,6 +248,18 @@ describe("practice events", () => {
     expect((await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.events.find((x: any) => x.eid === "one").overrides).toBeUndefined();
   });
 
+  it("saves street addresses for events, single dates and the team hotel", async () => {
+    const addr = { ...PR, address: "1 Gym Way, Roswell, GA 30076", overrides: { "2026-11-17": { location: "Rec Center", address: "9 Park Ln, Alpharetta, GA" } } };
+    expect((await call("PUT", `/teams/${T}/events/addr`, ROLE_SUBS.coach, addr)).status).toBe(200);
+    const trip = { kind: "tournament", title: "Big Trip", date: "2027-03-06", endDate: "2027-03-07", city: "Columbus, OH", travel: true,
+      address: "400 N High St, Columbus, OH 43215", hotel: "Grand Hotel", hotelAddress: "3700 Grand Ave, Columbus, OH 43215" };
+    expect((await call("PUT", `/teams/${T}/events/trip`, ROLE_SUBS.coach, trip)).status).toBe(200);
+    const events = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.events;
+    expect(events.find((x: any) => x.eid === "addr")).toMatchObject({ address: addr.address, overrides: { "2026-11-17": { address: "9 Park Ln, Alpharetta, GA" } } });
+    expect(events.find((x: any) => x.eid === "trip")).toMatchObject({ address: trip.address, hotelAddress: trip.hotelAddress });
+    expect((await call("PUT", `/teams/${T}/events/addr`, ROLE_SUBS.coach, { ...PR, address: "x".repeat(301) })).status).toBe(400);
+  });
+
   it("splits a series at a date; later cancellations, date changes and answers move to the new series", async () => {
     const withAll = { ...PR, cancelled: ["2026-11-03", "2026-12-15"], overrides: { "2026-11-17": { court: "5" }, "2026-12-29": { notes: "Holiday hours" } } };
     expect((await call("PUT", `/teams/${T}/events/prs`, ROLE_SUBS.coach, withAll)).status).toBe(200);

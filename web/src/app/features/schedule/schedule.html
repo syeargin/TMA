@@ -62,7 +62,7 @@
       <div class="meta">
         <span class="sr-only">{{ fmt(it.date, { weekday: 'long', month: 'long', day: 'numeric' }) }}</span>
         @if (when(it)) { <span>{{ when(it) }}</span> }
-        @if (it.location) { <span>{{ it.location }}</span> }
+        @if (it.location || it.address) { <span><th-map-link [address]="it.address" [place]="it.location" [city]="it.city" /></span> }
         @if (it.court) { <span>{{ courtLabel(it.court) }}</span> }
         @if (it.uniformColor) { <span>{{ it.uniformColor }} practice uniform</span> }
         @if (it.edited) { <span class="pill p-warn" title="This date was changed on its own">Changed this date</span> }

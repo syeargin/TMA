@@ -219,7 +219,7 @@ export async function importTeam(opts: {
     const end = p.until || seasonEnd(p.from);
     const item: Item = {
       ...(match ?? {}), ...keys.event(t.teamId, eid), type: "Event",
-      ...defined({ kind: "practice", title: p.label, date, time: p.start, endTime: p.end, location: p.location, court: p.court, uniformColor: p.uniformColor, notes: p.note }),
+      ...defined({ kind: "practice", title: p.label, date, time: p.start, endTime: p.end, location: p.location, address: p.address, court: p.court, uniformColor: p.uniformColor, notes: p.note }),
       travel: false, GSI2PK: `TEAM#${t.teamId}#CAL`, GSI2SK: `${date}#${eid}`, updatedAt: at, updatedBy: by
     };
     if (p.every) item.repeat = { every: p.every, days: [p.dow], until: end < date ? date : end, skipTournaments: true };

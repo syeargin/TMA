@@ -13,6 +13,10 @@ export interface ScheduleItem {
   end: string;
   time: string;
   location: string;
+  /** Street address, when entered. Shown with the location as a map link. */
+  address?: string;
+  /** Tournament city, used for the map search when there's no address. */
+  city?: string;
   note: string;
   travel: boolean;
   cancelled: boolean;
@@ -42,7 +46,8 @@ export function buildItems(events: TeamEvent[], settings: Settings | null): Sche
     const base = {
       kind: e.kind, title: e.title, time: timeText(e.time, e.endTime), location: e.location || e.city || '',
       note: e.kind === 'tournament' ? '' : e.notes || '', travel: !!e.travel, event: e,
-      court: e.court || undefined, uniformColor: e.uniformColor || undefined
+      court: e.court || undefined, uniformColor: e.uniformColor || undefined,
+      address: e.address || undefined, city: e.city || undefined
     };
     if (!e.repeat) {
       out.push({ ...base, key: e.eid, date: e.date, end: e.endDate || e.date, cancelled: false });
@@ -91,6 +96,8 @@ export function occurrence(e: TeamEvent, date: string): Partial<ScheduleItem> {
   if (o.title) out.title = o.title;
   if (o.time || o.endTime) out.time = timeText(o.time || e.time, o.endTime || e.endTime);
   if (o.location) out.location = o.location;
+  // A different place that day: its own address, or none (so the map searches the new place, not the old address).
+  if (o.address) out.address = o.address; else if (o.location) out.address = undefined;
   if (o.court) out.court = o.court;
   if (o.uniformColor) out.uniformColor = o.uniformColor;
   if (o.notes) out.note = o.notes;

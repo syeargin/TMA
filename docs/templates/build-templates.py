@@ -115,15 +115,18 @@ ROSTER_EX=["7","Ava","Carter","Adult S","Duluth, GA","None","A","Jen Carter","je
 PRACTICE=[("Name",True,18,None),("Day",True,12,None),("Start time",True,11,"Like 6:30 PM. Leave the end blank if it isn't set yet."),("End time",False,11,None),
  ("First date",True,12,None),("Last date",False,12,"Blank = end of the season (June 30)."),
  ("Repeats",False,13,"Blank = weekly. Or Every 2 weeks, Every 3 weeks, or None for this one date only."),
- ("Location",False,22,None),("Court",False,9,"Like 3, or Courts 3-4."),("Uniform color",False,13,"Practice uniform color. New colors are added to the team's list."),("Note",False,30,None)]
+ ("Location",False,22,None),("Court",False,9,"Like 3, or Courts 3-4."),("Uniform color",False,13,"Practice uniform color. New colors are added to the team's list."),("Note",False,30,None),
+ ("Address",False,30,"Street address. Families get a map link; without one the map searches the location.")]
 PRACTICE_RULES={"Day":("list","Days"),"First date":("date",),"Last date":("date",),"Repeats":("list","Repeats")}
-PRACTICE_EX=["Saturday practice","Saturday","7:30 AM","10:00 AM",D("2026-09-19"),D("2027-06-19"),"Weekly","A5 Sportsplex","3","Navy","Bring both jerseys"]
+PRACTICE_EX=["Saturday practice","Saturday","7:30 AM","10:00 AM",D("2026-09-19"),D("2027-06-19"),"Weekly","A5 Sportsplex","3","Navy","Bring both jerseys","1234 Example Rd, Roswell, GA 30076"]
 
 SCHED=[("Type",True,12,None),("Title",True,28,None),("Start date",True,12,None),("End date",False,12,"For tournaments over more than one day."),("Time",False,11,None),
  ("Venue",False,24,None),("City",False,16,None),("Division",False,12,None),("Travel",False,8,"Y for tournaments that need hotels or flights."),
  ("Website",False,24,None),("Admission link",False,24,None),("Hotel",False,20,None),("Hotel link",False,24,None),("Hotel block code",False,14,None),("Book hotel by",False,12,None)]
 SCHED_FAMILY=[("Ball cart family",False,12,"Jersey number of the player whose family brings the ball cart, or 'Not needed'."),("Volleyballs family",False,12,"Jersey number, or 'Not needed'.")]
-SCHED_PRACTICE=[("Court",False,9,"Practices only."),("Uniform color",False,13,"Practices only.")]
+SCHED_PRACTICE=[("Court",False,9,"Practices only."),("Uniform color",False,13,"Practices only."),
+ ("Address",False,30,"Street address of the venue. Families get a map link; without one the map searches the venue and city."),
+ ("Hotel address",False,30,"Travel tournaments: the team hotel's street address.")]
 SCHED_REPEAT=[("Repeats",False,13,"For practices and team events; tournaments don't repeat."),("Repeat days",False,14,"Days of the week, like 'Tue, Thu'."),("Repeat until",False,12,None),("Notes",False,36,None)]
 SCHED_RULES={"Type":("list","EventTypes"),"Start date":("date",),"End date":("date",),"Travel":("list","YesNo"),"Book hotel by":("date",),"Repeats":("list","Repeats"),"Repeat until":("date",)}
 SCHED_EX=["Tournament","Winter Invitational Classic",D("2026-12-12"),D("2026-12-13"),"","Georgia World Congress Center","Atlanta, GA","13 Open","N",
@@ -180,7 +183,7 @@ sheet(wb,"Team",[("Team name",True,18,None),("Season",True,10,"Like 2026-27."),(
 sheet(wb,"Staff",STAFF,STAFF_EX,STAFF_RULES)
 sheet(wb,"Roster",ROSTER,ROSTER_EX,ROSTER_RULES)
 sheet(wb,"Practices",PRACTICE,PRACTICE_EX,PRACTICE_RULES)
-sheet(wb,"Schedule",SCHED+SCHED_FAMILY+SCHED_REPEAT+SCHED_PRACTICE,SCHED_EX+["Not needed","Not needed","None","","","Schedules post the Wednesday before.","",""],SCHED_RULES)
+sheet(wb,"Schedule",SCHED+SCHED_FAMILY+SCHED_REPEAT+SCHED_PRACTICE,SCHED_EX+["Not needed","Not needed","None","","","Schedules post the Wednesday before.","","","285 Andrew Young International Blvd NW, Atlanta, GA 30313",""],SCHED_RULES)
 sheet(wb,"Lists",[("List",True,20,None),("Item",True,40,None)],["Packing checklist","Knee and elbow pads"],{"List":("list","Lists")})
 wb.move_sheet("Choices", offset=len(wb.sheetnames))
 wb.save("web/public/templates/Team-Setup-Template.xlsx")
@@ -210,7 +213,7 @@ sheet(wb,"Staff",[tid]+STAFF,["a5-13-tom"]+STAFF_EX,{"Team ID":("teamid",),**STA
 sheet(wb,"Rosters",[tid]+ROSTER,["a5-13-tom"]+ROSTER_EX,{"Team ID":("teamid",),**ROSTER_RULES})
 sheet(wb,"Practice patterns",[("Applies to",True,18,"A Team ID, Team IDs separated by commas, or a group like 13U National.")]+PRACTICE,["13U National"]+PRACTICE_EX,PRACTICE_RULES)
 sheet(wb,"Shared schedule",[("Teams",True,18,"Team IDs separated by commas, or a group like All 13U.")]+SCHED+SCHED_REPEAT+SCHED_PRACTICE,
- ["All National"]+SCHED_EX+["None","","","Schedules post the Wednesday before.","",""],SCHED_RULES)
+ ["All National"]+SCHED_EX+["None","","","Schedules post the Wednesday before.","","","285 Andrew Young International Blvd NW, Atlanta, GA 30313",""],SCHED_RULES)
 sheet(wb,"Defaults",[("Kind",True,18,None),("Title",False,24,"For handbook sections."),("Text or item",True,60,None)],
  ["Handbook section","Attendance","Practices are mandatory. Tell your coach by text if you'll miss one."],{"Kind":("list","DefaultKinds")})
 wb.move_sheet("Choices", offset=len(wb.sheetnames))

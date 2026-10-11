@@ -16,7 +16,7 @@ const playerSchema = z.object({
 
 /** One date of a series changed on its own ("Edit this date"). Blank fields fall back to the series. */
 const occurrenceSchema = z.object({
-  title: optStr(160), time: optStr(40), endTime: optStr(40), location: optStr(200), court: optStr(40), uniformColor: optStr(40), notes: optStr(2000)
+  title: optStr(160), time: optStr(40), endTime: optStr(40), location: optStr(200), address: optStr(300), court: optStr(40), uniformColor: optStr(40), notes: optStr(2000)
 });
 
 const eventSchema = z.object({
@@ -25,6 +25,8 @@ const eventSchema = z.object({
   date,
   endDate: date.optional(),
   time: optStr(40), location: optStr(200), city: optStr(120), division: optStr(60), website: optStr(500),
+  // Street address; the site turns it (or the venue name and city) into a map link.
+  address: optStr(300),
   // Practices: when it ends, which court, and which practice uniform (from the team's list).
   endTime: optStr(40), court: optStr(40), uniformColor: optStr(40),
   // Which family brings the ball cart and the volleyballs: a player id, "na" (not needed), or empty. dutyPid is the older single field.
@@ -32,7 +34,7 @@ const eventSchema = z.object({
   parking: optStr(500), waves: optStr(200), arrival: optStr(100), start: optStr(100), meet: optStr(300),
   uniforms: optStr(500), admissions: optStr(500), teamCode: optStr(60), scheduleLink: optStr(500), ticketHelp: optStr(500),
   foodPlan: optStr(2000), reservations: optStr(1000), notes: optStr(2000),
-  hotel: optStr(200), hotelLink: optStr(500), hotelCode: optStr(100), hotelBy: optStr(60),
+  hotel: optStr(200), hotelLink: optStr(500), hotelCode: optStr(100), hotelBy: optStr(60), hotelAddress: optStr(300),
   checklist: z.array(str(200)).max(60).optional(),
   // Repeating events (not tournaments): every N weeks on these weekdays (0 = Sunday) until a date.
   repeat: z.object({

@@ -61,10 +61,12 @@ export interface Player {
 }
 export type EventKind = 'tournament' | 'event' | 'deadline' | 'practice';
 /** One date of a series changed on its own. Blank fields fall back to the series. */
-export interface Occurrence { title?: string; time?: string; endTime?: string; location?: string; court?: string; uniformColor?: string; notes?: string }
+export interface Occurrence { title?: string; time?: string; endTime?: string; location?: string; address?: string; court?: string; uniformColor?: string; notes?: string }
 export interface TeamEvent {
   eid: string; kind: EventKind; title: string; date: string; endDate?: string;
   time?: string; location?: string; city?: string; division?: string; website?: string;
+  /** Street address; shown as a map link. */
+  address?: string;
   travel?: boolean; notes?: string;
   // Practices
   endTime?: string; court?: string; uniformColor?: string;
@@ -73,7 +75,7 @@ export interface TeamEvent {
   admissions?: string; teamCode?: string; scheduleLink?: string; ticketHelp?: string; dutyPid?: string; cartPid?: string; ballsPid?: string;
   foodPlan?: string; reservations?: string; checklist?: string[];
   // Team hotel (travel tournaments)
-  hotel?: string; hotelLink?: string; hotelCode?: string; hotelBy?: string;
+  hotel?: string; hotelLink?: string; hotelCode?: string; hotelBy?: string; hotelAddress?: string;
   // Repeating events
   repeat?: { every: number; days: number[]; until: string; skipTournaments?: boolean };
   cancelled?: string[];
