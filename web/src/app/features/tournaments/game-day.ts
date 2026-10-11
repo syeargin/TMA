@@ -3,12 +3,14 @@ import type { TeamEvent } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { ToastService } from '../../core/toast.service';
 import { duties, safeUrl, shortUrl } from '../../core/tournament';
+import { MapLink } from '../../shared/map-link';
 
-interface Row { label: string; text?: string; link?: string; copy?: string; note?: string }
+interface Row { label: string; text?: string; link?: string; copy?: string; note?: string; map?: boolean }
 
 /** The game-day sheet: where, when, what to wear and bring. */
 @Component({
   selector: 'th-game-day',
+  imports: [MapLink],
   template: `
     <div class="grid g-2">
       <section class="card">
@@ -22,6 +24,8 @@ interface Row { label: string; text?: string; link?: string; copy?: string; note
               <div>
                 @if (r.copy) {
                   <button class="link-btn tn" type="button" (click)="copy(r.copy)"><b>{{ r.copy }}</b> (copy)</button>
+                } @else if (r.map) {
+                  <th-map-link [address]="event().address" [place]="event().location" [city]="event().city" />
                 } @else if (r.link) {
                   <a [href]="r.link" target="_blank" rel="noopener">{{ short(r.link) }}</a>
                 } @else if (r.text) {
@@ -72,7 +76,7 @@ export class GameDay {
     const linkOr = (v?: string): Pick<Row, 'text' | 'link'> => (safeUrl(v) ? { link: safeUrl(v) } : { text: v });
     const code = e.teamCode || this.store.settings()?.teamCode;
     return [
-      { label: 'Location', text: e.location },
+      { label: 'Location', text: e.location, map: !!(e.location || e.address || e.city) },
       { label: 'Parking', text: e.parking },
       { label: 'Waves', text: e.waves },
       { label: 'Arrival time', text: e.arrival },

@@ -20,10 +20,10 @@ export type PlayerPlan = {
 export type PracticePlan = {
   label: string; dow: number; start: string; end?: string; from: string; until?: string; location?: string; note?: string;
   /** 1 = weekly, 2 or 3 = every 2 or 3 weeks, 0 = one date only. */
-  every: number; court?: string; uniformColor?: string;
+  every: number; court?: string; uniformColor?: string; address?: string;
 };
 export type EventPlan = {
-  row: number; sheet: string; kind: "tournament" | "event" | "deadline" | "practice"; court?: string; uniformColor?: string; title: string; date: string; endDate?: string; time?: string;
+  row: number; sheet: string; kind: "tournament" | "event" | "deadline" | "practice"; court?: string; uniformColor?: string; address?: string; hotelAddress?: string; title: string; date: string; endDate?: string; time?: string;
   location?: string; city?: string; division?: string; travel?: boolean; website?: string; admissions?: string;
   hotel?: string; hotelLink?: string; hotelCode?: string; hotelBy?: string; notes?: string;
   /** Jersey numbers of the families bringing the ball cart and volleyballs, or "na" (not needed). */
@@ -253,7 +253,7 @@ function practiceRow(r: Row): PracticePlan | null {
   const every = repeatEvery(r, "Repeats", 1);
   if (!label || dow === undefined || !start || !from || every === null) return null;
   return { label, dow, start, end: r.time("End time"), from, until, location: r.opt("Location", 200), note: r.opt("Note", 300),
-    every, court: r.opt("Court", 40), uniformColor: r.opt("Uniform color", 40) };
+    every, court: r.opt("Court", 40), uniformColor: r.opt("Uniform color", 40), address: r.opt("Address", 300) };
 }
 
 /** "Weekly", "Every 2 weeks", "Every 3 weeks"; blank gives `blank`; "None" gives 0. Null (with an error) otherwise. */
@@ -305,7 +305,8 @@ function eventRow(r: Row, withFamilies: boolean): EventPlan | null {
     row: r.n, sheet: r.tab.name, kind, title, date, endDate, time: r.time("Time"), location: r.opt("Venue", 200), city: r.opt("City", 120),
     division: r.opt("Division", 60), travel: kind === "tournament" ? r.yes("Travel") : undefined, website: r.url("Website"),
     admissions: r.url("Admission link"), hotel: r.opt("Hotel", 200), hotelLink: r.url("Hotel link"), hotelCode: r.opt("Hotel block code", 100),
-    hotelBy: r.date("Book hotel by"), notes: r.opt("Notes", 2000),
+    hotelBy: r.date("Book hotel by"), notes: r.opt("Notes", 2000), address: r.opt("Address", 300),
+    hotelAddress: kind === "tournament" ? r.opt("Hotel address", 300) : undefined,
     court: kind === "practice" ? r.opt("Court", 40) : undefined, uniformColor: kind === "practice" ? r.opt("Uniform color", 40) : undefined, cartJersey: family("Ball cart family"), ballsJersey: family("Volleyballs family"), repeat
   };
 }

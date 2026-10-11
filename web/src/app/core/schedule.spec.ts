@@ -106,8 +106,9 @@ describe('repeating events', () => {
 describe('practice events', () => {
   const pr: TeamEvent = {
     eid: 'prs', kind: 'practice', title: 'Team practice', date: '2026-11-03', time: '6:30 PM', endTime: '8:30 PM', location: 'A5 Gym',
-    court: '3', uniformColor: 'Navy', repeat: { every: 2, days: [2], until: '2026-12-15' },
-    overrides: { '2026-11-17': { time: '7:00 PM', court: '5', uniformColor: 'White', notes: 'Gym B' }, '2026-12-01': {} }
+    address: '1 Gym Way, Roswell, GA', court: '3', uniformColor: 'Navy', repeat: { every: 2, days: [2], until: '2026-12-15' },
+    overrides: { '2026-11-17': { time: '7:00 PM', court: '5', uniformColor: 'White', notes: 'Gym B' }, '2026-12-01': {},
+      '2026-12-15': { location: 'Rec Center' } }
   };
   const items = buildItems([pr], null);
 
@@ -121,6 +122,12 @@ describe('practice events', () => {
     expect(items[1]).toMatchObject({ time: '7:00 PM – 8:30 PM', court: '5', uniformColor: 'White', note: 'Gym B', location: 'A5 Gym', edited: true, key: 'prs-2026-11-17' });
     expect(items[2].edited).toBeUndefined();
     expect(items[2].court).toBe('3');
+  });
+
+  it('carry the address; a date moved to another place searches that place instead', () => {
+    expect(items[0].address).toBe('1 Gym Way, Roswell, GA');
+    expect(items[1].address).toBe('1 Gym Way, Roswell, GA');
+    expect(items[3]).toMatchObject({ location: 'Rec Center', address: undefined });
   });
 
   it('label courts', () => {

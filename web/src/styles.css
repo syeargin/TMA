@@ -481,3 +481,21 @@ input[type=color]{padding:3px;height:42px;cursor:pointer}
 .edit-pop button{appearance:none;border:0;background:none;text-align:left;font:inherit;font-size:14px;color:var(--ink);padding:8px 10px;border-radius:6px;cursor:pointer}
 .edit-pop button:hover,.edit-pop button:focus-visible{background:var(--surface-2)}
 .hint.warn{color:var(--warn);font-weight:600}
+
+/* Map links: an address (or venue) opening Apple Maps on Apple devices, Google Maps elsewhere; ▾ for the other app. */
+.maplink{display:inline}
+.maplink .ml-a{color:var(--navy);text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px}
+.maplink .ml-a::before{content:"";display:inline-block;width:.62em;height:.62em;margin-right:.3em;border:2px solid currentColor;border-radius:50% 50% 50% 0;transform:rotate(-45deg) translateY(-1px);vertical-align:baseline}
+.map-more{position:relative;display:inline-block;margin-left:2px}
+.map-more>summary{list-style:none;cursor:pointer;padding:0 4px;border-radius:4px;color:var(--ink-3);font-size:.85em}
+.map-more>summary::-webkit-details-marker{display:none}
+.map-more>summary:hover,.map-more>summary:focus-visible{background:var(--surface-2);color:var(--ink)}
+.map-more .edit-pop{left:0;right:auto;min-width:190px}
+.edit-pop a{display:block;font-size:14px;color:var(--ink);padding:8px 10px;border-radius:6px;text-decoration:none;white-space:nowrap}
+.edit-pop a:hover,.edit-pop a:focus-visible{background:var(--surface-2)}
+/* Map links on the dark tournament header; let its menu open past the header's edge. */
+.thead .maplink .ml-a{color:var(--hdr-ink)}
+.thead .map-more>summary{color:var(--hdr-mute)}
+.thead .map-more>summary:hover,.thead .map-more>summary:focus-visible{background:rgba(255,255,255,.14);color:#fff}
+.thead:has(.map-more[open]){overflow:visible;z-index:5}
+.thead .map-more .edit-pop a{color:var(--ink)}

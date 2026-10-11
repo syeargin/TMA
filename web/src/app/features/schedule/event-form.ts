@@ -18,7 +18,7 @@ const KIND_LABEL: Record<EventKind, string> = { practice: 'Practice', tournament
 export type EditMode = 'series' | 'date' | 'following';
 
 /** Fields one date of a series can change on its own. */
-const OCCURRENCE_FIELDS = ['title', 'time', 'endTime', 'location', 'court', 'uniformColor', 'notes'] as const;
+const OCCURRENCE_FIELDS = ['title', 'time', 'endTime', 'location', 'address', 'court', 'uniformColor', 'notes'] as const;
 
 /** Add or edit a practice, tournament, team event or deadline. Fields it doesn't show are kept as they were. */
 @Component({
@@ -70,6 +70,8 @@ const OCCURRENCE_FIELDS = ['title', 'time', 'endTime', 'location', 'court', 'uni
           </div>
         }
         <label>{{ kind() === 'tournament' ? 'Venue' : 'Location' }}<input formControlName="location" [placeholder]="kind() === 'practice' ? 'A5 Sportsplex' : ''"></label>
+        <label>Address<input formControlName="address" placeholder="1234 Main St, Roswell, GA 30076" autocomplete="off">
+          <span class="hint">Shown as a map link that opens Apple Maps or Google Maps. Without one, the map searches for the {{ kind() === 'tournament' ? 'venue and city' : 'location' }}.@if (mode() === 'date') { Leave it blank if this date is at the usual place.}</span></label>
         @if (kind() === 'practice') {
           <div class="two">
             <label>Court<input formControlName="court" placeholder="3"></label>
@@ -188,7 +190,7 @@ export class EventForm {
   readonly confirmDelete = signal(false);
 
   readonly form = this.fb.group({
-    kind: 'event' as EventKind, title: '', date: '', endDate: '', time: '', endTime: '', location: '', court: '', uniformColor: '',
+    kind: 'event' as EventKind, title: '', date: '', endDate: '', time: '', endTime: '', location: '', address: '', court: '', uniformColor: '',
     city: '', division: '', travel: false, notes: '',
     website: '', parking: '', waves: '', arrival: '', start: '', meet: '', uniforms: '', admissions: '', teamCode: '',
     scheduleLink: '', ticketHelp: '', cartPid: '', ballsPid: '', foodPlan: '', reservations: '', checklist: '',
@@ -271,7 +273,7 @@ export class EventForm {
         const pick = (f: (typeof OCCURRENCE_FIELDS)[number]) => String(o[f] || e?.[f] || '');
         this.form.reset({
           kind: k, title: pick('title'), date: mode === 'series' ? e?.date ?? '' : at, endDate: e?.endDate ?? '',
-          time: pick('time'), endTime: pick('endTime'), location: pick('location'), court: pick('court'), uniformColor: pick('uniformColor'),
+          time: pick('time'), endTime: pick('endTime'), location: pick('location'), address: pick('address'), court: pick('court'), uniformColor: pick('uniformColor'),
           city: e?.city ?? '', division: e?.division ?? '', travel: !!e?.travel, notes: pick('notes'),
           website: e?.website ?? '', parking: e?.parking ?? '', waves: e?.waves ?? '', arrival: e?.arrival ?? '', start: e?.start ?? '',
           meet: e?.meet ?? '', uniforms: e?.uniforms ?? '', admissions: e?.admissions ?? '', teamCode: e?.teamCode ?? '',
@@ -311,6 +313,7 @@ export class EventForm {
       time: !isT ? v.time.trim() || undefined : undefined,
       endTime: isP ? v.endTime.trim() || undefined : undefined,
       location: v.location.trim() || undefined,
+      address: v.address.trim() || undefined,
       court: isP ? v.court.trim() || undefined : undefined,
       uniformColor: isP ? v.uniformColor || undefined : undefined,
       city: isT ? v.city.trim() || undefined : undefined,

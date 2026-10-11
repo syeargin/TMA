@@ -9,6 +9,7 @@ import { TeamStore } from '../../core/team-store';
 import { AddToCalendar } from '../../shared/add-to-calendar';
 import { EditMode, EventForm } from './event-form';
 import { KindPill, RsvpButtons, RsvpCounts } from './rsvp';
+import { MapLink } from '../../shared/map-link';
 
 type Filter = 'all' | 'practice' | 'tournament' | 'event';
 type Range = '8w' | 'season';
@@ -23,7 +24,7 @@ export interface MonthCell { date: string; inMonth: boolean; isToday: boolean; i
 
 @Component({
   selector: 'th-schedule',
-  imports: [NgTemplateOutlet, RouterLink, AddToCalendar, EventForm, KindPill, RsvpButtons, RsvpCounts],
+  imports: [NgTemplateOutlet, RouterLink, AddToCalendar, EventForm, MapLink, KindPill, RsvpButtons, RsvpCounts],
   templateUrl: './schedule.html'
 })
 export class Schedule {

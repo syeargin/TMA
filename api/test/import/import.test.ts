@@ -140,11 +140,14 @@ describe("team import", () => {
     const peach = team.events.find((e: any) => e.title === "Peach Classic");
     expect(peach.cartPid).toBe(team.players.find((p: any) => p.jersey === "8").pid);
     expect(peach.ballsPid).toBe("na");
+    expect(peach).toMatchObject({ hotel: "Peach Inn", address: "100 Expo Dr, Atlanta, GA 30303", hotelAddress: "5 Hotel Row, Atlanta, GA 30303" });
+    expect(team.events.find((e: any) => e.title === "Extra serving practice").address).toBe("1 Gym Way, Roswell, GA 30076");
     expect(team.events.find((e: any) => e.title === "Team dinner").repeat.days).toEqual([3]);
     // The old weekly practice became a series, and the workbook updated it in place.
     expect(team.settings.practices).toEqual([]);
     const tue = team.events.find((e: any) => e.title === "Tuesday practice");
     expect(tue).toMatchObject({ eid: "pr-tue1", kind: "practice", time: "6:30 PM", endTime: "8:30 PM", court: "3", uniformColor: "Navy", repeat: { every: 2, days: [2] }, cancelled: ["2026-10-20"] });
+    expect(tue.address).toBe("1 Gym Way, Roswell, GA 30076");
     expect(team.events.find((e: any) => e.title === "Saturday practice")).toMatchObject({ kind: "practice", repeat: { every: 1, days: [6], until: "2027-05-29" } });
     expect(team.settings.practiceColors).toEqual(["Navy", "White", "Gray"]);
     const invites = (await boss("GET", "/teams/test-15/invites")).body.invites;
