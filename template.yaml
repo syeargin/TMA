@@ -213,7 +213,11 @@ Resources:
           RequireNumbers: true
           RequireSymbols: false
           TemporaryPasswordValidityDays: 7
-      MfaConfiguration: "OFF"
+      # Two-step sign-in (R2): anyone may turn on an authenticator app, and from then on Cognito asks
+      # for a code at every sign-in. The API grants club-admin and site-owner rights only to people
+      # who have it on. No text-message codes, and no "remember this device".
+      MfaConfiguration: "OPTIONAL"
+      EnabledMfas: [SOFTWARE_TOKEN_MFA]
       Schema:
         - { Name: email, AttributeDataType: String, Required: true, Mutable: true }
       VerificationMessageTemplate:
@@ -376,9 +380,15 @@ Resources:
           CLUB_ID: !Ref ClubId
           CLUB_ADMIN_EMAILS: !Ref ClubAdminEmails
           PLATFORM_ADMIN_EMAILS: !Ref PlatformAdminEmails
+          USER_POOL_ID: !Ref UserPool
           NODE_OPTIONS: --enable-source-maps
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+        # Is two-step sign-in on (club-admin and site-owner rights), and the site owner's reset for a lost phone.
+        - Statement:
+            - Effect: Allow
+              Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference]
+              Resource: !GetAtt UserPool.Arn
       # One route per method (not ANY): browsers send CORS preflight OPTIONS requests without a
       # token, and an ANY route would send them to the JWT authorizer and fail. With no OPTIONS
       # route, API Gateway answers preflights itself from CorsConfiguration.

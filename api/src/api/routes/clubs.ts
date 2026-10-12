@@ -3,7 +3,8 @@ import { z } from "zod";
 import { DEFAULT_COLORS, getClub, getClubs, toClub } from "../../lib/clubs.js";
 import { ddb, TABLE } from "../../lib/db.js";
 import { keys, normEmail } from "../../lib/keys.js";
-import { isPlatformAdmin, loadClubAccess } from "../context.js";
+import { isPlatformAdmin, loadClubAccess, requirePlatformAdmin } from "../context.js";
+import { hasMfa, resetMfa } from "../../lib/mfa.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { checkId, clean, deleteItem, getItem, now, optStr, putItem, queryAll, str } from "../util.js";
@@ -51,7 +52,7 @@ function inviteItem(addr: string, clubId: string, by: string, name: { firstName?
 export function clubRoutes(r: Router) {
   /** Clubs you run; site owners see every club. */
   r.on("GET", "/clubs", async ({ caller }) => {
-    const owner = await isPlatformAdmin(caller.sub);
+    const owner = await isPlatformAdmin(caller);
     const ids = owner
       ? (await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": "CLUBS" } })).map((c) => String(c.SK).slice(5))
       : (await queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :u AND begins_with(GSI1SK, :c)", ExpressionAttributeValues: { ":u": `USER#${caller.sub}`, ":c": "CLUB#" } }))
@@ -62,7 +63,7 @@ export function clubRoutes(r: Router) {
 
   /** Site owners add a club, optionally inviting its first admins. */
   r.on("POST", "/clubs", async ({ caller, body }) => {
-    if (!(await isPlatformAdmin(caller.sub))) throw forbidden("Only the site owner can add clubs.");
+    await requirePlatformAdmin(caller, "Only the site owner can add clubs.");
     const b = parseBody(createSchema, body);
     const at = now();
     const club = { clubId: b.clubId, name: b.name, short: b.short ?? "", colors: b.colors ?? DEFAULT_COLORS, links: [], notes: "" };
@@ -91,7 +92,8 @@ export function clubRoutes(r: Router) {
     return json(200, {
       club,
       teams: teams.map((t) => ({ teamId: String(t.SK).slice(5), ...clean(t) })),
-      admins: adminList,
+      // Whether each admin has two-step sign-in on: their admin tools work only when it is.
+      admins: await Promise.all(adminList.map(async (a) => ({ ...a, mfa: await hasMfa(a.sub) }))),
       invites: invites.map((i) => ({ email: i.email, firstName: i.firstName ?? "", lastName: i.lastName ?? "", at: i.at }))
     });
   });
@@ -132,6 +134,18 @@ export function clubRoutes(r: Router) {
     if (!list.some((a) => a.sub === sub)) throw notFound("That person isn't an admin of this club.");
     if (list.length <= 1 && !platformAdmin) throw conflict("A club needs at least one admin. Add someone else first.");
     await deleteItem(keys.clubAdmin(clubId, sub));
+    return json(204, undefined);
+  });
+
+  /** A club admin lost their phone: a site owner turns off their authenticator app so they can set it up again. */
+  r.on("POST", "/clubs/{clubId}/admins/{sub}/reset-mfa", async ({ caller, params }) => {
+    await requirePlatformAdmin(caller, "Only site owners can reset two-step sign-in.");
+    const clubId = checkId(params.clubId, "club");
+    const sub = checkId(params.sub, "admin");
+    if (sub === caller.sub) throw badRequest("Turn your own two-step sign-in off or on from Your teams.");
+    if (!(await admins(clubId)).some((a) => a.sub === sub)) throw notFound("That person isn't an admin of this club.");
+    await resetMfa(sub);
+    console.log(JSON.stringify({ audit: "reset-mfa", by: caller.sub, sub, clubId }));
     return json(204, undefined);
   });
 

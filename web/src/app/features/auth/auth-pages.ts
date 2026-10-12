@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
@@ -23,6 +23,17 @@ abstract class AuthPage extends Page {
   template: `
     <h2>Sign in</h2>
     <th-messages [error]="error()" [notice]="notice()" />
+    @if (askCode()) {
+      <p>Enter the 6-digit code from your authenticator app.</p>
+      <form [formGroup]="codeForm" (ngSubmit)="submitCode()" novalidate>
+        <label for="code">Code<input id="code" formControlName="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required thAutofocus></label>
+        <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Checking…' : 'Sign in' }}</button>
+      </form>
+      <div class="links">
+        <button class="link" type="button" (click)="askCode.set(false)">Start over</button>
+        <span class="small muted">Lost your phone? Ask your site owner to reset two-step sign-in.</span>
+      </div>
+    } @else {
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <label for="email">Email<input id="email" type="email" formControlName="email" autocomplete="email" required thAutofocus></label>
       <label for="password">Password<input id="password" type="password" formControlName="password" autocomplete="current-password" required></label>
@@ -31,10 +42,14 @@ abstract class AuthPage extends Page {
     <div class="links">
       <a class="link" routerLink="/forgot">Forgot password?</a>
       <span>New here? <a class="link" routerLink="/signup">Create your account</a></span>
-    </div>`
+    </div>
+    }`
 })
 export class SignIn extends AuthPage {
   readonly form = this.fb.group({ email: this.auth.email(), password: '' });
+  /** Two-step sign-in is on for this account: the password was right, now the app's code. */
+  readonly askCode = signal(false);
+  readonly codeForm = this.fb.group({ code: '' });
   submit() {
     const { email, password } = this.form.getRawValue();
     this.remember(email);
@@ -46,8 +61,31 @@ export class SignIn extends AuthPage {
         return this.go('/verify', { notice: "Verify your email first. We've sent you a new code." });
       }
       if (step === 'RESET_PASSWORD') { await this.auth.startReset(email); return this.go('/reset'); }
+      if (step === 'CONFIRM_SIGN_IN_WITH_TOTP_CODE') { this.codeForm.reset({ code: '' }); this.askCode.set(true); return; }
       this.error.set("Sign-in needs a step this page doesn't support yet.");
       return;
+    });
+  }
+
+  submitCode() {
+    const code = this.codeForm.getRawValue().code.replace(/\s+/g, '');
+    if (!/^\d{6}$/.test(code)) { this.error.set('Enter the 6-digit code from your authenticator app.'); return; }
+    return this.run(async () => {
+      try {
+        const step = await this.auth.confirmCode(code);
+        if (step === 'DONE') return this.go('/');
+        this.error.set("Sign-in needs a step this page doesn't support yet.");
+        return;
+      } catch (err) {
+        const name = (err as { name?: string }).name;
+        if (name === 'CodeMismatchException') throw new Error("That code isn't right. Enter the code your app shows now; it changes every 30 seconds.");
+        // The sign-in session lasts a few minutes; after that, start again with the password.
+        if (name === 'NotAuthorizedException' || name === 'ExpiredCodeException') {
+          this.askCode.set(false);
+          throw new Error('That took too long. Sign in again with your password.');
+        }
+        throw err;
+      }
     });
   }
 }

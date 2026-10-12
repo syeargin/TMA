@@ -13,6 +13,8 @@ export interface Me {
   platformAdmin?: boolean;
   clubs?: MyClub[];
   acceptedInvites?: number;
+  /** Two-step sign-in: required for club admins and site owners; enabled is checked only then. */
+  mfa?: { required: boolean; enabled?: boolean };
 }
 export interface ClubTeam { teamId: string; name: string; season?: string; age?: string; clubId?: string; archived?: boolean; archivedAt?: string }
 /** POST …/import: a preview (applied false) or the result of saving one part. */
@@ -34,7 +36,7 @@ export interface ImportResult {
   order?: string[];
   problems: ImportProblem[];
 }
-export interface ClubAdmin { sub: string; email: string; firstName?: string; lastName?: string }
+export interface ClubAdmin { sub: string; email: string; firstName?: string; lastName?: string; /** Two-step sign-in on: their admin tools work. */ mfa?: boolean }
 export interface ClubDetail { club: Club; teams: ClubTeam[]; admins: ClubAdmin[]; invites: { email: string; firstName?: string; lastName?: string }[] }
 export interface Member { sub?: string; email?: string; firstName?: string; lastName?: string; person?: string; roles: Role[]; pid?: string; status?: string }
 export interface Invite { email: string; firstName?: string; lastName?: string; roles?: Role[]; pid?: string }

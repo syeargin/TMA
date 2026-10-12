@@ -72,6 +72,8 @@ export class ApiService {
   saveClub(clubId: string, c: Omit<Club, 'clubId'>) { return this.call<Club>('PUT', `/clubs/${enc(clubId)}`, c); }
   inviteClubAdmin(clubId: string, a: { email: string; firstName?: string; lastName?: string }) { return this.call('POST', `/clubs/${enc(clubId)}/admins`, a); }
   removeClubAdmin(clubId: string, sub: string) { return this.call('DELETE', `/clubs/${enc(clubId)}/admins/${enc(sub)}`); }
+  /** Site owners: turn off a club admin's authenticator app (lost phone) so they can set it up again. */
+  resetClubAdminMfa(clubId: string, sub: string) { return this.call('POST', `/clubs/${enc(clubId)}/admins/${enc(sub)}/reset-mfa`); }
   withdrawClubInvite(clubId: string, email: string) { return this.call('DELETE', `/clubs/${enc(clubId)}/invites/${enc(email)}`); }
   team(teamId: string) { return this.call<TeamBundle>('GET', `/teams/${enc(teamId)}`); }
   invites(teamId: string) { return this.call<{ invites: Invite[] }>('GET', `/teams/${enc(teamId)}/invites`); }

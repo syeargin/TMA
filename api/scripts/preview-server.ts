@@ -13,12 +13,14 @@ process.env.CLUB_ID = "a5";
 process.env.AWS_REGION ??= "us-east-1";
 process.env.DYNAMODB_ENDPOINT ??= "http://127.0.0.1:8000";
 process.env.PLATFORM_ADMIN_EMAILS = "owner@example.com";
+process.env.MFA_CHECK ??= "off"; // no user pool locally; run with MFA_CHECK=on to see the two-step prompts
 
 const { freshTable, event } = await import("../test/api/harness.js");
 const { handler } = await import("../src/api/handler.js");
 const { ddb, TABLE } = await import("../src/lib/db.js");
 const { keys } = await import("../src/lib/keys.js");
 const { PutCommand } = await import("@aws-sdk/lib-dynamodb");
+const { setMfaLookup } = await import("../src/lib/mfa.js");
 
 const OWNER = "u-owner", MOM = "u-mom";
 const api = async (m: string, p: string, sub: string, b?: unknown, email = "") => {
@@ -28,6 +30,8 @@ const api = async (m: string, p: string, sub: string, b?: unknown, email = "") =
 };
 
 await freshTable();
+// Seed as a site owner with two-step sign-in on, then go back to MFA_CHECK for browsing.
+setMfaLookup(async () => true);
 await api("GET", "/me", OWNER, undefined, "owner@example.com");
 await api("PUT", "/me", OWNER, { firstName: "Sam", lastName: "Owner" });
 await api("POST", "/clubs", OWNER, { clubId: "test", name: "Test Club", short: "Test", colors: { primary: "#14532D", accent: "#9AD3A5" } });
@@ -39,12 +43,16 @@ for (const [id, name, age] of [["test-13", "Test 13", "13U"], ["test-14", "Test 
 }
 await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("test-12", MOM), ...keys.memberGsi("test-12", MOM), type: "Membership", status: "active", sub: MOM, roles: ["parent"], pid: "p1", email: "mom@example.com", firstName: "Mia", at: new Date().toISOString() } }));
 await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("test-13", MOM), ...keys.memberGsi("test-13", MOM), type: "Membership", status: "active", sub: MOM, roles: ["parent"], pid: "p1", email: "mom@example.com", firstName: "Mia", at: new Date().toISOString() } }));
+// A second club admin, so the club page lists someone with two-step status and a reset button.
+await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.clubAdmin("test", "u-kim"), ...keys.clubAdminGsi("test", "u-kim"), type: "ClubAdmin", clubId: "test", sub: "u-kim", email: "kim@example.com", firstName: "Kim", lastName: "Lee", at: new Date().toISOString() } }));
 await api("POST", "/teams/test-12/archive", OWNER);
 // test-13 is on the old weekly practice times (converted when a coach opens it) and has practice uniform colors.
 await api("PUT", "/teams/test-13/settings", OWNER, { teamName: "Test 13", season: "2026-27", age: "13U", coaches: [], practiceColors: ["Navy", "White", "Red"] });
 await api("PUT", "/teams/test-13/practices", OWNER, { practices: [{ id: "wed", label: "Wednesday practice", dow: 3, start: "6:30 PM", end: "8:30 PM", from: "2026-10-07", until: "2027-03-31", location: "Test Gym" }] });
 await api("PUT", "/teams/test-13/practices/cancelled/pr-wed-2026-10-21", OWNER);
 await api("PUT", "/teams/test-13/family/p1", MOM, { rsvp: { "pr-wed-2026-10-14": "yes" } });
+
+setMfaLookup();
 
 const DIST = join(import.meta.dirname, "../../web/dist");
 const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon" };

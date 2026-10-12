@@ -499,3 +499,9 @@ input[type=color]{padding:3px;height:42px;cursor:pointer}
 .thead .map-more>summary:hover,.thead .map-more>summary:focus-visible{background:rgba(255,255,255,.14);color:#fff}
 .thead:has(.map-more[open]){overflow:visible;z-index:5}
 .thead .map-more .edit-pop a{color:var(--ink)}
+/* Two-step sign-in setup */
+ol.steps{margin:10px 0 16px;padding-left:20px;display:grid;gap:10px}
+ol.steps li>*{display:block;margin-top:6px}
+img.qr{width:200px;height:200px;background:#fff;padding:8px;border-radius:10px;border:1px solid var(--line);image-rendering:pixelated}
+code.key{display:inline-block;max-width:100%;font-size:14px;letter-spacing:.06em;white-space:normal;word-break:keep-all;user-select:all;padding:4px 8px}
+th-two-step p+p{margin-top:8px}

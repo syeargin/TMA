@@ -6,6 +6,7 @@
     </div>
   </div>
   <th-messages [error]="error() || loadError()" [notice]="notice()" />
+  @if (needsTwoStep()) { <th-two-step-prompt [what]="owner() ? 'site owner' : 'club admin'" /> }
 
   @if (detail(); as d) {
     <div class="grid g-home">
@@ -155,10 +156,18 @@
         <section class="card">
           <div class="card-h"><h2>Club admins</h2></div>
           <div class="card-b">
-            <p class="small muted" style="margin-bottom:6px">Club admins can change these settings, create teams, and act as team admin on every team in the club.</p>
+            <p class="small muted" style="margin-bottom:6px">Club admins can change these settings, create teams, and act as team admin on every team in the club. Their admin tools work only with two-step sign-in on.</p>
             @for (a of d.admins; track a.sub) {
               <div class="li">
-                <div class="grow"><b>{{ fullName(a) || a.email || 'Admin' }}</b>@if (a.sub === mySub()) { <span class="muted small"> (you)</span> }@if (fullName(a) && a.email) { <div class="small muted">{{ a.email }}</div> }</div>
+                <div class="grow"><b>{{ fullName(a) || a.email || 'Admin' }}</b>@if (a.sub === mySub()) { <span class="muted small"> (you)</span> }
+                  @if (a.mfa) { <span class="pill p-ok" style="margin-left:6px" title="Two-step sign-in is on">Two-step on</span> } @else { <span class="pill p-warn" style="margin-left:6px" title="Their admin tools are locked until they turn on two-step sign-in">Two-step off</span> }
+                  @if (fullName(a) && a.email) { <div class="small muted">{{ a.email }}</div> }</div>
+                @if (owner() && a.mfa && a.sub !== mySub()) {
+                  <button class="link-btn small" type="button" [class.confirm]="confirming() === 'mfa:' + a.sub" (click)="resetTwoStep(a.sub)"
+                    title="For a lost phone: turns off their authenticator app so they can set it up again">
+                    {{ confirming() === 'mfa:' + a.sub ? 'Tap again to reset' : 'Reset two-step' }}
+                  </button>
+                }
                 @if (d.admins.length > 1) {
                   <button class="link-btn small" type="button" [class.confirm]="confirming() === 'admin:' + a.sub" (click)="removeAdmin(a.sub)">
                     {{ confirming() === 'admin:' + a.sub ? 'Tap again to remove' : 'Remove' }}
@@ -189,7 +198,7 @@
       </div>
     </div>
     <div class="import-row"><th-import-panel [clubId]="d.club.clubId" (imported)="afterImport($event)" /></div>
-  } @else if (!loadError()) {
+  } @else if (!loadError() && !needsTwoStep()) {
     <div class="card card-b" style="padding:20px"><div class="label">Loading club</div>
       @for (i of [1, 2, 3, 4]; track i) { <div class="skel"></div> }
     </div>
