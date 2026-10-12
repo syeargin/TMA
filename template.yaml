@@ -54,6 +54,8 @@ Globals:
     MemorySize: 256
     Timeout: 10
     Tracing: Active
+    # Required by this environment's execution role on every role the stack creates (bootstrap/github-oidc.yaml).
+    PermissionsBoundary: !Sub "arn:aws:iam::${AWS::AccountId}:policy/${AppPrefix}-${Env}-boundary"
     Environment:
       Variables:
         TABLE_NAME: !Ref TeamHubTable
@@ -438,6 +440,9 @@ Resources:
       Name: !Sub "${AppPrefix}-${Env}-ws"
       ProtocolType: WEBSOCKET
       RouteSelectionExpression: $request.body.action
+      Tags:
+        app: team-hub
+        env: !Ref Env
 
   WsAuthorizer:
     Type: AWS::ApiGatewayV2::Authorizer

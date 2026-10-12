@@ -37,6 +37,8 @@ jobs:
         run: sam validate --lint --template template.yaml --region us-east-1
       - name: Lint bootstrap template
         run: cfn-lint bootstrap/github-oidc.yaml
+      - name: Check environments stay apart
+        run: python3 bootstrap/check.py
       - name: Build
         run: sam build --template template.yaml
 

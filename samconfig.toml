@@ -1,4 +1,6 @@
 # SAM CLI settings. GitHub Actions runs:  sam deploy --config-env dev|prod
+# The deploy workflow overrides s3_bucket and role_arn with the environment's account
+# (GitHub environment variable AWS_ACCOUNT_ID), so prod can move to its own account.
 version = 0.1
 
 [default.global.parameters]
@@ -16,7 +18,7 @@ stack_name = "tma-dev"
 region = "us-east-1"
 s3_bucket = "tma-sam-artifacts-774924543698-us-east-1"
 s3_prefix = "tma-dev"
-role_arn = "arn:aws:iam::774924543698:role/tma-cfn-exec"
+role_arn = "arn:aws:iam::774924543698:role/tma-cfn-exec-dev"
 capabilities = "CAPABILITY_IAM"
 parameter_overrides = "Env=dev AppPrefix=tma AlertEmail=sam.yeargin@gmail.com ClubAdminEmails=sam.yeargin@gmail.com"
 confirm_changeset = false
@@ -28,7 +30,7 @@ stack_name = "tma-prod"
 region = "us-east-1"
 s3_bucket = "tma-sam-artifacts-774924543698-us-east-1"
 s3_prefix = "tma-prod"
-role_arn = "arn:aws:iam::774924543698:role/tma-cfn-exec"
+role_arn = "arn:aws:iam::774924543698:role/tma-cfn-exec-prod"
 capabilities = "CAPABILITY_IAM"
 parameter_overrides = "Env=prod AppPrefix=tma ClubAdminEmails=sam.yeargin@gmail.com"
 confirm_changeset = false

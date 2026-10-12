@@ -1,0 +1,475 @@
+# Builds bootstrap/github-oidc.yaml:  python3 bootstrap/build.py > bootstrap/github-oidc.yaml
+# Dev and prod come from one function so their roles cannot drift apart. Edit this, not the YAML;
+# CI fails if the YAML is out of date (bootstrap/check.py).
+import sys
+HEAD = r'''AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Team Hub (TMA) bootstrap, deployed by hand once per AWS account. Lets GitHub Actions in
+  syeargin/TMA deploy without stored keys (OIDC) and creates the SAM artifact bucket. Each
+  environment gets its own GitHub deploy role, its own CloudFormation execution role limited to
+  that environment's resources, and a permissions boundary that every role the app stack creates
+  must carry. To move prod to its own account, deploy this there with Environments=prod and
+  redeploy it here with Environments=dev.
+
+Parameters:
+  GitHubOwner:
+    Type: String
+    Default: syeargin
+  GitHubRepo:
+    Type: String
+    Default: TMA
+  GitHubOwnerId:
+    Type: String
+    Default: "33122537"
+    Description: Numeric GitHub account id of the owner (api.github.com/users/<owner> → id).
+  GitHubRepoId:
+    Type: String
+    Default: "1389120123"
+    Description: Numeric GitHub repository id (api.github.com/repos/<owner>/<repo> → id).
+  CreateOidcProvider:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: Set to false if this account already has the token.actions.githubusercontent.com provider.
+  AppPrefix:
+    Type: String
+    Default: tma
+    AllowedPattern: "^[a-z][a-z0-9-]{1,15}$"
+    Description: Prefix for stack names (tma-dev, tma-prod) and the app's resources.
+  Environments:
+    Type: String
+    AllowedValues: ["dev,prod", "dev", "prod"]
+    Default: "dev,prod"
+    Description: Environments that deploy into this account. Use "prod" in a separate prod account and "dev" here once prod has moved.
+  KeepSharedExecRole:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: >
+      Keeps the old shared execution role (<prefix>-cfn-exec, PowerUserAccess) while stacks switch
+      to their own roles. Set to false after dev and prod have each deployed once with the new roles.
+
+Conditions:
+  MakeProvider: !Equals [!Ref CreateOidcProvider, "true"]
+  HasDev: !Not [!Equals [!Ref Environments, "prod"]]
+  HasProd: !Not [!Equals [!Ref Environments, "dev"]]
+  KeepShared: !Equals [!Ref KeepSharedExecRole, "true"]
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: MakeProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${AppPrefix}-sam-artifacts-${AWS::AccountId}-${AWS::Region}"
+      OwnershipControls: { Rules: [{ ObjectOwnership: BucketOwnerEnforced }] }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-old-artifacts
+            Status: Enabled
+            ExpirationInDays: 90
+            NoncurrentVersionExpiration: { NoncurrentDays: 30 }
+
+  ArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource: [!GetAtt ArtifactBucket.Arn, !Sub "${ArtifactBucket.Arn}/*"]
+            Condition: { Bool: { "aws:SecureTransport": "false" } }
+
+  # The old execution role both environments shared. Kept only until each stack has deployed
+  # once with its own role (KeepSharedExecRole=false removes it).
+  CfnExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: KeepShared
+    Properties:
+      RoleName: !Sub "${AppPrefix}-cfn-exec"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudformation.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/PowerUserAccess
+      Policies:
+        - PolicyName: app-iam-roles-only
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ManageAppRoles
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:UpdateRole
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:PassRole
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                  - iam:PutRolePermissionsBoundary
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${AppPrefix}-*"
+              - Sid: ServiceLinkedRoles
+                Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Resource: "*"
+
+  # GitHub issues OIDC subjects either as repo:<owner>/<repo>:environment:<env> or, with
+  # immutable identifiers, repo:<owner>@<ownerId>/<repo>@<repoId>:environment:<env>.
+  # Each deploy role accepts both, pinned to this repository and its own GitHub environment.
+  # Which branches and tags may use an environment is set on the environment in GitHub
+  # (dev: main only; prod: release tags), and the deploy workflow checks it again.
+'''
+
+def env_block(E, env):
+    cond = f"Has{E}"
+    return f'''
+  # ================= {env} =================
+
+  # Ceiling for every role the {env} app stack creates (the Lambda roles): this environment's
+  # table and its stream, its own log groups, tracing, and posting to WebSocket connections.
+  # Whatever policies a role is given, it can never do more than this.
+  {E}Boundary:
+    Type: AWS::IAM::ManagedPolicy
+    Condition: {cond}
+    Properties:
+      ManagedPolicyName: !Sub "${{AppPrefix}}-{env}-boundary"
+      Description: Permissions boundary for roles created by the {env} app stack.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: ThisEnvironmentsTable
+            Effect: Allow
+            Action: "dynamodb:*"
+            Resource:
+              - !Sub "arn:aws:dynamodb:${{AWS::Region}}:${{AWS::AccountId}}:table/TeamHub-{env}"
+              - !Sub "arn:aws:dynamodb:${{AWS::Region}}:${{AWS::AccountId}}:table/TeamHub-{env}/*"
+          - Sid: ListStreams
+            Effect: Allow
+            Action: dynamodb:ListStreams
+            Resource: "*"
+          - Sid: OwnLogs
+            Effect: Allow
+            Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+            Resource:
+              - !Sub "arn:aws:logs:${{AWS::Region}}:${{AWS::AccountId}}:log-group:/aws/lambda/${{AppPrefix}}-{env}-*"
+              - !Sub "arn:aws:logs:${{AWS::Region}}:${{AWS::AccountId}}:log-group:/aws/lambda/${{AppPrefix}}-{env}-*:*"
+          - Sid: Tracing
+            Effect: Allow
+            Action: [xray:PutTraceSegments, xray:PutTelemetryRecords, xray:GetSamplingRules, xray:GetSamplingTargets, xray:GetSamplingStatisticSummaries]
+            Resource: "*"
+          - Sid: LiveUpdates
+            Effect: Allow
+            Action: execute-api:ManageConnections
+            Resource: !Sub "arn:aws:execute-api:${{AWS::Region}}:${{AWS::AccountId}}:*/live/POST/@connections/*"
+
+  # The role CloudFormation uses for the {env} stack. Resources with predictable names are limited
+  # to {env}'s names. Cognito, API Gateway and CloudFront ids are random, so those rights can't be
+  # scoped by name; anything tagged for another environment is refused instead. A separate prod
+  # account is what fully isolates them.
+  {E}ExecRole:
+    Type: AWS::IAM::Role
+    Condition: {cond}
+    Properties:
+      RoleName: !Sub "${{AppPrefix}}-cfn-exec-{env}"
+      Description: CloudFormation execution role for the {env} app stack only.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: {{ Service: cloudformation.amazonaws.com }}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: {env}-stack-only
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: Table
+                Effect: Allow
+                Action: "dynamodb:*"
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${{AWS::Region}}:${{AWS::AccountId}}:table/TeamHub-{env}"
+                  - !Sub "arn:aws:dynamodb:${{AWS::Region}}:${{AWS::AccountId}}:table/TeamHub-{env}/*"
+              - Sid: TableReads
+                Effect: Allow
+                Action: [dynamodb:ListStreams, dynamodb:DescribeLimits, dynamodb:ListTables]
+                Resource: "*"
+              - Sid: TableKey
+                Effect: Allow
+                Action: [kms:DescribeKey, kms:CreateGrant]
+                Resource: "*"
+                Condition: {{ StringEquals: {{ "kms:ViaService": !Sub "dynamodb.${{AWS::Region}}.amazonaws.com" }} }}
+              - Sid: SiteBucket
+                Effect: Allow
+                Action: "s3:*"
+                Resource:
+                  - !Sub "arn:aws:s3:::${{AppPrefix}}-{env}-site-*"
+                  - !Sub "arn:aws:s3:::${{AppPrefix}}-{env}-site-*/*"
+              - Sid: FunctionCode
+                Effect: Allow
+                Action: [s3:GetObject, s3:GetObjectVersion]
+                Resource: !Sub "${{ArtifactBucket.Arn}}/${{AppPrefix}}-{env}/*"
+              - Sid: Functions
+                Effect: Allow
+                Action: "lambda:*"
+                Resource: !Sub "arn:aws:lambda:${{AWS::Region}}:${{AWS::AccountId}}:function:${{AppPrefix}}-{env}-*"
+              - Sid: StreamTriggers
+                Effect: Allow
+                Action: [lambda:CreateEventSourceMapping, lambda:UpdateEventSourceMapping, lambda:DeleteEventSourceMapping]
+                Resource: "*"
+                Condition: {{ ArnLike: {{ "lambda:FunctionArn": !Sub "arn:aws:lambda:${{AWS::Region}}:${{AWS::AccountId}}:function:${{AppPrefix}}-{env}-*" }} }}
+              - Sid: StreamTriggerReads
+                Effect: Allow
+                Action: [lambda:GetEventSourceMapping, lambda:ListEventSourceMappings, lambda:ListTags, lambda:TagResource, lambda:UntagResource]
+                Resource: "*"
+              - Sid: AppRolesNeedTheBoundary
+                Effect: Allow
+                Action: [iam:CreateRole, iam:PutRolePermissionsBoundary]
+                Resource: !Sub "arn:aws:iam::${{AWS::AccountId}}:role/${{AppPrefix}}-{env}-*"
+                Condition: {{ StringEquals: {{ "iam:PermissionsBoundary": !Ref {E}Boundary }} }}
+              # "IfExists" lets the first deploy update roles made before boundaries existed, in
+              # whatever order CloudFormation applies the changes. New roles can't skip the boundary
+              # (above) and it can't be removed (KeepTheBoundary), so after that deploy every role has it.
+              - Sid: AppRolePolicies
+                Effect: Allow
+                Action: [iam:AttachRolePolicy, iam:DetachRolePolicy, iam:PutRolePolicy, iam:DeleteRolePolicy]
+                Resource: !Sub "arn:aws:iam::${{AWS::AccountId}}:role/${{AppPrefix}}-{env}-*"
+                Condition: {{ StringEqualsIfExists: {{ "iam:PermissionsBoundary": !Ref {E}Boundary }} }}
+              - Sid: AppRoles
+                Effect: Allow
+                Action:
+                  - iam:GetRole
+                  - iam:GetRolePolicy
+                  - iam:DeleteRole
+                  - iam:UpdateRole
+                  - iam:UpdateRoleDescription
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:ListRoleTags
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                Resource: !Sub "arn:aws:iam::${{AWS::AccountId}}:role/${{AppPrefix}}-{env}-*"
+              - Sid: PassAppRolesToLambda
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !Sub "arn:aws:iam::${{AWS::AccountId}}:role/${{AppPrefix}}-{env}-*"
+                Condition: {{ StringEquals: {{ "iam:PassedToService": lambda.amazonaws.com }} }}
+              - Sid: ServiceLinkedRoles
+                Effect: Allow
+                Action: iam:CreateServiceLinkedRole
+                Resource: "*"
+                Condition: {{ StringEquals: {{ "iam:AWSServiceName": [ops.apigateway.amazonaws.com, replication.dynamodb.amazonaws.com] }} }}
+              - Sid: LogGroups
+                Effect: Allow
+                Action: "logs:*"
+                Resource:
+                  - !Sub "arn:aws:logs:${{AWS::Region}}:${{AWS::AccountId}}:log-group:/aws/lambda/${{AppPrefix}}-{env}-*"
+                  - !Sub "arn:aws:logs:${{AWS::Region}}:${{AWS::AccountId}}:log-group:/aws/lambda/${{AppPrefix}}-{env}-*:*"
+                  - !Sub "arn:aws:logs:${{AWS::Region}}:${{AWS::AccountId}}:log-group:/aws/apigateway/${{AppPrefix}}-{env}-*"
+                  - !Sub "arn:aws:logs:${{AWS::Region}}:${{AWS::AccountId}}:log-group:/aws/apigateway/${{AppPrefix}}-{env}-*:*"
+              - Sid: ApiAccessLogDelivery
+                Effect: Allow
+                Action:
+                  - logs:DescribeLogGroups
+                  - logs:CreateLogDelivery
+                  - logs:GetLogDelivery
+                  - logs:UpdateLogDelivery
+                  - logs:DeleteLogDelivery
+                  - logs:ListLogDeliveries
+                  - logs:PutResourcePolicy
+                  - logs:DescribeResourcePolicies
+                Resource: "*"
+              - Sid: Alarms
+                Effect: Allow
+                Action: [cloudwatch:PutMetricAlarm, cloudwatch:DeleteAlarms, cloudwatch:TagResource, cloudwatch:UntagResource, cloudwatch:ListTagsForResource]
+                Resource: !Sub "arn:aws:cloudwatch:${{AWS::Region}}:${{AWS::AccountId}}:alarm:${{AppPrefix}}-{env}-*"
+              - Sid: AlarmReads
+                Effect: Allow
+                Action: cloudwatch:DescribeAlarms
+                Resource: "*"
+              - Sid: Budget
+                Effect: Allow
+                Action: [budgets:ModifyBudget, budgets:ViewBudget]
+                Resource: !Sub "arn:aws:budgets::${{AWS::AccountId}}:budget/${{AppPrefix}}-{env}-*"
+              - Sid: SignIn
+                Effect: Allow
+                Action: "cognito-idp:*"
+                Resource: "*"
+              - Sid: Apis
+                Effect: Allow
+                Action: "apigateway:*"
+                Resource:
+                  - !Sub "arn:aws:apigateway:${{AWS::Region}}::/apis"
+                  - !Sub "arn:aws:apigateway:${{AWS::Region}}::/apis/*"
+                  - !Sub "arn:aws:apigateway:${{AWS::Region}}::/tags/*"
+              - Sid: Cdn
+                Effect: Allow
+                Action:
+                  - cloudfront:CreateDistribution
+                  - cloudfront:UpdateDistribution
+                  - cloudfront:DeleteDistribution
+                  - cloudfront:CreateOriginAccessControl
+                  - cloudfront:UpdateOriginAccessControl
+                  - cloudfront:DeleteOriginAccessControl
+                  - cloudfront:TagResource
+                  - cloudfront:UntagResource
+                  - "cloudfront:Get*"
+                  - "cloudfront:List*"
+                Resource: "*"
+              # Cognito, API Gateway and CloudFront are allowed by service above. Refuse anything
+              # tagged (or being tagged) for a different environment.
+              - Sid: NotOtherEnvironments
+                Effect: Deny
+                Action: ["cognito-idp:*", "apigateway:*", "cloudfront:*", "lambda:*"]
+                Resource: "*"
+                Condition:
+                  "Null": {{ "aws:ResourceTag/env": "false" }}
+                  StringNotEquals: {{ "aws:ResourceTag/env": {env} }}
+              - Sid: NoRetaggingToOtherEnvironments
+                Effect: Deny
+                Action: ["cognito-idp:*", "apigateway:*", "cloudfront:*", "lambda:*"]
+                Resource: "*"
+                Condition:
+                  "Null": {{ "aws:RequestTag/env": "false" }}
+                  StringNotEquals: {{ "aws:RequestTag/env": {env} }}
+              - Sid: KeepTheBoundary
+                Effect: Deny
+                Action: [iam:DeleteRolePermissionsBoundary, iam:CreatePolicyVersion, iam:SetDefaultPolicyVersion, iam:DeletePolicy]
+                Resource: "*"
+
+  {E}DeployRole:
+    Type: AWS::IAM::Role
+    Condition: {cond}
+    Properties:
+      RoleName: !Sub "${{AppPrefix}}-github-deploy-{env}"
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - MakeProvider
+                - !Ref GitHubOidcProvider
+                - !Sub "arn:aws:iam::${{AWS::AccountId}}:oidc-provider/token.actions.githubusercontent.com"
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "token.actions.githubusercontent.com:aud": sts.amazonaws.com
+                "token.actions.githubusercontent.com:sub":
+                  - !Sub "repo:${{GitHubOwner}}@${{GitHubOwnerId}}/${{GitHubRepo}}@${{GitHubRepoId}}:environment:{env}"
+                  - !Sub "repo:${{GitHubOwner}}/${{GitHubRepo}}:environment:{env}"
+      Policies:
+        - PolicyName: deploy-{env}
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: Stack
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - "cloudformation:Describe*"
+                  - "cloudformation:GetTemplate*"
+                  - cloudformation:ListStackResources
+                Resource: !Sub "arn:aws:cloudformation:${{AWS::Region}}:${{AWS::AccountId}}:stack/${{AppPrefix}}-{env}/*"
+              - Sid: SamTransform
+                Effect: Allow
+                Action: cloudformation:CreateChangeSet
+                Resource: !Sub "arn:aws:cloudformation:${{AWS::Region}}:aws:transform/Serverless-2016-10-31"
+              - Sid: ValidateTemplates
+                Effect: Allow
+                Action: [cloudformation:ValidateTemplate, cloudformation:ListStacks, cloudformation:GetTemplateSummary]
+                Resource: "*"
+              - Sid: PassOnlyThisEnvironmentsExecRole
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !If
+                  - KeepShared
+                  - [!GetAtt {E}ExecRole.Arn, !GetAtt CfnExecutionRole.Arn]
+                  - !GetAtt {E}ExecRole.Arn
+                Condition: {{ StringEquals: {{ "iam:PassedToService": cloudformation.amazonaws.com }} }}
+              - Sid: ArtifactBucket
+                Effect: Allow
+                Action: [s3:ListBucket, s3:GetBucketLocation]
+                Resource: !GetAtt ArtifactBucket.Arn
+              - Sid: ThisEnvironmentsArtifacts
+                Effect: Allow
+                Action: [s3:PutObject, s3:GetObject]
+                Resource: !Sub "${{ArtifactBucket.Arn}}/${{AppPrefix}}-{env}/*"
+              - Sid: SiteUpload
+                Effect: Allow
+                Action: [s3:PutObject, s3:DeleteObject, s3:ListBucket, s3:GetObject]
+                Resource:
+                  - !Sub "arn:aws:s3:::${{AppPrefix}}-{env}-site-*"
+                  - !Sub "arn:aws:s3:::${{AppPrefix}}-{env}-site-*/*"
+              - Sid: Invalidate
+                Effect: Allow
+                Action: [cloudfront:CreateInvalidation, cloudfront:GetInvalidation]
+                Resource: !Sub "arn:aws:cloudfront::${{AWS::AccountId}}:distribution/*"
+              - Sid: NotOtherEnvironmentsSite
+                Effect: Deny
+                Action: "cloudfront:*"
+                Resource: "*"
+                Condition:
+                  "Null": {{ "aws:ResourceTag/env": "false" }}
+                  StringNotEquals: {{ "aws:ResourceTag/env": {env} }}
+'''
+
+def outputs():
+    out = '''
+Outputs:
+  ArtifactBucketName:
+    Value: !Ref ArtifactBucket
+'''
+    for E, env in [("Dev", "dev"), ("Prod", "prod")]:
+        out += f'''  {E}DeployRoleArn:
+    Condition: Has{E}
+    Value: !GetAtt {E}DeployRole.Arn
+  {E}ExecRoleArn:
+    Condition: Has{E}
+    Value: !GetAtt {E}ExecRole.Arn
+  {E}BoundaryArn:
+    Condition: Has{E}
+    Value: !Ref {E}Boundary
+'''
+    return out
+
+sys.stdout.write(HEAD + env_block("Dev", "dev") + env_block("Prod", "prod") + outputs())

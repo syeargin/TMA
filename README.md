@@ -43,22 +43,24 @@ aws cloudformation deploy \
   --region us-east-1
 ```
 
-If the account already has a GitHub OIDC provider, add `--parameter-overrides CreateOidcProvider=false`.
+If the account already has a GitHub OIDC provider, add `--parameter-overrides CreateOidcProvider=false`. The template is built by `bootstrap/build.py`: edit that, then run `python3 bootstrap/build.py > bootstrap/github-oidc.yaml`. CI fails if the two differ, or if any dev resource names prod (or the reverse) (`bootstrap/check.py`).
 
-This creates:
+Each environment gets its own three IAM pieces, so a dev deploy can't change prod:
 
-| Resource | Name |
-|---|---|
-| GitHub OIDC provider | `token.actions.githubusercontent.com` |
-| Deploy role for dev | `tma-github-deploy-dev` (trusted only from the `dev` environment of `syeargin/TMA`, matched by name and by GitHub's numeric owner/repo IDs) |
-| Deploy role for prod | `tma-github-deploy-prod` (trusted only from the `prod` environment) |
-| CloudFormation execution role | `tma-cfn-exec` (may create IAM roles only if they're named `tma-*`) |
-| SAM artifact bucket | `tma-sam-artifacts-774924543698-us-east-1` |
+| Resource | dev | prod |
+|---|---|---|
+| GitHub deploy role, trusted only from that GitHub environment of `syeargin/TMA` (matched by name and by GitHub's numeric owner/repo IDs) | `tma-github-deploy-dev` | `tma-github-deploy-prod` |
+| CloudFormation execution role. Table, site bucket, functions, roles, logs, alarms and budget are limited to that environment's names. Cognito, API Gateway and CloudFront have random ids, so anything tagged for the other environment is refused instead. | `tma-cfn-exec-dev` | `tma-cfn-exec-prod` |
+| Permissions boundary every role the app stack creates must carry: that environment's table and stream, its own logs, tracing and WebSocket replies, nothing else | `tma-dev-boundary` | `tma-prod-boundary` |
+
+Shared by both: the GitHub OIDC provider and the SAM artifact bucket `tma-sam-artifacts-774924543698-us-east-1`. Each deploy role reads and writes only its own `tma-<env>/` folder in it.
 
 **2. Create GitHub environments** in *Settings → Environments*:
 
-- `dev`: no rules needed.
-- `prod`: add yourself as a required reviewer and limit deployments to protected branches and tags.
+- `dev`: under **Deployment branches and tags**, choose **Selected branches and tags** and add the branch `main`.
+- `prod`: add yourself as a required reviewer. Under **Deployment branches and tags**, choose **Selected branches and tags** and add the tag pattern `v*`.
+
+GitHub enforces these rules before it gives a run the token AWS trusts, so a workflow edited on another branch still can't deploy. `deploy.yml` checks the same rules in its first step.
 
 **3. Protect `main`** in *Settings → Branches*: require a pull request, and require the CI checks to pass.
 
@@ -72,6 +74,28 @@ This creates:
 | Merge to `main` | Deploys **dev** and prints the CloudFront URL in the run summary |
 | Publish a GitHub release | Deploys **prod** after you approve it |
 | *Actions → Deploy → Run workflow* | Deploys the environment you choose |
+
+
+### Switching existing stacks to their own roles (R1)
+
+The stacks used to deploy through one shared execution role, `tma-cfn-exec`, with PowerUserAccess. To move them over:
+
+1. Redeploy the bootstrap stack with the command above. It adds the new roles and boundaries and keeps `tma-cfn-exec` for now.
+2. Set the GitHub environment rules in step 2 above.
+3. Merge to `main`. The dev deploy uses `tma-cfn-exec-dev`, and the boundary is added to dev's Lambda roles. If CloudFormation reports `AccessDenied`, the message names the missing action. Add it to `bootstrap/build.py`, rebuild, and redeploy the bootstrap stack.
+   If the rollback itself stalls (`UPDATE_ROLLBACK_FAILED`), finish it with the old role: `aws cloudformation continue-update-rollback --stack-name tma-dev --role-arn arn:aws:iam::774924543698:role/tma-cfn-exec`.
+4. Publish a release so prod deploys once through `tma-cfn-exec-prod`.
+5. Remove the shared role: redeploy the bootstrap stack with `--parameter-overrides KeepSharedExecRole=false`.
+
+### Moving prod to its own AWS account
+
+This is the stronger form of R1. Nothing in dev can then reach prod, including its Cognito users, APIs and CloudFront.
+
+1. Create the account under AWS Organizations and sign in to it as an administrator.
+2. Deploy the bootstrap stack there with `--parameter-overrides Environments=prod`.
+3. On the GitHub `prod` environment, add the variable `AWS_ACCOUNT_ID` set to the new account's id. `deploy.yml` reads it for the role and artifact bucket; without it, the environment deploys to `774924543698`.
+4. Publish a release. It creates a new, empty `tma-prod` stack in the new account. Copy the data across before families use it (a DynamoDB export to S3, then an import), and expect people to sign in again, because Cognito users can't move between accounts.
+5. In the old account, delete the old `tma-prod` stack. Its user pool is retained, so delete that by hand once you no longer need it. Then redeploy the bootstrap stack with `Environments=dev`.
 
 ## Sign-in (Phase 1)
 
