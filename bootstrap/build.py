@@ -217,6 +217,11 @@ def env_block(E, env):
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
+              # With a service role, CloudFormation expands the SAM transform as this role.
+              - Sid: SamTransform
+                Effect: Allow
+                Action: cloudformation:CreateChangeSet
+                Resource: !Sub "arn:aws:cloudformation:${{AWS::Region}}:aws:transform/Serverless-2016-10-31"
               - Sid: Table
                 Effect: Allow
                 Action: "dynamodb:*"
@@ -323,7 +328,7 @@ def env_block(E, env):
                 Resource: "*"
               - Sid: Budget
                 Effect: Allow
-                Action: [budgets:ModifyBudget, budgets:ViewBudget]
+                Action: [budgets:ModifyBudget, budgets:ViewBudget, budgets:ListTagsForResource, budgets:TagResource, budgets:UntagResource]
                 Resource: !Sub "arn:aws:budgets::${{AWS::AccountId}}:budget/${{AppPrefix}}-{env}-*"
               - Sid: SignIn
                 Effect: Allow
