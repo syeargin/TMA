@@ -1,8 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Amplify } from 'aws-amplify';
 import {
-  autoSignIn, confirmResetPassword, confirmSignUp, fetchAuthSession, fetchUserAttributes, getCurrentUser,
-  resendSignUpCode, resetPassword, signIn, signOut, signUp
+  autoSignIn, confirmResetPassword, confirmSignIn, confirmSignUp, fetchAuthSession, fetchMFAPreference, fetchUserAttributes,
+  getCurrentUser, resendSignUpCode, resetPassword, setUpTOTP, signIn, signOut, signUp, updateMFAPreference, verifyTOTPSetup
 } from 'aws-amplify/auth';
 import { APP_CONFIG } from './config';
 
@@ -79,9 +79,40 @@ export class AuthService {
     return res.nextStep.signInStep;
   }
 
-  async logOut() {
-    await signOut();
+  /** The 6-digit code from the authenticator app, when sign-in asks for it. */
+  async confirmCode(code: string) {
+    const res = await confirmSignIn({ challengeResponse: code.replace(/\s+/g, '') });
+    this.user.set(undefined);
+    return res.nextStep.signInStep;
+  }
+
+  async logOut(everywhere = false) {
+    await signOut({ global: everywhere });
     this.user.set(null);
+  }
+
+  // ----- two-step sign-in with an authenticator app (R2) -----
+
+  /** Whether this person has an authenticator app turned on. */
+  async twoStepOn(): Promise<boolean> {
+    const pref = await fetchMFAPreference();
+    return !!pref.enabled?.includes('TOTP');
+  }
+
+  /** Starts setup: the key to scan (as an otpauth:// link) or type into the app. */
+  async startTwoStep(appName: string, accountName: string): Promise<{ secret: string; uri: string }> {
+    const details = await setUpTOTP();
+    return { secret: details.sharedSecret, uri: details.getSetupUri(appName, accountName).toString() };
+  }
+
+  /** Confirms the app with one code and turns it on; Cognito then asks for a code at every sign-in. */
+  async finishTwoStep(code: string) {
+    await verifyTOTPSetup({ code: code.replace(/\s+/g, '') });
+    await updateMFAPreference({ totp: 'PREFERRED' });
+  }
+
+  async turnOffTwoStep() {
+    await updateMFAPreference({ totp: 'DISABLED' });
   }
 
   async startReset(email: string) { await resetPassword({ username: norm(email) }); }

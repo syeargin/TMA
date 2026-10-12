@@ -1,3 +1,4 @@
+import { MFA_MESSAGE } from "../lib/mfa.js";
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 import { ZodError, type ZodTypeAny, type z } from "zod";
 
@@ -6,6 +7,8 @@ export class HttpError extends Error {
 }
 
 export const forbidden = (msg = "You don't have access to do that.") => new HttpError(403, msg, "forbidden");
+/** Club-admin or site-owner rights need two-step sign-in (R2). The site shows a link to set it up. */
+export const mfaRequired = () => new HttpError(403, MFA_MESSAGE, "mfa_required");
 export const notFound = (msg = "Not found.") => new HttpError(404, msg, "not_found");
 export const conflict = (msg: string) => new HttpError(409, msg, "conflict");
 export const badRequest = (msg: string) => new HttpError(400, msg, "bad_request");

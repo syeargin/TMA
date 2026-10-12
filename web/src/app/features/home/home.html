@@ -5,6 +5,7 @@
     Signed in as <b>{{ me.firstName ? me.firstName + ' ' + (me.lastName ?? '') : user()?.email }}</b>@if (me.firstName) { <span> ({{ user()?.email }})</span> · <button class="link" type="button" (click)="editingName.set(true)">Change name</button> }
     @if (me.platformAdmin) { · <span class="pill">Site owner</span> } @else if (me.clubAdmin) { · <span class="pill">Club admin</span> }
   </p>
+  @if (me.mfa?.required && !me.mfa.enabled) { <th-two-step-prompt [what]="me.platformAdmin ? 'site owner' : 'club admin'" /> }
   @if (!me.firstName || editingName()) {
     <section class="namebox" [class.ask]="!me.firstName">
       <h3>Your name</h3>
@@ -109,4 +110,4 @@
 } @else {
   <p class="muted">Loading…</p>
 }
-<div class="links"><button class="link" type="button" (click)="signOut()">Sign out</button></div>
+<div class="links"><a class="link" routerLink="/security">Two-step sign-in</a><button class="link" type="button" (click)="signOut()">Sign out</button></div>

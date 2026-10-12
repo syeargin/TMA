@@ -191,6 +191,12 @@ def env_block(E, env):
             Effect: Allow
             Action: [xray:PutTraceSegments, xray:PutTelemetryRecords, xray:GetSamplingRules, xray:GetSamplingTargets, xray:GetSamplingStatisticSummaries]
             Resource: "*"
+          # The API checks whether someone has two-step sign-in on and resets it for a lost phone.
+          # Each role's own policy names its environment's user pool.
+          - Sid: TwoStepSignIn
+            Effect: Allow
+            Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference]
+            Resource: !Sub "arn:aws:cognito-idp:${{AWS::Region}}:${{AWS::AccountId}}:userpool/*"
           - Sid: LiveUpdates
             Effect: Allow
             Action: execute-api:ManageConnections

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DeleteCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { event, freshTable } from "./harness.js";
 
 const { handler } = await import("../../src/api/handler.js");
@@ -630,5 +630,75 @@ describe("clubs", () => {
     expect(me.firstName !== undefined).toBe(true);
     // The id is free again.
     expect((await asBoss("POST", "/teams", { clubId: "rivals", teamId: "r16", name: "Rivals 16 again" })).status).toBe(201);
+  });
+});
+
+describe("two-step sign-in (R2)", async () => {
+  const { setMfaLookup } = await import("../../src/lib/mfa.js");
+  const OWNER = "u-owner", BOSS = "u-boss";
+  const asOwner = (m: string, p: string, b?: unknown) => call(m, p, OWNER, b, "owner@example.com");
+  const asBoss = (m: string, p: string, b?: unknown) => call(m, p, BOSS, b, "boss@rivals.com");
+  /** Only these people have an authenticator app turned on. */
+  const withMfa = (...subs: string[]) => setMfaLookup(async (u) => subs.includes(u));
+  const mfaRefused = (r: Res) => r.status === 403 && r.body.error === "mfa_required" && /two-step sign-in/.test(r.body.message);
+
+  it("club admins can't use club tools until it's on", async () => {
+    withMfa();
+    try {
+      expect(mfaRefused(await asBoss("GET", "/clubs/rivals"))).toBe(true);
+      expect(mfaRefused(await asBoss("PUT", "/clubs/rivals", { name: "Rivals", colors: { primary: "#7A0019", accent: "#FFCC33" } }))).toBe(true);
+      expect(mfaRefused(await asBoss("POST", "/teams", { clubId: "rivals", teamId: "r17", name: "Rivals 17" }))).toBe(true);
+      expect(mfaRefused(await asBoss("POST", "/clubs/rivals/import", { sheets: {} }))).toBe(true);
+      // Not a member of the club's teams: the team is closed to them too, with the same reason.
+      expect(mfaRefused(await asBoss("GET", "/teams/r16"))).toBe(true);
+      // /me says what's needed.
+      expect((await asBoss("GET", "/me")).body.mfa).toEqual({ required: true, enabled: false });
+      withMfa(BOSS);
+      expect((await asBoss("GET", "/clubs/rivals")).status).toBe(200);
+      expect((await asBoss("GET", "/teams/r16")).status).toBe(200);
+      expect((await asBoss("GET", "/me")).body.mfa).toEqual({ required: true, enabled: true });
+    } finally { setMfaLookup(); }
+  });
+
+  it("a club admin who is also on a team keeps their own team role without it", async () => {
+    await member(CLUB, ["coach"]);
+    withMfa();
+    try {
+      expect((await call("GET", `/teams/${T}`, CLUB)).status).toBe(200);
+      expect((await call("PUT", `/teams/${T}/announcements/a-mfa`, CLUB, { text: "Coach note" })).status).toBe(200);
+      // Admin-only actions need the club-admin rights, so they ask for two-step sign-in.
+      expect(mfaRefused(await call("POST", `/teams/${T}/invites`, CLUB, { email: "new@example.com", roles: ["parent"] }))).toBe(true);
+      withMfa(CLUB);
+      expect((await call("POST", `/teams/${T}/invites`, CLUB, { email: "new@example.com", roles: ["parent"] })).status).toBe(201);
+    } finally {
+      setMfaLookup();
+      await ddb.send(new DeleteCommand({ TableName: TABLE, Key: keys.member(T, CLUB) }));
+    }
+  });
+
+  it("site owners need it for owner actions; families never see the prompt", async () => {
+    withMfa();
+    try {
+      expect(mfaRefused(await asOwner("POST", "/clubs", { clubId: "mfa", name: "MFA Club" }))).toBe(true);
+      expect(mfaRefused(await asOwner("POST", "/teams/r16/archive"))).toBe(true);
+      expect(mfaRefused(await asOwner("DELETE", "/teams/r16", { confirm: "r16" }))).toBe(true);
+      // Someone who isn't a site owner is told so, not asked for a code.
+      expect((await asBoss("POST", "/clubs", { clubId: "mfa", name: "MFA Club" })).body.error).toBe("forbidden");
+      const parent = await call("GET", "/me", ROLE_SUBS.parent);
+      expect(parent.body.mfa).toEqual({ required: false });
+      expect((await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).status).toBe(200);
+    } finally { setMfaLookup(); }
+  });
+
+  it("club pages show who has it on, and site owners can reset a lost phone", async () => {
+    withMfa(OWNER, BOSS);
+    try {
+      const club = (await asOwner("GET", "/clubs/rivals")).body;
+      expect(club.admins.find((a: any) => a.sub === BOSS).mfa).toBe(true);
+      expect((await asBoss("POST", `/clubs/rivals/admins/${BOSS}/reset-mfa`)).status).toBe(403);
+      expect((await asOwner("POST", `/clubs/rivals/admins/${OWNER}/reset-mfa`)).status).toBe(400);
+      expect((await asOwner("POST", "/clubs/rivals/admins/u-nobody/reset-mfa")).status).toBe(404);
+      expect((await asOwner("POST", `/clubs/rivals/admins/${BOSS}/reset-mfa`)).status).toBe(204);
+    } finally { setMfaLookup(); }
   });
 });

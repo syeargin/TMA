@@ -7,6 +7,7 @@ import { clubsOfTeams, DEFAULT_CLUB, getClubs, platformEmails } from "../../lib/
 import { json, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { clean, getItem, now, putItem, queryAll, str } from "../util.js";
+import { hasMfa } from "../../lib/mfa.js";
 
 /** Which of these teams are archived (from their entries in the club team lists). */
 async function archivedTeams(teamClub: Map<string, string>): Promise<Set<string>> {
@@ -87,12 +88,18 @@ export function meRoutes(r: Router) {
       }
     }
 
+    // Club admins and site owners need two-step sign-in before those rights work (R2).
+    const mfaRequired = adminClubs.size > 0 || platformAdmin;
+    const mfaOn = mfaRequired ? await hasMfa(caller.username) : undefined;
+
     return json(200, {
       sub: caller.sub,
       email,
       ...name,
       clubAdmin: adminClubs.size > 0 || platformAdmin,
       platformAdmin,
+      /** required: club admin or site owner. enabled: only checked when required. */
+      mfa: { required: mfaRequired, enabled: mfaOn },
       acceptedInvites: accepted,
       /** Clubs you're in through a team or as an admin, with their colors. */
       clubs: [...clubs.values()].map((c) => ({ ...c, admin: platformAdmin || adminClubs.has(c.clubId) })),

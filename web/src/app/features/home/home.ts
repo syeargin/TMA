@@ -7,12 +7,13 @@ import { MeService } from '../../core/me.service';
 import type { Club, MyClub, MyTeam } from '../../core/models';
 import { DEFAULT_COLORS } from '../../core/theme';
 import { Messages } from '../../shared/messages';
+import { TwoStepPrompt } from '../../shared/two-step-prompt';
 import { Page } from '../../shared/page';
 import { roleLabel } from '../../shared/roles';
 
 @Component({
   selector: 'th-home',
-  imports: [ReactiveFormsModule, RouterLink, Messages],
+  imports: [ReactiveFormsModule, RouterLink, Messages, TwoStepPrompt],
   templateUrl: './home.html'
 })
 export class Home extends Page {

@@ -116,6 +116,21 @@ scripts/invite.sh dev coach@example.com  a5-13tom coach,admin coach:0
 
 **Email sending.** By default Cognito sends verification and reset codes from `no-reply@verificationemail.com`, which is limited to a small number of emails per day. That's fine for testing. For real use, verify a sender in Amazon SES, request SES production access, and set `SesFromEmail=<address>` in `samconfig.toml`.
 
+### Two-step sign-in (R2)
+
+- Anyone can turn on an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy) under **Your teams › Two-step sign-in** (`/security`). The user pool's MFA is `OPTIONAL` with authenticator apps only: no text messages, no remembered devices. Once it's on, Cognito asks for a 6-digit code at every sign-in.
+- **Club admins and site owners need it.** Until it's on, their club-admin and site-owner rights don't apply. Club pages, club import, creating teams, adding clubs, and archiving or deleting teams answer 403 `mfa_required`, and the site shows a "Turn on two-step sign-in" prompt. Their own team memberships keep working as usual. Families, coaches and coordinators may turn it on but don't have to.
+- **How the API knows.** Access tokens on Cognito's Lite tier can't carry an MFA claim, so `api/src/lib/mfa.ts` asks Cognito (`AdminGetUser`) whether the person has an authenticator app on. Only "yes" is cached, for a minute per function instance. Turning it on signs the person out everywhere, so every session from then on was opened with a code.
+- **Lost phone.** A site owner opens the club page and uses **Reset two-step** next to that admin. The admin signs in with just their password and sets it up again; their admin tools are locked until they do. Each reset is logged to CloudWatch. To reset a site owner, run from CloudShell:
+
+  ```bash
+  aws cognito-idp admin-set-user-mfa-preference --user-pool-id <UserPoolId> --username <email> \
+    --software-token-mfa-settings Enabled=false,PreferredMfa=false
+  ```
+
+- **Locally**, there's no user pool: tests and the preview server set `MFA_CHECK=off`, so everyone counts as having it on. Start the preview with `MFA_CHECK=on` to see the prompts. In AWS, `USER_POOL_ID` is always set, and then `MFA_CHECK` is ignored.
+- **Deploying it** needs the bootstrap stack updated first: the function permissions boundary now allows `AdminGetUser` and `AdminSetUserMFAPreference`.
+
 ## API (Phase 2)
 
 Every call needs a Cognito access token (`Authorization: Bearer …`). The API loads the caller's membership for the team and checks it against [`api/src/shared/permissions.ts`](api/src/shared/permissions.ts), the same role table the site uses. Club admins have team-admin rights on every team.

@@ -4,7 +4,7 @@ import { ddb, TABLE } from "../../lib/db.js";
 import { clubOfTeam, DEFAULT_CLUB, forgetTeamClubs, getClub, getClubs } from "../../lib/clubs.js";
 import { keys } from "../../lib/keys.js";
 import { convertPractices } from "../../lib/practices.js";
-import { isPlatformAdmin, loadAccess, loadClubAccess } from "../context.js";
+import { isPlatformAdmin, loadAccess, loadClubAccess, requirePlatformAdmin, type Caller } from "../context.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { checkId, clean, deleteMany, getItem, now, optStr, putItem, queryAll, str } from "../util.js";
@@ -113,7 +113,7 @@ export function teamRoutes(r: Router) {
     const [adminOf, mine, owner] = await Promise.all([
       queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :u AND begins_with(GSI1SK, :c)", ExpressionAttributeValues: { ":u": `USER#${caller.sub}`, ":c": "CLUB#" } }),
       queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :u AND begins_with(GSI1SK, :t)", ExpressionAttributeValues: { ":u": `USER#${caller.sub}`, ":t": "TEAM#" } }),
-      isPlatformAdmin(caller.sub)
+      isPlatformAdmin(caller)
     ]);
     let clubIds = adminOf.map((a) => String(a.GSI1SK).slice(5));
     if (await getItem(keys.clubAdmin(DEFAULT_CLUB(), caller.sub))) clubIds.push(DEFAULT_CLUB());
@@ -130,7 +130,7 @@ export function teamRoutes(r: Router) {
   r.on("POST", "/teams", async ({ caller, body }) => {
     const b = parseBody(createTeamSchema, body);
     const clubId = b.clubId ?? DEFAULT_CLUB();
-    await loadClubAccess(caller, clubId).catch(() => { throw forbidden("Only club admins can create teams."); });
+    await loadClubAccess(caller, clubId).catch((e) => { throw e?.code === "mfa_required" ? e : forbidden("Only club admins can create teams."); });
     if (!(await getClub(clubId))) throw notFound("That club doesn't exist.");
     if (b.copyFrom) {
       // Only copy from a team in a club you run.
@@ -259,9 +259,9 @@ export function teamRoutes(r: Router) {
   }
 
   // ---------- archive, restore and delete (site owners) ----------
-  async function ownedTeam(caller: { sub: string }, rawId: string) {
+  async function ownedTeam(caller: Caller, rawId: string) {
     const teamId = checkId(rawId, "team");
-    if (!(await isPlatformAdmin(caller.sub))) throw forbidden("Only site owners can archive or delete teams.");
+    await requirePlatformAdmin(caller, "Only site owners can archive or delete teams.");
     const clubId = await clubOfTeam(teamId);
     const [dir, settings] = await Promise.all([getItem(keys.teamDir(clubId, teamId)), getItem(keys.settings(teamId))]);
     if (!dir && !settings) throw notFound("There's no team with that id.");

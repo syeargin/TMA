@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { FormArray, FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { ApiService } from '../../core/api.service';
+import { ApiError, ApiService } from '../../core/api.service';
 import { HeaderService } from '../../core/header.service';
 import { MeService, fullName } from '../../core/me.service';
 import type { ClubDetail, ClubLink, ClubTeam } from '../../core/models';
@@ -12,6 +12,7 @@ import { ThemeService } from '../../core/theme.service';
 import { ImportPanel } from '../../shared/import-panel';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
+import { TwoStepPrompt } from '../../shared/two-step-prompt';
 
 type LinkForm = FormGroup<{ label: FormControl<string>; url: FormControl<string> }>;
 
@@ -29,7 +30,7 @@ const PRESETS: { name: string; primary: string; accent: string }[] = [
 /** /clubs/:clubId — a club admin's page: name and colors, Team Info links, teams, and admins. */
 @Component({
   selector: 'th-club-admin',
-  imports: [ReactiveFormsModule, RouterLink, Messages, DatePipe, ImportPanel],
+  imports: [ReactiveFormsModule, RouterLink, Messages, DatePipe, ImportPanel, TwoStepPrompt],
   templateUrl: './club-admin.html'
 })
 export class ClubAdminPage extends Page {
@@ -42,6 +43,8 @@ export class ClubAdminPage extends Page {
 
   readonly detail = signal<ClubDetail | null>(null);
   readonly loadError = signal('');
+  /** A club admin without two-step sign-in: the club's tools stay locked (R2). */
+  readonly needsTwoStep = signal(false);
   readonly confirming = signal<string | null>(null);
   readonly presets = PRESETS;
   readonly fullName = fullName;
@@ -96,7 +99,8 @@ export class ClubAdminPage extends Page {
       this.detail.set(d);
       this.fill(d);
     } catch (err) {
-      this.loadError.set((err as Error).message);
+      if (err instanceof ApiError && err.code === 'mfa_required') this.needsTwoStep.set(true);
+      else this.loadError.set((err as Error).message);
     }
   }
 
@@ -207,6 +211,11 @@ export class ClubAdminPage extends Page {
     return this.confirmThen(`admin:${sub}`, 'Admin removed.', () => this.api.removeClubAdmin(this.clubId(), sub), self
       ? async () => { await this.meSvc.load(true).catch(() => {}); await this.go('/', { notice: `You're no longer an admin of ${this.detail()?.club.name ?? 'the club'}.` }); }
       : undefined);
+  }
+  /** Site owners: a club admin lost their phone. They sign in with just a password and set it up again. */
+  resetTwoStep(sub: string) {
+    return this.confirmThen(`mfa:${sub}`, "Two-step sign-in reset. They can sign in with their password and set it up again; their admin tools are locked until they do.",
+      () => this.api.resetClubAdminMfa(this.clubId(), sub));
   }
   withdraw(email: string) { return this.confirmThen(`invite:${email}`, 'Invite withdrawn.', () => this.api.withdrawClubInvite(this.clubId(), email)); }
 

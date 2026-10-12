@@ -38,6 +38,7 @@ export const routes: Routes = [
       { path: 'verify', component: Verify, canActivate: [signedOutGuard], title: T('Verify your email') },
       { path: 'forgot', component: Forgot, canActivate: [signedOutGuard], title: T('Reset your password') },
       { path: 'reset', component: Reset, canActivate: [signedOutGuard], title: T('Set a new password') },
+      { path: 'security', canActivate: [signedInGuard], title: T('Two-step sign-in'), loadComponent: () => import('./features/account/two-step').then((m) => m.TwoStep) },
       { path: 'unconfigured', component: Unconfigured, title: T('Not set up') }
     ]
   },
