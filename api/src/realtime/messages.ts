@@ -43,7 +43,9 @@ export async function handler(event: WsEvent): Promise<APIGatewayProxyResultV2> 
     }
     const sub = String(meta.sub);
     try {
-      await loadAccess({ sub, username: "" }, teamId);
+      // Same check as the API, including two-step sign-in for club-admin and site-owner rights (R2).
+      // In this user pool the sign-in name is the account id (sub), so Cognito can be asked with it.
+      await loadAccess({ sub, username: sub }, teamId);
     } catch (e) {
       if (e instanceof HttpError) {
         await send(endpoint, connectionId, { type: "error", action: "subscribe", teamId, message: e.message });
