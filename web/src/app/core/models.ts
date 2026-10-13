@@ -107,13 +107,17 @@ export interface Payment {
   payId: string; kind: MoneyKind; cat: string; amountCents: number; date: string; desc: string;
   pid?: string; status: 'pending' | 'confirmed' | 'declined'; submittedBy?: string; submittedAt?: string;
 }
-export interface Travel { mode?: string; flight?: string; hotel?: string; conf?: string; arrive?: string; depart?: string; notes?: string; at?: string }
+export interface Travel { mode?: string; flight?: string; hotel?: string; conf?: string; arrive?: string; depart?: string; notes?: string; at?: string;
+  /** Another family's plans, for people who may only see that they're entered (R3). */
+  entered?: boolean }
 export type Rsvp = 'yes' | 'maybe' | 'no';
 export interface FamilyRecord {
   pid?: string;
   rsvp?: Record<string, { v: Rsvp; at?: string; by?: string }>;
   travel?: Record<string, Travel>;
-  uniform?: { sizes?: Record<string, string>; at?: string };
+  uniform?: { sizes?: Record<string, string>; at?: string; /** Another family: only whether sizes are entered (R3). */ entered?: boolean };
+  /** The family lets other team families see their phone numbers and emails. */
+  shareContacts?: boolean;
   [key: string]: unknown;
 }
 export interface HandbookSection { t: string; b: string }
@@ -138,6 +142,8 @@ export interface TeamBundle {
   members: Member[];
   meals: Meal[];
   ledger: LedgerEntry[];
+  /** The team's totals, sent when the ledger was trimmed to your own family's entries (R3). */
+  fundSummary?: { inn: number; out: number; balance: number; pendingIn: number; pendingOut: number; duesPaidFamilies: number };
   handbook: Handbook | null;
   tasks: Task[];
   payments: Payment[];

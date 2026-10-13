@@ -14,8 +14,10 @@ const travel = z.object({
 const familySchema = z.object({
   rsvp: z.record(z.enum(["yes", "maybe", "no", ""])).optional(),
   travel: z.record(travel.nullable()).optional(),
-  uniform: z.object({ sizes: z.record(z.string().max(10)) }).optional()
-}).refine((b) => b.rsvp || b.travel || b.uniform, "send rsvp, travel or uniform");
+  uniform: z.object({ sizes: z.record(z.string().max(10)) }).optional(),
+  /** Whether other families on the team see this family's phone numbers and emails (R3). Off by default. */
+  shareContacts: z.boolean().optional()
+}).refine((b) => b.rsvp || b.travel || b.uniform || b.shareContacts !== undefined, "send rsvp, travel, uniform or shareContacts");
 
 export function familyRoutes(r: Router) {
   /**
@@ -30,6 +32,8 @@ export function familyRoutes(r: Router) {
     const parent = a.isParentOf(pid);
     if (b.rsvp && !parent && !a.can("attendance")) throw forbidden("You can only answer for your own family.");
     if ((b.travel || b.uniform) && !parent && !a.can("roster")) throw forbidden("You can only update your own family.");
+    // Sharing contacts is the family's own choice: staff can't turn it on for them.
+    if (b.shareContacts !== undefined && !parent) throw forbidden("Only the player's own parents can choose whether to share their contact details.");
     if (!(await getItem(keys.player(a.teamId, pid)))) throw notFound("That player isn't on this team.");
 
     const key = keys.family(a.teamId, pid);
@@ -60,6 +64,7 @@ export function familyRoutes(r: Router) {
       if (t === null) removes.push(`travel.${nk}`);
       else { sets.push(`travel.${nk} = ${nv}`); values[nv] = { ...t, at, by: caller.sub }; }
     }
+    if (b.shareContacts !== undefined) { sets.push("shareContacts = :share"); values[":share"] = b.shareContacts; }
     if (b.uniform) { sets.push("uniform = :u"); values[":u"] = { sizes: b.uniform.sizes, at, by: caller.sub }; }
     if (sets.length + removes.length > 200) throw badRequest("Too many changes in one request.");
 

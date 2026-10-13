@@ -115,13 +115,18 @@ describe("family answers", () => {
   it("stores, merges and clears answers", async () => {
     await call("PUT", `/teams/${T}/family/p1`, ROLE_SUBS.parent, { travel: { e1: { mode: "Flying", hotel: "Hilton" } }, uniform: { sizes: { "0": "M" } } });
     await call("PUT", `/teams/${T}/family/p1`, ROLE_SUBS.parent, { rsvp: { e1: "no" } });
-    let fam = (await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.family.p1;
+    let fam = (await call("GET", `/teams/${T}`, ROLE_SUBS.coordinator)).body.family.p1;
     expect(fam.rsvp["pr-sat-2026-10-03"].v).toBe("yes");
     expect(fam.rsvp.e1.v).toBe("no");
     expect(fam.travel.e1).toMatchObject({ mode: "Flying", hotel: "Hilton", by: ROLE_SUBS.parent });
     expect(fam.uniform.sizes).toEqual({ "0": "M" });
+    // Coaches see availability, and only that travel and sizes are entered (R3).
+    const coachView = (await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.family.p1;
+    expect(coachView.rsvp.e1.v).toBe("no");
+    expect(coachView.travel.e1).toEqual({ entered: true, mode: "Flying" });
+    expect(coachView.uniform).toEqual({ entered: true });
     await call("PUT", `/teams/${T}/family/p1`, ROLE_SUBS.parent, { rsvp: { e1: "" }, travel: { e1: null } });
-    fam = (await call("GET", `/teams/${T}`, ROLE_SUBS.coach)).body.family.p1;
+    fam = (await call("GET", `/teams/${T}`, ROLE_SUBS.coordinator)).body.family.p1;
     expect(fam.rsvp.e1).toBeUndefined();
     expect(fam.travel.e1).toBeUndefined();
   });
@@ -700,5 +705,77 @@ describe("two-step sign-in (R2)", async () => {
       expect((await asOwner("POST", "/clubs/rivals/admins/u-nobody/reset-mfa")).status).toBe(404);
       expect((await asOwner("POST", `/clubs/rivals/admins/${BOSS}/reset-mfa`)).status).toBe(204);
     } finally { setMfaLookup(); }
+  });
+});
+
+describe("need to know (R3)", () => {
+  const get = async (sub: string) => (await call("GET", `/teams/${T}`, sub)).body;
+  const player = (b: any, pid: string) => b.players.find((p: any) => p.pid === pid);
+
+  beforeAll(async () => {
+    expect((await call("PUT", `/teams/${T}/players/p1`, ROLE_SUBS.coordinator, { first: "P1", allergies: "Peanuts", parents: [{ name: "Mom One", cell: "555-0101", email: "one@example.com" }] })).status).toBe(200);
+    expect((await call("PUT", `/teams/${T}/players/p2`, ROLE_SUBS.coordinator, { first: "P2", allergies: "Shellfish", parents: [{ name: "Mom Two", cell: "555-0202", email: "two@example.com" }] })).status).toBe(200);
+    expect((await call("PUT", `/teams/${T}/family/p2`, PARENT2, { travel: { trip: { mode: "Driving", hotel: "Inn", conf: "ABC123" } }, uniform: { sizes: { "0": "L" } } })).status).toBe(200);
+    for (const [lid, pid, kind, cat, amt] of [["r3a", "p1", "in", "Dues", 10000], ["r3b", "p2", "in", "Dues", 25000], ["r3c", "", "out", "Team meals", 4000]] as const) {
+      expect((await call("PUT", `/teams/${T}/ledger/${lid}`, ROLE_SUBS.finance, { kind, cat, ...(pid ? { pid } : {}), amountCents: amt, date: "2026-10-01", desc: `${cat} ${pid}` })).status).toBe(200);
+    }
+  });
+
+  it("parents see their own family's contacts, and others' only when that family shares", async () => {
+    let b = await get(ROLE_SUBS.parent);
+    expect(player(b, "p1").parents[0].cell).toBe("555-0101");
+    expect(player(b, "p2").parents).toBeUndefined();
+    // Only that family can choose; staff can't share for them.
+    expect((await call("PUT", `/teams/${T}/family/p2`, ROLE_SUBS.coordinator, { shareContacts: true })).status).toBe(403);
+    expect((await call("PUT", `/teams/${T}/family/p2`, PARENT2, { shareContacts: true })).status).toBe(200);
+    b = await get(ROLE_SUBS.parent);
+    expect(player(b, "p2").parents[0].email).toBe("two@example.com");
+    expect((await call("PUT", `/teams/${T}/family/p2`, PARENT2, { shareContacts: false })).status).toBe(200);
+    expect(player(await get(ROLE_SUBS.parent), "p2").parents).toBeUndefined();
+    // Staff always see every family's contacts.
+    for (const role of ["admin", "coach", "coordinator", "food", "finance"] as const) {
+      expect(player(await get(ROLE_SUBS[role]), "p2").parents[0].cell).toBe("555-0202");
+    }
+  });
+
+  it("allergies go to staff who feed or coach players, and to the player's own parents", async () => {
+    expect(player(await get(ROLE_SUBS.parent), "p1").allergies).toBe("Peanuts");
+    expect(player(await get(ROLE_SUBS.parent), "p2").allergies).toBeUndefined();
+    expect(player(await get(ROLE_SUBS.finance), "p2").allergies).toBeUndefined();
+    for (const role of ["admin", "coach", "coordinator", "food"] as const) {
+      expect(player(await get(ROLE_SUBS[role]), "p2").allergies).toBe("Shellfish");
+    }
+  });
+
+  it("travel and sizes: own family and coordinators; others only see they're entered", async () => {
+    const other = (await get(ROLE_SUBS.parent)).family.p2;
+    expect(other.travel.trip).toEqual({ entered: true, mode: "Driving" });
+    expect(other.uniform).toEqual({ entered: true });
+    expect(JSON.stringify(other)).not.toMatch(/ABC123|Inn|"L"/);
+    expect((await get(PARENT2)).family.p2.travel.trip).toMatchObject({ hotel: "Inn", conf: "ABC123" });
+    expect((await get(ROLE_SUBS.coordinator)).family.p2.travel.trip).toMatchObject({ conf: "ABC123" });
+    expect((await get(ROLE_SUBS.admin)).family.p2.uniform.sizes).toEqual({ "0": "L" });
+  });
+
+  it("the full ledger is for finance; everyone else gets totals and their own entries", async () => {
+    const full = await get(ROLE_SUBS.finance);
+    expect(full.fundSummary).toBeUndefined();
+    expect(full.ledger.map((l: any) => l.lid)).toEqual(expect.arrayContaining(["r3a", "r3b", "r3c"]));
+    const counted = full.ledger.filter((l: any) => l.status !== "declined");
+    const inn = counted.filter((l: any) => l.kind === "in").reduce((n: number, l: any) => n + l.amountCents, 0);
+    const out = counted.filter((l: any) => l.kind === "out").reduce((n: number, l: any) => n + l.amountCents, 0);
+
+    const mine = await get(ROLE_SUBS.parent);
+    expect(mine.ledger.every((l: any) => l.pid === "p1")).toBe(true);
+    expect(mine.ledger.map((l: any) => l.lid)).toContain("r3a");
+    expect(mine.fundSummary).toMatchObject({ inn, out, balance: inn - out });
+    const coach = await get(ROLE_SUBS.coach);
+    expect(coach.ledger).toEqual([]);
+    expect(coach.fundSummary.balance).toBe(inn - out);
+    // The food coordinator is also p2's parent (set in "invites and members"): their own family's entries only.
+    const food = await get(ROLE_SUBS.food);
+    expect(food.ledger.length).toBeGreaterThan(0);
+    expect(food.ledger.every((l: any) => l.pid === "p2")).toBe(true);
+    expect((await get(ROLE_SUBS.coordinator)).ledger.length).toBe(full.ledger.length);
   });
 });

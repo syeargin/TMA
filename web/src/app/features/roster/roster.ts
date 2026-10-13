@@ -82,6 +82,12 @@ export class Roster {
     if (ok) this.playerOpen.set(false);
   }
 
+  async setShare(on: boolean) {
+    this.busy.set(true);
+    await this.store.setShareContacts(on);
+    this.busy.set(false);
+  }
+
   async removePlayer() {
     const e = this.editing();
     if (!e) return;
@@ -94,7 +100,7 @@ export class Roster {
 
   // ----- uniforms -----
   readonly items = computed(() => this.store.settings()?.uniformItems ?? []);
-  readonly sizesDone = computed(() => this.store.players().filter((p) => Object.values(this.store.uniformOf(p.pid)).some(Boolean)).length);
+  readonly sizesDone = computed(() => this.store.players().filter((p) => this.store.hasSizes(p.pid)).length);
   shortItem(i: string) { return i.replace(/\s*\(W\/Last NAME\)/i, '').replace(/^(Women's|Adult|BSN Mens|Adidas Mens|Adidas)\s+/i, ''); }
   readonly sizesFor = signal('');
   readonly sizes = new FormArray<FormControl<string>>([]);
