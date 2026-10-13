@@ -668,8 +668,14 @@ Resources:
           CLUB_ID: !Ref ClubId
           CLUB_ADMIN_EMAILS: !Ref ClubAdminEmails
           PLATFORM_ADMIN_EMAILS: !Ref PlatformAdminEmails
+          USER_POOL_ID: !Ref UserPool
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+        # Subscribing uses the API's access check, which asks Cognito whether two-step sign-in is on (R2).
+        - Statement:
+            - Effect: Allow
+              Action: cognito-idp:AdminGetUser
+              Resource: !GetAtt UserPool.Arn
         - Statement:
             - Effect: Allow
               Action: execute-api:ManageConnections

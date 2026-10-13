@@ -151,3 +151,27 @@ describe("authorizer", () => {
     await expect(auth.handler(ev("bad"))).rejects.toThrow("Unauthorized");
   });
 });
+
+describe("live updates for club admins and site owners", () => {
+  it("club admins and site owners with two-step sign-in can follow teams they aren't members of", async () => {
+    // Regression: subscribing checked two-step sign-in without a sign-in name, so it always failed,
+    // and site owners were sent back to Your teams ("You no longer have access") once live updates connected.
+    const { setMfaLookup } = await import("../../src/lib/mfa.js");
+    await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.clubAdmin("a5", "u-cadm"), type: "ClubAdmin" } }));
+    await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.platformAdmin("u-own"), type: "PlatformAdmin" } }));
+    await connect(ctx("c-adm", { authorizer: { sub: "u-cadm" } }) as any);
+    await connect(ctx("c-own", { authorizer: { sub: "u-own" } }) as any);
+    try {
+      setMfaLookup(async (u) => u === "u-cadm" || u === "u-own");
+      await messages({ ...ctx("c-adm"), body: JSON.stringify({ action: "subscribe", teamId: "tz1" }) } as any);
+      expect(sentTo("c-adm").at(-1)).toMatchObject({ type: "subscribed", teamId: "tz1" });
+      await messages({ ...ctx("c-own"), body: JSON.stringify({ action: "subscribe", teamId: "tz2" }) } as any);
+      expect(sentTo("c-own").at(-1)).toMatchObject({ type: "subscribed", teamId: "tz2" });
+      // Without two-step sign-in, the same people are told why.
+      setMfaLookup(async () => false);
+      await messages({ ...ctx("c-adm"), body: JSON.stringify({ action: "subscribe", teamId: "tz2" }) } as any);
+      expect(sentTo("c-adm").at(-1)).toMatchObject({ type: "error", teamId: "tz2" });
+      expect(sentTo("c-adm").at(-1).message).toMatch(/two-step sign-in/);
+    } finally { setMfaLookup(); }
+  });
+});
