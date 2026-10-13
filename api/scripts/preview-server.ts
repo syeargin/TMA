@@ -51,6 +51,20 @@ await api("PUT", "/teams/test-13/settings", OWNER, { teamName: "Test 13", season
 await api("PUT", "/teams/test-13/practices", OWNER, { practices: [{ id: "wed", label: "Wednesday practice", dow: 3, start: "6:30 PM", end: "8:30 PM", from: "2026-10-07", until: "2027-03-31", location: "Test Gym" }] });
 await api("PUT", "/teams/test-13/practices/cancelled/pr-wed-2026-10-21", OWNER);
 await api("PUT", "/teams/test-13/family/p1", MOM, { rsvp: { "pr-wed-2026-10-14": "yes" } });
+// Two more families, so a parent sees what others share (R3): one shares contacts, one doesn't.
+await api("PUT", "/teams/test-13/events/e1", OWNER, { kind: "tournament", title: "Fall Classic", date: "2026-11-14", endDate: "2026-11-15", city: "Columbus, OH", travel: true });
+const DAD = "u-dad", GRAN = "u-gran";
+await api("PUT", "/teams/test-13/players/p1", OWNER, { first: "Ava", last: "Stone", jersey: "7", allergies: "Peanuts", parents: [{ name: "Mia Stone", cell: "555-0107", email: "mom@example.com" }] });
+await api("PUT", "/teams/test-13/players/p2", OWNER, { first: "Bea", last: "Park", jersey: "11", allergies: "Shellfish", parents: [{ name: "Dan Park", cell: "555-0111", email: "dad@example.com" }] });
+await api("PUT", "/teams/test-13/players/p3", OWNER, { first: "Cam", last: "Ruiz", jersey: "4", parents: [{ name: "Gloria Ruiz", cell: "555-0104", email: "gran@example.com" }] });
+for (const [sub, pid, email] of [[DAD, "p2", "dad@example.com"], [GRAN, "p3", "gran@example.com"]]) {
+  await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("test-13", sub), ...keys.memberGsi("test-13", sub), type: "Membership", status: "active", sub, roles: ["parent"], pid, email, at: new Date().toISOString() } }));
+}
+await api("PUT", "/teams/test-13/family/p2", DAD, { shareContacts: true, travel: { e1: { mode: "Flying", flight: "DL 1234", hotel: "Grand Hotel", conf: "QX7Z2" } }, uniform: { sizes: { "0": "M" } } });
+await api("PUT", "/teams/test-13/settings", OWNER, { teamName: "Test 13", season: "2026-27", age: "13U", coaches: [], practiceColors: ["Navy", "White", "Red"], dues: { amountCents: 30000, due: "2026-11-01" } });
+for (const [lid, pid, kind, cat, amountCents] of [["l1", "p1", "in", "Dues", 30000], ["l2", "p2", "in", "Dues", 15000], ["l3", "", "out", "Team meals", 8500]] as const) {
+  await api("PUT", `/teams/test-13/ledger/${lid}`, OWNER, { kind, cat, ...(pid ? { pid } : {}), amountCents, date: "2026-10-05", desc: kind === "in" ? "Dues" : "Pizza after practice" });
+}
 
 setMfaLookup();
 

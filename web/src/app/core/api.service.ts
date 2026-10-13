@@ -119,6 +119,10 @@ export class ApiService {
   claimMeal(teamId: string, eid: string, mid: string, pid: string) { return this.call('POST', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}/claim`, { pid }); }
   releaseMeal(teamId: string, eid: string, mid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}/claim`); }
   /** One family's travel for one tournament; null clears it. */
+  /** The family's own choice: may other team families see their phone numbers and emails? */
+  setShareContacts(teamId: string, pid: string, share: boolean) {
+    return this.call('PUT', `/teams/${enc(teamId)}/family/${enc(pid)}`, { shareContacts: share });
+  }
   setTravel(teamId: string, pid: string, eid: string, travel: Travel | null) {
     return this.call('PUT', `/teams/${enc(teamId)}/family/${enc(pid)}`, { travel: { [eid]: travel } });
   }

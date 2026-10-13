@@ -38,6 +38,9 @@ import { MapLink } from '../../shared/map-link';
         </div>
       </section>
     </div>
+    @if (!store.can('roster')) {
+      <p class="small muted" style="margin:0 0 8px">Flights, hotels and confirmation numbers are visible to your own family and the team coordinators. For other families you see whether they've entered plans.</p>
+    }
     <div class="tw">
       <table>
         <thead><tr><th class="sticky-col">Family</th><th>Getting there</th><th>Hotel</th><th>Confirmation</th><th>Arrive</th><th>Depart</th><th>Notes</th><th><span class="sr-only">Actions</span></th></tr></thead>
@@ -45,7 +48,9 @@ import { MapLink } from '../../shared/map-link';
           @for (r of rows(); track r.p.pid) {
             <tr [class.mine]="r.p.pid === store.you().pid">
               <td class="sticky-col"><b>{{ r.p.first }}</b></td>
-              @if (r.t; as t) {
+              @if (r.t?.entered) {
+                <td colspan="6"><span class="pill p-ok">Plans entered</span>@if (r.t.mode) { <span class="small muted"> · {{ r.t.mode }}</span> }</td>
+              } @else if (r.t; as t) {
                 <td>{{ t.mode }}@if (t.flight) { <div class="small muted">{{ t.flight }}</div> }</td>
                 <td>{{ t.hotel }}</td><td class="tn">{{ t.conf }}</td><td>{{ t.arrive }}</td><td>{{ t.depart }}</td><td class="small">{{ t.notes }}</td>
               } @else {

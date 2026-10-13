@@ -505,3 +505,8 @@ ol.steps li>*{display:block;margin-top:6px}
 img.qr{width:200px;height:200px;background:#fff;padding:8px;border-radius:10px;border:1px solid var(--line);image-rendering:pixelated}
 code.key{display:inline-block;max-width:100%;font-size:14px;letter-spacing:.06em;white-space:normal;word-break:keep-all;user-select:all;padding:4px 8px}
 th-two-step p+p{margin-top:8px}
+/* R3: a family's choice to share contact details */
+.share-card{margin-bottom:14px}
+.share-card .check{flex-direction:row;gap:10px;align-items:flex-start;font-weight:400;font-size:15px;color:var(--ink)}
+.share-card .check input{margin-top:4px;width:18px;height:18px;flex:none}
+.share-card .check span{display:flex;flex-direction:column;gap:2px}

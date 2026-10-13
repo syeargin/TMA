@@ -29,7 +29,8 @@ export class Fund {
   readonly dues = computed(() => this.store.settings()?.dues ?? {});
   readonly duesLabel = computed(() => this.dues().label || 'Team fund deposit');
   readonly waiting = computed(() => pending(this.store.payments()).sort((a, b) => a.date.localeCompare(b.date)));
-  readonly duesRows = computed(() => this.store.players().map((p) => {
+  /** Every family's dues for finance and coordinators; your own family's otherwise (R3). */
+  readonly duesRows = computed(() => this.store.players().filter((p) => this.store.can('ledger') || p.pid === this.store.myPid()).map((p) => {
     const d = this.store.dues(p.pid);
     const amt = this.store.duesCents();
     return { p, ...d, pct: amt ? Math.min(100, Math.round((100 * d.paid) / amt)) : 0, done: amt > 0 && d.paid >= amt };

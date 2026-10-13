@@ -173,6 +173,18 @@ docker run -p 8000:8000 amazon/dynamodb-local     # or: pip install "moto[server
 cd api && npm test
 ```
 
+### Who sees what (R3)
+
+`GET /teams/{t}` sends each member only what their roles allow (`bundle()` in `routes/teams.ts`; permissions in `shared/permissions.ts`):
+
+| Data | Who sees it |
+|---|---|
+| Parents' phone numbers and emails | Staff (admin, coach, coordinator, food, finance), the player's own family, and families who chose to share. A family turns sharing on with the checkbox on the Roster page (`shareContacts` on `FAMILY#pid`, off by default; only that player's parents can change it). |
+| Food allergies | Admins, coaches, coordinators, food, and the player's own parents |
+| Travel plans, uniform sizes | The family itself, plus admins and coordinators. Others get `{ entered: true }` (travel keeps the travel mode), so "plans in" counts still work. |
+| Every fund entry, every family's dues | Finance, coordinators, admins. Everyone else gets the team totals (`fundSummary`, worked out on the server) and their own family's entries. |
+| Availability, schedule, meals, announcements | Every member, as before |
+
 ## Live updates (Phase 3)
 
 Changes one person makes appear for everyone else on the team page within a second or two, with no reload.

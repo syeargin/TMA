@@ -61,7 +61,8 @@
     }
 
     <section class="card">
-      <div class="card-h"><h3>Ledger</h3><span class="muted small">{{ store.ledger().length }} entries · kept by finance</span></div>
+      <div class="card-h"><h3>{{ store.can('ledger') ? 'Ledger' : 'Your family’s entries' }}</h3><span class="muted small">{{ store.ledger().length }} {{ store.ledger().length === 1 ? 'entry' : 'entries' }} · kept by finance</span></div>
+      @if (!store.can('ledger')) { <p class="small muted card-b" style="padding-bottom:0">The full ledger is visible to finance, the team coordinators and admins. The totals above include every entry.</p> }
       <div class="card-b">
         @if (store.ledger().length) {
           <div class="tw">
@@ -110,7 +111,7 @@
 
   <div class="stack">
     <section class="card">
-      <div class="card-h"><h3>Dues by family</h3></div>
+      <div class="card-h"><h3>{{ store.can('ledger') ? 'Dues by family' : 'Your dues' }}</h3>@if (!store.can('ledger')) { <span class="muted small">{{ f().duesPaidFamilies }} of {{ store.players().length }} families paid</span> }</div>
       <div class="card-b">
         @if (store.duesCents()) {
           <p class="small muted" style="margin:0 0 10px">{{ duesLabel() }}: <b>{{ money(store.duesCents()) }}</b> per family@if (dues().due) {, due <b>{{ fmt(dues().due, { month: 'long', day: 'numeric', year: 'numeric' }) }}</b>}. Topped up during the season as needed.</p>

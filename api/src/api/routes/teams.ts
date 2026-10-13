@@ -4,6 +4,7 @@ import { ddb, TABLE } from "../../lib/db.js";
 import { clubOfTeam, DEFAULT_CLUB, forgetTeamClubs, getClub, getClubs } from "../../lib/clubs.js";
 import { keys } from "../../lib/keys.js";
 import { convertPractices } from "../../lib/practices.js";
+import { fundSummary, type FundSummary } from "../../lib/fund.js";
 import { isPlatformAdmin, loadAccess, loadClubAccess, requirePlatformAdmin, type Caller } from "../context.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
@@ -52,6 +53,14 @@ const createTeamSchema = z.object({
 const DEFAULT_CHECKLIST = ["Court shoes", "Extra pair of socks", "Knee and elbow pads", "2 pairs of spandex", "Both jerseys", "Warmups", "Hair ties, ribbons, brush", "Volleyball backpack", "Water bottle", "Snacks", "Lunch"];
 
 /** Groups a team partition into the shape the site uses, hiding what the caller's roles can't see. */
+/**
+ * Everything a member's browser gets for one team, trimmed to what their roles allow (R3):
+ * - every family's phone numbers and emails: staff, plus families who chose to share (shareContacts);
+ * - allergies: admins, coaches, coordinators and food, plus the player's own parents;
+ * - travel plans and uniform sizes: the family itself and admins/coordinators. Others see only
+ *   that a family has entered them, so counts still work;
+ * - every fund entry: finance, coordinators and admins. Others get the totals and their own entries.
+ */
 export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnType<typeof loadAccess>>) {
   const out = {
     teamId: access.teamId,
@@ -61,13 +70,21 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     players: [] as Record<string, unknown>[], events: [] as unknown[], meals: [] as unknown[],
     refjobs: {} as Record<string, unknown>, agenda: {} as Record<string, unknown>,
     family: {} as Record<string, unknown>, ledger: [] as unknown[], payments: [] as unknown[],
-    announcements: [] as unknown[], tasks: [] as unknown[], members: [] as unknown[]
+    announcements: [] as unknown[], tasks: [] as unknown[], members: [] as unknown[],
+    /** Present when the ledger was trimmed: the team's totals, which the browser can no longer add up. */
+    fundSummary: undefined as FundSummary | undefined
   };
   const contacts: Record<string, unknown> = {};
-  const showContacts = access.can("contacts");
+  const allContacts = access.can("contacts");
+  const allAllergies = access.can("allergies");
+  const allFamilies = access.can("roster");
   const showFund = access.can("fundView");
+  const fullLedger = access.can("ledger");
   const finance = access.can("finance");
   const accounts = access.can("accounts");
+  const myPid = access.isParentOf(access.member?.pid) ? String(access.member!.pid) : "";
+  const allLedger: Record<string, unknown>[] = [];
+  const allPayments: Record<string, unknown>[] = [];
 
   for (const it of items) {
     const sk = String(it.SK);
@@ -75,8 +92,13 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     if (sk === "META#SETTINGS") out.settings = c;
     else if (sk === "META#HANDBOOK") out.handbook = c;
     else if (sk.startsWith("META#")) continue;
-    else if (sk.startsWith("PLAYER#") && sk.endsWith("#CONTACTS")) { if (showContacts) contacts[sk.slice(7, -9)] = c; }
-    else if (sk.startsWith("PLAYER#")) out.players.push({ pid: sk.slice(7), ...c });
+    else if (sk.startsWith("PLAYER#") && sk.endsWith("#CONTACTS")) contacts[sk.slice(7, -9)] = c;
+    else if (sk.startsWith("PLAYER#")) {
+      const pid = sk.slice(7);
+      const p: Record<string, unknown> = { pid, ...c };
+      if (!allAllergies && pid !== myPid) delete p.allergies;
+      out.players.push(p);
+    }
     else if (sk.startsWith("EVENT#")) {
       const parts = sk.split("#"); // EVENT, eid, [REFJOBS|AGENDA|MEAL, mid]
       const eid = parts[1];
@@ -85,9 +107,17 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
       else if (parts[2] === "AGENDA") out.agenda[eid] = c;
       else if (parts[2] === "MEAL") out.meals.push({ eid, mid: parts[3], ...c });
     }
-    else if (sk.startsWith("FAMILY#")) out.family[sk.slice(7)] = c;
-    else if (sk.startsWith("LEDGER#")) { if (showFund) out.ledger.push({ lid: sk.slice(7), ...c }); }
+    else if (sk.startsWith("FAMILY#")) {
+      const pid = sk.slice(7);
+      out.family[pid] = allFamilies || pid === myPid ? c : familySummary(c);
+    }
+    else if (sk.startsWith("LEDGER#")) {
+      const l: Record<string, unknown> = { lid: sk.slice(7), ...c };
+      allLedger.push(l);
+      if (fullLedger || (showFund && myPid && l.pid === myPid)) out.ledger.push(l);
+    }
     else if (sk.startsWith("PAYMENT#")) {
+      allPayments.push(c);
       const mine = c.submittedBy === access.caller.sub || (c.pid && c.pid === access.member?.pid);
       if (finance || mine) out.payments.push({ payId: sk.slice(8), ...c });
     }
@@ -101,10 +131,30 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     }
   }
   for (const p of out.players) {
-    const ct = contacts[String(p.pid)] as { parents?: unknown } | undefined;
+    const pid = String(p.pid);
+    const shared = (out.family[pid] as { shareContacts?: boolean } | undefined)?.shareContacts === true;
+    if (!(allContacts || pid === myPid || shared)) continue;
+    const ct = contacts[pid] as { parents?: unknown } | undefined;
     if (ct) p.parents = ct.parents ?? [];
   }
+  if (showFund && !fullLedger) {
+    const dues = (out.settings as { dues?: { amountCents?: number } } | null)?.dues?.amountCents ?? 0;
+    out.fundSummary = fundSummary(allLedger, allPayments, out.players.map((p) => String(p.pid)), dues);
+  }
   return out;
+}
+
+/** Another family's record, for people who may only see that they've answered. */
+function familySummary(c: Record<string, unknown>) {
+  const travel: Record<string, unknown> = {};
+  for (const [eid, t] of Object.entries((c.travel ?? {}) as Record<string, Record<string, unknown> | null>)) {
+    if (t) travel[eid] = { entered: true, ...(t.mode ? { mode: t.mode } : {}) };
+  }
+  const sizes = ((c.uniform as { sizes?: Record<string, string> } | undefined)?.sizes) ?? {};
+  return {
+    pid: c.pid, rsvp: c.rsvp ?? {}, shareContacts: c.shareContacts === true, travel,
+    uniform: { entered: Object.values(sizes).some(Boolean) }
+  };
 }
 
 export function teamRoutes(r: Router) {

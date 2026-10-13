@@ -11,6 +11,20 @@
 </div>
 
 @if (!uniforms()) {
+  @if (myPid && !store.archived()) {
+    <section class="card share-card">
+      <div class="card-b">
+        <label class="check">
+          <input type="checkbox" [checked]="store.sharingContacts()" [disabled]="busy()" (change)="setShare($any($event.target).checked)">
+          <span><b>Share our phone numbers and emails with the other families</b>
+            <span class="small muted">Coaches and team staff always see them. Other families see them only if you choose to share.</span></span>
+        </label>
+      </div>
+    </section>
+  }
+  @if (!store.can('contacts')) {
+    <p class="small muted" style="margin:0 0 10px">You see your own family's details, and contact details for families who chose to share them. Food allergies are visible to coaches and staff.</p>
+  }
   <div class="row" style="margin-bottom:14px">
     @if (emails().length) { <button class="btn sm" type="button" (click)="copy(emails().join(', '), 'Emails')">Copy all parent emails ({{ emails().length }})</button> }
     @if (manage) { <button class="btn sm primary" type="button" (click)="openPlayer(null)">Add player</button> }
@@ -32,6 +46,7 @@
           <div class="small muted">Shirt {{ p.shirt || '—' }} · Ref team {{ p.refTeam || 'A' }}@if (p.town) { · {{ p.town }}}</div>
           @if (hasAllergy(p)) { <div class="pill p-bad" style="margin-top:4px">Food allergy: {{ p.allergies }}</div> }
           @if (linked().has(p.pid)) { <div class="pill p-ok" style="margin-top:4px" title="A parent has a linked account">Family signed in</div> }
+          @if (!p.parents && !store.can('contacts') && p.pid !== myPid) { <div class="small muted" style="margin-top:6px">Contact details not shared</div> }
           @for (x of p.parents ?? []; track $index) {
             <div class="parent">
               <div class="pn">{{ x.name }}</div>
@@ -47,7 +62,7 @@
   </div>
 } @else {
   <div class="row" style="margin-bottom:12px">
-    <p class="muted intro"><b>{{ sizesDone() }} of {{ store.players().length }}</b> families have entered sizes. Each family fills in their own row.</p>
+    <p class="muted intro"><b>{{ sizesDone() }} of {{ store.players().length }}</b> families have entered sizes. Each family fills in their own row@if (!manage) {; sizes are visible to your family and the coordinators}.</p>
     @if (myPid && items().length) { <button class="btn sm red" type="button" (click)="openSizes(myPid)">Enter {{ store.playerName(myPid) }}’s sizes</button> }
   </div>
   @if (items().length) {
@@ -63,7 +78,12 @@
             <tr [class.mine]="p.pid === store.you().pid">
               <td class="sticky-col"><b>{{ p.first }}</b> <span class="muted small">{{ p.shirt }}</span></td>
               @for (i of items(); track $index) {
-                <td class="tn">@if (store.uniformOf(p.pid)[$index + '']; as s) { {{ s }} } @else { <span class="tbd">—</span> }</td>
+                @if (p.pid === myPid || manage) {
+                  <td class="tn">@if (store.uniformOf(p.pid)[$index + '']; as s) { {{ s }} } @else { <span class="tbd">—</span> }</td>
+                }
+              }
+              @if (p.pid !== myPid && !manage) {
+                <td [attr.colspan]="items().length">@if (store.hasSizes(p.pid)) { <span class="pill p-ok">Sizes entered</span> } @else { <span class="pill p-warn">Not entered</span> }</td>
               }
               <td>@if (p.pid === myPid || manage) { <button class="link-btn small" type="button" (click)="openSizes(p.pid)">Edit</button> }</td>
             </tr>

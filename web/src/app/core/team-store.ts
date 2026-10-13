@@ -17,7 +17,7 @@ import { ToastService } from './toast.service';
  * someone is typing or has a pop-up form open, and the header offers "New changes · Show".
  */
 /** Permissions that only let you see things; everything else changes something. */
-const VIEW_ONLY = new Set<Permission>(['contacts', 'fundView']);
+const VIEW_ONLY = new Set<Permission>(['contacts', 'allergies', 'fundView', 'ledger']);
 
 @Injectable()
 export class TeamStore implements OnDestroy {
@@ -56,9 +56,14 @@ export class TeamStore implements OnDestroy {
   readonly handbook = computed<Handbook>(() => this.bundle()?.handbook ?? { sections: [] });
   readonly tasks = computed<Task[]>(() => [...(this.bundle()?.tasks ?? [])].sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.title.localeCompare(b.title)));
   readonly duesCents = computed(() => this.settings()?.dues?.amountCents ?? 0);
-  readonly fund = computed(() => fundStats(this.ledger(), this.payments(), this.players(), this.duesCents()));
+  /** Team totals: added up here from the full ledger, or sent by the server when you see only your own entries. */
+  readonly fund = computed(() => this.bundle()?.fundSummary ?? fundStats(this.ledger(), this.payments(), this.players(), this.duesCents()));
   dues(pid: string) { return duesFor(pid, this.ledger(), this.payments()); }
   uniformOf(pid: string): Record<string, string> { return this.family()[pid]?.uniform?.sizes ?? {}; }
+  /** Sizes entered: from the sizes themselves, or the server's yes/no for other families. */
+  hasSizes(pid: string): boolean { const u = this.family()[pid]?.uniform; return !!u?.entered || Object.values(u?.sizes ?? {}).some(Boolean); }
+  /** Whether your family shares its contact details with the other families. */
+  readonly sharingContacts = computed(() => { const pid = this.myPid(); return !!pid && this.family()[pid]?.shareContacts === true; });
   readonly refjobs = computed(() => this.bundle()?.refjobs ?? {});
   readonly agenda = computed(() => this.bundle()?.agenda ?? {});
   /** Tournaments, soonest first. */
@@ -249,6 +254,10 @@ export class TeamStore implements OnDestroy {
   saveTask(task: Task, done = 'Task saved') { return this.save(done, (t) => this.api.saveTask(t, task)); }
   deleteTask(kid: string) { return this.save('Task deleted', (t) => this.api.deleteTask(t, kid)); }
   saveSettings(s: Settings) { return this.save('Settings saved', (t) => this.api.saveSettings(t, s)); }
+  setShareContacts(share: boolean) {
+    const pid = this.myPid();
+    return this.save(share ? 'Your contact details are shared with the team' : 'Your contact details are now staff-only', (t) => this.api.setShareContacts(t, pid, share));
+  }
   setUniform(pid: string, sizes: Record<string, string>) { return this.save('Sizes saved', (t) => this.api.setUniform(t, pid, sizes)); }
   setTravel(pid: string, eid: string, travel: Travel | null) {
     return this.save(travel ? 'Travel plans saved' : 'Travel plans cleared', (t) => this.api.setTravel(t, pid, eid, travel));

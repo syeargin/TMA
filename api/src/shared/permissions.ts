@@ -14,8 +14,11 @@ export const ROLE_LABELS: Record<Role, string> = {
 const ALL: Role[] = [...ROLES];
 
 export const PERMISSIONS = {
-  contacts:   { label: "See roster phone numbers and emails", roles: ALL },
-  fundView:   { label: "See the team fund and dues", roles: ALL },
+  // Parents see their own family's details, plus the contacts of families who chose to share them (R3).
+  contacts:   { label: "See every family's phone numbers and emails", roles: ["admin", "coach", "coordinator", "food", "finance"] },
+  allergies:  { label: "See every player's food allergies", roles: ["admin", "coach", "coordinator", "food"] },
+  fundView:   { label: "See the team fund totals and own dues", roles: ALL },
+  ledger:     { label: "See every fund entry and every family's dues", roles: ["admin", "coordinator", "finance"] },
   family:     { label: "Answer for own family: availability, travel, sizes, meals, payments", roles: ["parent"] },
   reimb:      { label: "Request a reimbursement", roles: ALL },
   attendance: { label: "Mark availability for any player", roles: ["admin", "coach", "coordinator"] },
@@ -25,7 +28,7 @@ export const PERMISSIONS = {
   handbook:   { label: "Edit the team handbook", roles: ["admin", "coach", "coordinator"] },
   meals:      { label: "Plan meals and assign families", roles: ["admin", "coordinator", "food"] },
   finance:    { label: "Add, edit and confirm fund entries", roles: ["admin", "coordinator", "finance"] },
-  roster:     { label: "Edit the roster; fix any family's travel or sizes", roles: ["admin", "coordinator"] },
+  roster:     { label: "Edit the roster; see and fix any family's travel or sizes", roles: ["admin", "coordinator"] },
   tasks:      { label: "Manage coordinator tasks", roles: ["admin", "coordinator"] },
   settings:   { label: "Change team settings", roles: ["admin", "coordinator"] },
   accounts:   { label: "Invite people and set their roles", roles: ["admin"] }
