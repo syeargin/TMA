@@ -5,6 +5,7 @@ import { clubOfTeam, DEFAULT_CLUB, forgetTeamClubs, getClub, getClubs } from "..
 import { keys } from "../../lib/keys.js";
 import { convertPractices } from "../../lib/practices.js";
 import { fundSummary, type FundSummary } from "../../lib/fund.js";
+import { ARCHIVE_DAYS, DELETE_GRACE_DAYS, daysFrom, purgeDate } from "../../lib/retention.js";
 import { isPlatformAdmin, loadAccess, loadClubAccess, requirePlatformAdmin, type Caller } from "../context.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
@@ -322,44 +323,44 @@ export function teamRoutes(r: Router) {
   for (const [action, archived] of [["archive", true], ["restore", false]] as const) {
     r.on("POST", `/teams/{teamId}/${action}`, async ({ caller, params }) => {
       const { teamId, clubId, dir, settings } = await ownedTeam(caller, params.teamId);
+      // Archiving an archived team changes nothing, so a pending 7-day delete keeps its date.
+      if (archived && dir?.archived) return json(200, { teamId, clubId, archived, purgeAt: purgeDate(dir) });
       const at = now();
       // Teams made before the club team list existed get an entry now.
       const base = dir ?? { ...keys.teamDir(clubId, teamId), type: "Team", name: settings?.teamName ?? teamId, season: settings?.season ?? "", age: settings?.age ?? "", createdAt: at };
-      const { archivedAt: _a, archivedBy: _b, ...rest } = base as Record<string, unknown>;
+      const { archivedAt: _a, archivedBy: _b, purgeAt: _p, deleteRequestedAt: _r, deleteRequestedBy: _q, ...rest } = base as Record<string, unknown>;
       await ddb.send(new TransactWriteCommand({
         TransactItems: [
-          { Put: { TableName: TABLE, Item: archived ? { ...rest, archived, archivedAt: at, archivedBy: caller.sub } : { ...rest, archived } } },
+          // Archived teams are deleted after 90 days (R4); restoring cancels that and any pending delete.
+          { Put: { TableName: TABLE, Item: archived ? { ...rest, archived, archivedAt: at, archivedBy: caller.sub, purgeAt: daysFrom(at, ARCHIVE_DAYS) } : { ...rest, archived } } },
           // Touching the settings tells anyone with the team open to reload it.
           ...(settings ? [{ Update: { TableName: TABLE, Key: keys.settings(teamId), UpdateExpression: "SET archived = :a, updatedAt = :at", ExpressionAttributeValues: { ":a": archived, ":at": at } } }] : [])
         ]
       }));
-      return json(200, { teamId, clubId, archived });
+      return json(200, { teamId, clubId, archived, ...(archived ? { purgeAt: daysFrom(at, ARCHIVE_DAYS) } : {}) });
     });
   }
 
   /**
-   * Delete a team and everything stored for it: its whole partition, its line in the club's team list and
-   * invites still waiting for it. People's accounts stay (they can be on other teams). The body has to repeat
-   * the team id, so a stray request can't do it.
+   * "Delete team": archives the team now (read-only for everyone) and deletes it for good after 7 days,
+   * unless a site owner restores it first (R31). The body has to repeat the team id, so a stray request
+   * can't do it. The daily retention job does the deleting (lib/retention.ts).
    */
   r.on("DELETE", "/teams/{teamId}", async ({ caller, params, body }) => {
-    const { teamId, clubId, dir } = await ownedTeam(caller, params.teamId);
+    const { teamId, clubId, dir, settings } = await ownedTeam(caller, params.teamId);
     const { confirm } = parseBody(z.object({ confirm: z.string() }), body);
     if (confirm.trim() !== teamId) throw badRequest("Type the team id to confirm.");
-    const [records, invites] = await Promise.all([
-      queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `TEAM#${teamId}` }, ProjectionExpression: "PK, SK" }),
-      queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :t AND begins_with(GSI1SK, :i)", ExpressionAttributeValues: { ":t": `TEAM#${teamId}`, ":i": "INVITE#" }, ProjectionExpression: "PK, SK" })
-    ]);
-    const key = (i: Record<string, unknown>) => ({ PK: String(i.PK), SK: String(i.SK) });
-    // The club link goes last, so a run that stops partway can be repeated and still finds the club.
-    const clubLink = records.filter((i) => i.SK === "META#CLUB").map(key);
-    const rest = [...(dir ? [keys.teamDir(clubId, teamId)] : []), ...invites.map(key), ...records.filter((i) => i.SK !== "META#CLUB").map(key)];
-    await deleteMany(rest);
-    await deleteMany(clubLink);
-    forgetTeamClubs();
-    console.log(JSON.stringify({ msg: "team deleted", teamId, clubId, by: caller.sub, records: rest.length + clubLink.length }));
-    // Live connections are left to expire, so people with the team open still hear that it changed.
-    return json(200, { teamId, clubId, deleted: rest.length + clubLink.length });
+    const at = now();
+    const purgeAt = daysFrom(at, DELETE_GRACE_DAYS);
+    const base = dir ?? { ...keys.teamDir(clubId, teamId), type: "Team", name: settings?.teamName ?? teamId, season: settings?.season ?? "", age: settings?.age ?? "", createdAt: at };
+    await ddb.send(new TransactWriteCommand({
+      TransactItems: [
+        { Put: { TableName: TABLE, Item: { ...base, archived: true, archivedAt: (base as Record<string, unknown>).archived ? (base as Record<string, unknown>).archivedAt ?? at : at, archivedBy: (base as Record<string, unknown>).archivedBy ?? caller.sub, purgeAt, deleteRequestedAt: at, deleteRequestedBy: caller.sub } } },
+        ...(settings ? [{ Update: { TableName: TABLE, Key: keys.settings(teamId), UpdateExpression: "SET archived = :a, updatedAt = :at", ExpressionAttributeValues: { ":a": true, ":at": at } } }] : [])
+      ]
+    }));
+    console.log(JSON.stringify({ msg: "team delete requested", teamId, clubId, by: caller.sub, purgeAt }));
+    return json(200, { teamId, clubId, archived: true, purgeAt });
   });
 
   r.on("PUT", "/teams/{teamId}/handbook", async ({ caller, params, body }) => {

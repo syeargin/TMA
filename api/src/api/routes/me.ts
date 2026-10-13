@@ -8,6 +8,7 @@ import { json, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { clean, getItem, now, putItem, queryAll, str } from "../util.js";
 import { hasMfa } from "../../lib/mfa.js";
+import { PRIVACY_VERSION } from "../../shared/privacy.js";
 
 /** Which of these teams are archived (from their entries in the club team lists). */
 async function archivedTeams(teamClub: Map<string, string>): Promise<Set<string>> {
@@ -100,6 +101,8 @@ export function meRoutes(r: Router) {
       platformAdmin,
       /** required: club admin or site owner. enabled: only checked when required. */
       mfa: { required: mfaRequired, enabled: mfaOn },
+      /** The privacy notice this person last accepted; the site asks again when the version changes (R4). */
+      privacy: { version: PRIVACY_VERSION, accepted: profile.privacyVersion === PRIVACY_VERSION, acceptedAt: profile.privacyAt },
       acceptedInvites: accepted,
       /** Clubs you're in through a team or as an admin, with their colors. */
       clubs: [...clubs.values()].map((c) => ({ ...c, admin: platformAdmin || adminClubs.has(c.clubId) })),

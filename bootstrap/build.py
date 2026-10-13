@@ -191,11 +191,12 @@ def env_block(E, env):
             Effect: Allow
             Action: [xray:PutTraceSegments, xray:PutTelemetryRecords, xray:GetSamplingRules, xray:GetSamplingTargets, xray:GetSamplingStatisticSummaries]
             Resource: "*"
-          # The API checks whether someone has two-step sign-in on and resets it for a lost phone.
+          # The API checks whether someone has two-step sign-in on, resets it for a lost phone, and
+          # deletes a sign-in account when its owner asks (R4).
           # Each role's own policy names its environment's user pool.
           - Sid: TwoStepSignIn
             Effect: Allow
-            Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference]
+            Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference, cognito-idp:AdminDeleteUser]
             Resource: !Sub "arn:aws:cognito-idp:${{AWS::Region}}:${{AWS::AccountId}}:userpool/*"
           - Sid: LiveUpdates
             Effect: Allow
@@ -332,6 +333,11 @@ def env_block(E, env):
                 Effect: Allow
                 Action: cloudwatch:DescribeAlarms
                 Resource: "*"
+              # The daily retention job's schedule (R4).
+              - Sid: Schedules
+                Effect: Allow
+                Action: [events:PutRule, events:DeleteRule, events:DescribeRule, events:EnableRule, events:DisableRule, events:PutTargets, events:RemoveTargets, events:ListTargetsByRule, events:TagResource, events:UntagResource, events:ListTagsForResource]
+                Resource: !Sub "arn:aws:events:${{AWS::Region}}:${{AWS::AccountId}}:rule/${{AppPrefix}}-{env}-*"
               - Sid: Budget
                 Effect: Allow
                 Action: [budgets:ModifyBudget, budgets:ViewBudget, budgets:ListTagsForResource, budgets:TagResource, budgets:UntagResource]

@@ -1,6 +1,7 @@
 import type { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 import { HttpError, json } from "./http.js";
 import { Router } from "./router.js";
+import { accountRoutes } from "./routes/account.js";
 import { meRoutes } from "./routes/me.js";
 import { teamRoutes } from "./routes/teams.js";
 import { contentRoutes } from "./routes/content.js";
@@ -14,6 +15,7 @@ import { ID } from "./util.js";
 
 export const router = new Router();
 meRoutes(router);
+accountRoutes(router);
 teamRoutes(router);
 contentRoutes(router);
 familyRoutes(router);

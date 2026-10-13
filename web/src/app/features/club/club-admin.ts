@@ -10,6 +10,7 @@ import type { ClubDetail, ClubLink, ClubTeam } from '../../core/models';
 import { DEFAULT_COLORS, colorAdvice, isHex } from '../../core/theme';
 import { ThemeService } from '../../core/theme.service';
 import { ImportPanel } from '../../shared/import-panel';
+import { RETENTION } from '@shared/privacy';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
 import { TwoStepPrompt } from '../../shared/two-step-prompt';
@@ -183,13 +184,20 @@ export class ClubAdminPage extends Page {
     });
   }
 
+  /** When an archived team will be deleted; teams archived before dates were stored count 90 days from archiving. */
+  purgeOf(t: ClubTeam): string | undefined {
+    if (t.purgeAt) return t.purgeAt;
+    return t.archivedAt ? new Date(Date.parse(t.archivedAt) + RETENTION.archivedTeamDays * 86_400_000).toISOString() : undefined;
+  }
+
   deleteTeam(t: ClubTeam) {
     if (this.deleteText().trim() !== t.teamId) { this.error.set(`Type ${t.teamId} to confirm.`); return; }
     return this.run(async () => {
-      await this.api.deleteTeam(t.teamId, this.deleteText().trim());
+      const r = await this.api.deleteTeam(t.teamId, this.deleteText().trim());
       this.managing.set(null);
       this.deleteText.set('');
-      this.notice.set(`${t.name} and all its data are deleted.`);
+      const when = r?.purgeAt ? new Date(r.purgeAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'in 7 days';
+      this.notice.set(`${t.name} is archived and will be deleted on ${when}. Restore it before then to cancel.`);
       await this.refresh();
       void this.meSvc.load(true).catch(() => {});
     });

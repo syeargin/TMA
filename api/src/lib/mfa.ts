@@ -1,6 +1,5 @@
-import {
-  AdminGetUserCommand, AdminSetUserMFAPreferenceCommand, CognitoIdentityProviderClient, UserNotFoundException
-} from "@aws-sdk/client-cognito-identity-provider";
+import { AdminGetUserCommand, AdminSetUserMFAPreferenceCommand, UserNotFoundException } from "@aws-sdk/client-cognito-identity-provider";
+import { cognito, poolId } from "./cognito.js";
 
 /**
  * Two-step sign-in (risk R2). The user pool has MFA set to OPTIONAL with authenticator apps only:
@@ -13,9 +12,6 @@ import {
 
 type Lookup = (username: string) => Promise<boolean>;
 
-let client: CognitoIdentityProviderClient | undefined;
-const cognito = () => (client ??= new CognitoIdentityProviderClient({}));
-const poolId = () => process.env.USER_POOL_ID ?? "";
 
 async function fromCognito(username: string): Promise<boolean> {
   try {
