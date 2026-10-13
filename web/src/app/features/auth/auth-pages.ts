@@ -3,6 +3,8 @@ import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { PASSWORD_RULES } from '../../core/errors';
+import { PRIVACY_KEY } from '../../core/guards';
+import { PRIVACY_VERSION } from '@shared/privacy';
 import { Autofocus } from '../../shared/autofocus';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
@@ -41,6 +43,7 @@ abstract class AuthPage extends Page {
     </form>
     <div class="links">
       <a class="link" routerLink="/forgot">Forgot password?</a>
+      <a class="link" routerLink="/privacy">Privacy</a>
       <span>New here? <a class="link" routerLink="/signup">Create your account</a></span>
     </div>
     }`
@@ -102,16 +105,20 @@ export class SignIn extends AuthPage {
       <label for="password">Password<input id="password" type="password" formControlName="password" autocomplete="new-password" required minlength="10" aria-describedby="pw-rules"></label>
       <p class="hint" id="pw-rules">{{ rules }}</p>
       <label for="confirm">Confirm password<input id="confirm" type="password" formControlName="confirm" autocomplete="new-password" required></label>
+      <label class="agree" for="agree"><input id="agree" type="checkbox" formControlName="agree"><span>I've read the <a routerLink="/privacy" target="_blank" rel="noopener">privacy notice</a></span></label>
       <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Create account' }}</button>
     </form>
     <div class="links"><span>Already have an account? <a class="link" routerLink="/signin">Sign in</a></span></div>`
 })
 export class SignUp extends AuthPage {
-  readonly form = this.fb.group({ email: this.auth.email(), password: '', confirm: '' });
+  readonly form = this.fb.group({ email: this.auth.email(), password: '', confirm: '', agree: false });
   submit() {
-    const { email, password, confirm } = this.form.getRawValue();
+    const { email, password, confirm, agree } = this.form.getRawValue();
     this.remember(email);
     if (password !== confirm) { this.error.set("The passwords don't match."); return; }
+    if (!agree) { this.error.set('Please read the privacy notice and tick the box.'); return; }
+    // Recorded on the account at first sign-in, so the notice isn't shown twice (privacyGuard).
+    try { localStorage.setItem(PRIVACY_KEY, PRIVACY_VERSION); } catch { /* storage blocked: they'll be asked once */ }
     return this.run(async () => {
       const step = await this.auth.createAccount(email, password);
       return step === 'CONFIRM_SIGN_UP' ? this.go('/verify') : this.go('/');

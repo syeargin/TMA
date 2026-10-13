@@ -185,6 +185,20 @@ cd api && npm test
 | Every fund entry, every family's dues | Finance, coordinators, admins. Everyone else gets the team totals (`fundSummary`, worked out on the server) and their own family's entries. |
 | Availability, schedule, meals, announcements | Every member, as before |
 
+### Privacy, your own data and retention (R4, R31)
+
+- **Privacy notice** at `/privacy` (`web/src/app/features/privacy/privacy.ts`), readable without signing in and linked from sign-in, sign-up, Your teams and the account page. Its version is `PRIVACY_VERSION` in `api/src/shared/privacy.ts`. Sign-up has an "I've read the privacy notice" box. Everyone else sees `/consent` once per version, and acceptance is saved on the profile (`privacyVersion`, `privacyAt`; `PUT /me/privacy`). **Change the version whenever the notice changes in a way people should see.** Requests and corrections go to the team coordinator, as the notice says.
+- **Your account** (`/account`):
+  - **Download my data** (`GET /me/export`): a JSON file with your profile, teams and roles, your player's record and contacts, your family's answers, travel and sizes, your fund entries and payments, and pending invites. Nothing about other families.
+  - **Delete my account** (`DELETE /me`, body `{ "confirm": "DELETE" }`): removes the Cognito sign-in, profile, team memberships, club-admin records, pending invites, and your own phone and email on your player's roster entry. The player's record and the team's fund entries stay; the coordinator removes those if asked. It's refused for the last admin of a team or club, and for site owners.
+- **Retention** (`api/src/lib/retention.ts`, run daily at 08:15 UTC by `PurgeFunction`):
+  - Archiving sets `purgeAt` 90 days out; the team is deleted then unless restored.
+  - **Delete team** now archives the team at once and deletes it 7 days later; restore within the 7 days to cancel.
+  - Teams archived before this change count 90 days from their archive date.
+  - The club page shows each archived team's deletion date.
+  - `scripts/delete-team.py` still deletes at once from CloudShell when needed.
+- **Deploying it** needs the bootstrap stack updated first: the function boundary allows `AdminDeleteUser`, and each execution role may manage its environment's EventBridge schedule.
+
 ## Live updates (Phase 3)
 
 Changes one person makes appear for everyone else on the team page within a second or two, with no reload.

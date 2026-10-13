@@ -510,3 +510,12 @@ th-two-step p+p{margin-top:8px}
 .share-card .check{flex-direction:row;gap:10px;align-items:flex-start;font-weight:400;font-size:15px;color:var(--ink)}
 .share-card .check input{margin-top:4px;width:18px;height:18px;flex:none}
 .share-card .check span{display:flex;flex-direction:column;gap:2px}
+/* R4: privacy notice, consent and account */
+.notice h3{margin:20px 0 6px;font-size:16px}
+.notice ul{padding-left:18px;display:grid;gap:6px;margin:6px 0}
+.notice p+p{margin-top:8px}
+label.agree{flex-direction:row;align-items:flex-start;gap:8px;font-weight:400;font-size:14px;color:var(--ink);margin:6px 0 12px}
+label.agree input{width:18px;height:18px;margin-top:1px;flex:none}
+.acct{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.acct h3{font-size:16px;margin-bottom:4px}
+.acct p{margin-bottom:8px}

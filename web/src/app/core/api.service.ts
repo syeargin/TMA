@@ -63,7 +63,11 @@ export class ApiService {
   /** Site owners: archive (read-only, out of families' lists) or restore a team. */
   setArchived(teamId: string, archived: boolean) { return this.call<{ archived: boolean }>('POST', `/teams/${enc(teamId)}/${archived ? 'archive' : 'restore'}`); }
   /** Site owners: delete a team and all its data. `confirm` must repeat the team id. */
-  deleteTeam(teamId: string, confirm: string) { return this.call<{ deleted: number }>('DELETE', `/teams/${enc(teamId)}`, { confirm }); }
+  /** Your own data (R4). */
+  acceptPrivacy(version: string) { return this.call<{ version: string; at: string }>('PUT', '/me/privacy', { version }); }
+  exportMyData() { return this.call<Record<string, unknown>>('GET', '/me/export'); }
+  deleteMyAccount(confirm: string) { return this.call('DELETE', '/me', { confirm }); }
+  deleteTeam(teamId: string, confirm: string) { return this.call<{ teamId: string; purgeAt?: string }>('DELETE', `/teams/${enc(teamId)}`, { confirm }); }
 
   // ---------- clubs ----------
   clubs() { return this.call<{ platformAdmin: boolean; clubs: Club[] }>('GET', '/clubs'); }

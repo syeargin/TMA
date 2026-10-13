@@ -66,6 +66,9 @@ for (const [lid, pid, kind, cat, amountCents] of [["l1", "p1", "in", "Dues", 300
   await api("PUT", `/teams/test-13/ledger/${lid}`, OWNER, { kind, cat, ...(pid ? { pid } : {}), amountCents, date: "2026-10-05", desc: kind === "in" ? "Dues" : "Pizza after practice" });
 }
 
+// Everyone but Gloria (u-gran) has accepted the privacy notice, so she shows the consent page.
+const { PRIVACY_VERSION } = await import("../src/shared/privacy.js");
+for (const sub of [OWNER, MOM, "u-dad"]) await api("PUT", "/me/privacy", sub, { version: PRIVACY_VERSION });
 setMfaLookup();
 
 const DIST = join(import.meta.dirname, "../../web/dist");
@@ -81,7 +84,7 @@ createServer(async (req, res) => {
     for await (const c of req) chunks.push(c as Buffer);
     const sub = subOf(String(req.headers.authorization ?? "").replace(/^Bearer /, ""));
     const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : undefined;
-    const email = sub === OWNER ? "owner@example.com" : "mom@example.com";
+    const email = ({ [OWNER]: "owner@example.com", "u-dad": "dad@example.com", "u-gran": "gran@example.com", "u-kim": "kim@example.com" } as Record<string, string>)[sub] ?? "mom@example.com";
     const r = await handler(event(req.method!, url.pathname.slice(4), sub || null, body, email));
     res.writeHead(r.statusCode ?? 200, { ...cors, "content-type": "application/json" }).end(r.body ?? "");
     return;

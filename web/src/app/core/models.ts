@@ -15,8 +15,14 @@ export interface Me {
   acceptedInvites?: number;
   /** Two-step sign-in: required for club admins and site owners; enabled is checked only then. */
   mfa?: { required: boolean; enabled?: boolean };
+  /** The privacy notice version and whether this person has accepted it (R4). */
+  privacy?: { version: string; accepted: boolean; acceptedAt?: string };
 }
-export interface ClubTeam { teamId: string; name: string; season?: string; age?: string; clubId?: string; archived?: boolean; archivedAt?: string }
+export interface ClubTeam {
+  teamId: string; name: string; season?: string; age?: string; clubId?: string; archived?: boolean; archivedAt?: string;
+  /** When an archived team is deleted for good (R4: 90 days after archiving; R31: 7 days after Delete team). */
+  purgeAt?: string; deleteRequestedAt?: string;
+}
 /** POST …/import: a preview (applied false) or the result of saving one part. */
 export interface ImportProblem { sheet: string; row?: number; message: string; level: 'error' | 'warning' }
 export interface ImportTeamSummary {

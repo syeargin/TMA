@@ -51,7 +51,7 @@ describe("access basics", () => {
   });
   it("returns 404 for unknown routes and 405 for wrong methods", async () => {
     expect((await call("GET", "/nope", ROLE_SUBS.admin)).status).toBe(404);
-    expect((await call("DELETE", "/me", ROLE_SUBS.admin)).status).toBe(405);
+    expect((await call("PATCH", "/me", ROLE_SUBS.admin)).status).toBe(405);
   });
   it("validates bodies", async () => {
     const r = await call("PUT", `/teams/${T}/events/bad`, ROLE_SUBS.coach, { kind: "tournament", title: "X", date: "Jan 9" });
@@ -593,7 +593,7 @@ describe("clubs", () => {
     expect((await asOwner("POST", "/teams/nope/archive")).status).toBe(404);
     const r = await asOwner("POST", "/teams/r14/archive");
     expect(r.status).toBe(200);
-    expect(r.body).toEqual({ teamId: "r14", clubId: "rivals", archived: true });
+    expect(r.body).toMatchObject({ teamId: "r14", clubId: "rivals", archived: true, purgeAt: expect.any(String) });
     expect((await asBoss("GET", "/clubs/rivals")).body.teams.find((t: any) => t.teamId === "r14")).toMatchObject({ archived: true, archivedBy: OWNER });
     expect((await call("GET", "/me", RPARENT, undefined, "mom@rivals.com")).body.teams[0]).toMatchObject({ teamId: "r14", archived: true });
     const team = (await call("GET", "/teams/r14", RPARENT)).body;
@@ -619,9 +619,28 @@ describe("clubs", () => {
     expect((await asBoss("DELETE", "/teams/r16", { confirm: "r16" })).status).toBe(403);
     expect((await asOwner("DELETE", "/teams/r16")).status).toBe(400);
     expect((await asOwner("DELETE", "/teams/r16", { confirm: "r14" })).status).toBe(400);
+    // Delete archives the team now and removes it after 7 days, unless it's restored (R31).
     const r = await asOwner("DELETE", "/teams/r16", { confirm: "r16" });
     expect(r.status).toBe(200);
-    expect(r.body.deleted).toBeGreaterThanOrEqual(8);
+    const days = (iso: string) => Math.round((Date.parse(iso) - Date.now()) / 86_400_000);
+    expect(days(r.body.purgeAt)).toBe(7);
+    let dir = (await asBoss("GET", "/clubs/rivals")).body.teams.find((t: any) => t.teamId === "r16");
+    expect(dir).toMatchObject({ archived: true, deleteRequestedBy: OWNER });
+    expect((await asBoss("PUT", "/teams/r16/announcements/a1", { text: "hi" })).status).toBe(409);
+    // Archiving again keeps the 7-day date; restoring cancels the delete.
+    expect(days((await asOwner("POST", "/teams/r16/archive")).body.purgeAt)).toBe(7);
+    expect((await asOwner("POST", "/teams/r16/restore")).status).toBe(200);
+    dir = (await asBoss("GET", "/clubs/rivals")).body.teams.find((t: any) => t.teamId === "r16");
+    expect(dir.archived).toBe(false);
+    expect(dir.purgeAt).toBeUndefined();
+    expect(dir.deleteRequestedAt).toBeUndefined();
+
+    // Delete again, and let the daily job run once the date has passed.
+    expect((await asOwner("DELETE", "/teams/r16", { confirm: "r16" })).status).toBe(200);
+    const { purgeDue } = await import("../../src/lib/retention.js");
+    expect(await purgeDue(new Date(Date.now() + 6 * 86_400_000).toISOString())).toEqual([]);
+    const purged = await purgeDue(new Date(Date.now() + 8 * 86_400_000).toISOString());
+    expect(purged).toEqual([{ teamId: "r16", clubId: "rivals" }]);
 
     const { QueryCommand, ScanCommand } = await import("@aws-sdk/lib-dynamodb");
     const left = (await ddb.send(new ScanCommand({ TableName: TABLE }))).Items!.filter((i) => `${i.PK}|${i.SK}`.includes("r16"));
@@ -635,6 +654,20 @@ describe("clubs", () => {
     expect(me.firstName !== undefined).toBe(true);
     // The id is free again.
     expect((await asBoss("POST", "/teams", { clubId: "rivals", teamId: "r16", name: "Rivals 16 again" })).status).toBe(201);
+  });
+  it("archived teams are deleted 90 days after archiving (R4)", async () => {
+    const { purgeDue } = await import("../../src/lib/retention.js");
+    expect((await asBoss("POST", "/teams", { clubId: "rivals", teamId: "r19", name: "Rivals 19" })).status).toBe(201);
+    const archived = await asOwner("POST", "/teams/r19/archive");
+    expect(Math.round((Date.parse(archived.body.purgeAt) - Date.now()) / 86_400_000)).toBe(90);
+    const at = (d: number) => new Date(Date.now() + d * 86_400_000).toISOString();
+    expect((await purgeDue(at(89))).map((t) => t.teamId)).not.toContain("r19");
+    expect((await purgeDue(at(91))).map((t) => t.teamId)).toContain("r19");
+    expect((await asOwner("GET", "/teams/r19")).status).toBe(404);
+    // Teams archived before dates were stored count 90 days from their archive date.
+    const { purgeDate } = await import("../../src/lib/retention.js");
+    expect(purgeDate({ archived: true, archivedAt: "2026-01-01T00:00:00.000Z" })).toBe("2026-04-01T00:00:00.000Z");
+    expect(purgeDate({ archived: false, purgeAt: "2026-01-01T00:00:00.000Z" })).toBeUndefined();
   });
 });
 
@@ -777,5 +810,65 @@ describe("need to know (R3)", () => {
     expect(food.ledger.length).toBeGreaterThan(0);
     expect(food.ledger.every((l: any) => l.pid === "p2")).toBe(true);
     expect((await get(ROLE_SUBS.coordinator)).ledger.length).toBe(full.ledger.length);
+  });
+});
+
+describe("your own data (R4)", async () => {
+  const DEL = "u-del", SOLO = "u-solo";
+  const { PRIVACY_VERSION } = await import("../../src/shared/privacy.js");
+
+  beforeAll(async () => {
+    expect((await call("PUT", `/teams/${T}/players/p9`, ROLE_SUBS.coordinator, { first: "Nia", parents: [{ name: "Del Parent", cell: "555-0909", email: "del@example.com" }, { name: "Other Parent", email: "other@example.com" }] })).status).toBe(200);
+    await member(DEL, ["parent"], "p9");
+    expect((await call("PUT", `/teams/${T}/family/p9`, DEL, { rsvp: { e1: "yes" }, uniform: { sizes: { "0": "S" } } })).status).toBe(200);
+    expect((await call("POST", `/teams/${T}/payments`, DEL, { kind: "in", pid: "p9", cat: "Dues", amountCents: 5000, date: "2026-10-02", desc: "Dues" })).status).toBe(201);
+    await call("GET", "/me", DEL, undefined, "del@example.com");
+  });
+  // Opening the app accepts waiting invites, so this one is added after the last /me.
+  const pendingInvite = () => ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.invite("del@example.com", "t-other"), type: "Invite", email: "del@example.com", teamId: "t-other", roles: ["parent"] } }));
+
+  it("asks for the privacy notice until the current version is accepted", async () => {
+    expect((await call("GET", "/me", DEL)).body.privacy).toMatchObject({ version: PRIVACY_VERSION, accepted: false });
+    expect((await call("PUT", "/me/privacy", DEL, { version: "2020-01-01" })).status).toBe(400);
+    expect((await call("PUT", "/me/privacy", DEL, { version: PRIVACY_VERSION })).status).toBe(200);
+    const p = (await call("GET", "/me", DEL)).body.privacy;
+    expect(p.accepted).toBe(true);
+    expect(p.acceptedAt).toEqual(expect.any(String));
+  });
+
+  it("downloads everything about you and your family, and nothing about other families", async () => {
+    await pendingInvite();
+    const r = await call("GET", "/me/export", DEL);
+    expect(r.status).toBe(200);
+    const team = r.body.teams.find((t: any) => t.teamId === T);
+    expect(team).toMatchObject({ roles: ["parent"], player: { first: "Nia" }, family: { uniform: { sizes: { "0": "S" } } } });
+    expect(team.player.parents.map((p: any) => p.email)).toContain("del@example.com");
+    expect(team.payments).toHaveLength(1);
+    expect(r.body.pendingInvites.map((i: any) => i.teamId)).toContain("t-other");
+    expect(JSON.stringify(r.body)).not.toMatch(/Shellfish|two@example.com|555-0202/);
+  });
+
+  it("won't delete the last admin of a team or club, or a site owner", async () => {
+    expect((await call("DELETE", "/me", DEL, { confirm: "yes" })).status).toBe(400);
+    expect((await call("POST", "/teams", CLUB, { teamId: "tsolo", name: "Solo", season: "2026-27" })).status).toBe(201);
+    await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("tsolo", SOLO), ...keys.memberGsi("tsolo", SOLO), type: "Membership", status: "active", sub: SOLO, roles: ["admin"], at: new Date().toISOString() } }));
+    const solo = await call("DELETE", "/me", SOLO, { confirm: "DELETE" });
+    expect(solo.status).toBe(409);
+    expect(solo.body.message).toMatch(/only admin of Solo/);
+    expect((await call("DELETE", "/me", "u-owner", { confirm: "DELETE" }, "owner@example.com")).status).toBe(409);
+  });
+
+  it("deletes your account, memberships, invites and your own roster contact; team records stay", async () => {
+    expect((await call("DELETE", "/me", DEL, { confirm: "delete" })).status).toBe(204);
+    expect((await call("GET", `/teams/${T}`, DEL)).status).toBe(403);
+    const team = (await call("GET", `/teams/${T}`, ROLE_SUBS.coordinator)).body;
+    const p9 = team.players.find((p: any) => p.pid === "p9");
+    expect(p9.first).toBe("Nia");
+    expect(p9.parents.map((p: any) => p.email)).toEqual(["other@example.com"]);
+    expect(team.members.map((m: any) => m.sub)).not.toContain(DEL);
+    expect(team.payments.filter((p: any) => p.pid === "p9")).toHaveLength(1);
+    const { GetCommand } = await import("@aws-sdk/lib-dynamodb");
+    expect((await ddb.send(new GetCommand({ TableName: TABLE, Key: keys.invite("del@example.com", "t-other") }))).Item).toBeUndefined();
+    expect((await ddb.send(new GetCommand({ TableName: TABLE, Key: keys.profile(DEL) }))).Item).toBeUndefined();
   });
 });

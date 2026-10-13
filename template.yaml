@@ -384,10 +384,11 @@ Resources:
           NODE_OPTIONS: --enable-source-maps
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
-        # Is two-step sign-in on (club-admin and site-owner rights), and the site owner's reset for a lost phone.
+        # Is two-step sign-in on (club-admin and site-owner rights), the site owner's reset for a lost
+        # phone, and Delete my account (R4).
         - Statement:
             - Effect: Allow
-              Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference]
+              Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference, cognito-idp:AdminDeleteUser]
               Resource: !GetAtt UserPool.Arn
       # One route per method (not ANY): browsers send CORS preflight OPTIONS requests without a
       # token, and an ANY route would send them to the JWT authorizer and fail. With no OPTIONS
@@ -721,6 +722,43 @@ Resources:
               Filters:
                 - Pattern: '{"dynamodb":{"Keys":{"PK":{"S":[{"prefix":"TEAM#"}]}}}}'
                 - Pattern: '{"dynamodb":{"Keys":{"PK":{"S":[{"prefix":"INVITE#"}]}}}}'
+
+  # Retention (R4, R31): once a day, deletes teams archived 90 days ago, and teams whose
+  # "Delete team" was 7 days ago and not undone. Rules live in api/src/lib/retention.ts.
+  PurgeFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/jobs/purge.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Deletes archived teams when their retention period ends.
+      CodeUri: api/
+      Handler: purge.handler
+      Timeout: 300
+      Environment:
+        Variables:
+          CLUB_ID: !Ref ClubId
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+      Events:
+        Daily:
+          Type: Schedule
+          Properties:
+            Schedule: cron(15 8 * * ? *)
+            Description: Team Hub retention, daily at 08:15 UTC
+
+  PurgeFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${PurgeFunction}"
+      RetentionInDays: 30
 
   FanoutFunctionLogs:
     Type: AWS::Logs::LogGroup

@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { signedInGuard, signedOutGuard } from './core/guards';
+import { privacyGuard, signedInGuard, signedOutGuard } from './core/guards';
 import { Forgot, Reset, SignIn, SignUp, Unconfigured, Verify } from './features/auth/auth-pages';
 import { Home } from './features/home/home';
 import { TeamHome } from './features/team/team-home';
@@ -10,7 +10,7 @@ const T = (s: string) => `${s} · Team Hub`;
 
 export const routes: Routes = [
   {
-    path: 'teams/:teamId', component: TeamShell, canActivate: [signedInGuard],
+    path: 'teams/:teamId', component: TeamShell, canActivate: [signedInGuard, privacyGuard],
     children: [
       { path: '', component: TeamHome, title: T('Home') },
       { path: 'schedule', loadComponent: () => import('./features/schedule/schedule').then((m) => m.Schedule), title: T('Schedule') },
@@ -26,13 +26,16 @@ export const routes: Routes = [
     ]
   },
   {
-    path: 'clubs/:clubId', canActivate: [signedInGuard], title: T('Club'),
+    path: 'clubs/:clubId', canActivate: [signedInGuard, privacyGuard], title: T('Club'),
     loadComponent: () => import('./features/club/club-admin').then((m) => m.ClubAdminPage)
   },
   {
     path: '', component: Narrow,
     children: [
-      { path: '', component: Home, canActivate: [signedInGuard], title: T('Your teams') },
+      { path: '', component: Home, canActivate: [signedInGuard, privacyGuard], title: T('Your teams') },
+      { path: 'privacy', title: T('Privacy notice'), loadComponent: () => import('./features/privacy/privacy').then((m) => m.Privacy) },
+      { path: 'consent', canActivate: [signedInGuard], title: T('Privacy notice'), loadComponent: () => import('./features/account/consent').then((m) => m.Consent) },
+      { path: 'account', canActivate: [signedInGuard], title: T('Your account'), loadComponent: () => import('./features/account/account').then((m) => m.Account) },
       { path: 'signin', component: SignIn, canActivate: [signedOutGuard], title: T('Sign in') },
       { path: 'signup', component: SignUp, canActivate: [signedOutGuard], title: T('Create your account') },
       { path: 'verify', component: Verify, canActivate: [signedOutGuard], title: T('Verify your email') },
