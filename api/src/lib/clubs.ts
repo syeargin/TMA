@@ -6,7 +6,8 @@ import { emailSet, keys } from "./keys.js";
 export const DEFAULT_CLUB = () => process.env.CLUB_ID ?? "a5";
 
 /** Site owners. Falls back to the club admin list so an existing deployment keeps working unchanged. */
-export const platformEmails = () => emailSet(process.env.PLATFORM_ADMIN_EMAILS || process.env.CLUB_ADMIN_EMAILS);
+/** Site owners by email (R17): PlatformAdminEmails only. Club admins are no longer site owners when it's empty. */
+export const platformEmails = () => emailSet(process.env.PLATFORM_ADMIN_EMAILS);
 
 export type ClubColors = { primary: string; accent: string };
 export type ClubLink = { label: string; url: string };

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { DeleteCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DeleteCommand, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { event, freshTable } from "./harness.js";
 
 const { handler } = await import("../../src/api/handler.js");
@@ -867,8 +867,72 @@ describe("your own data (R4)", async () => {
     expect(p9.parents.map((p: any) => p.email)).toEqual(["other@example.com"]);
     expect(team.members.map((m: any) => m.sub)).not.toContain(DEL);
     expect(team.payments.filter((p: any) => p.pid === "p9")).toHaveLength(1);
-    const { GetCommand } = await import("@aws-sdk/lib-dynamodb");
     expect((await ddb.send(new GetCommand({ TableName: TABLE, Key: keys.invite("del@example.com", "t-other") }))).Item).toBeUndefined();
     expect((await ddb.send(new GetCommand({ TableName: TABLE, Key: keys.profile(DEL) }))).Item).toBeUndefined();
+  });
+});
+
+const { setVerifiedEmailLookup } = await import("../../src/lib/identity.js");
+describe("verified email and the admin lists (R5, R17)", () => {
+  const get = async (key: { PK: string; SK: string }) => (await ddb.send(new GetCommand({ TableName: TABLE, Key: key }))).Item;
+
+  it("an account without a verified email gets no invites and no admin rights", async () => {
+    await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.invite("club@example.com", T), type: "Invite", teamId: T, email: "club@example.com", roles: ["parent"] } }));
+    setVerifiedEmailLookup(async () => "");
+    try {
+      const me = (await call("GET", "/me", "u-unverified", undefined, "club@example.com")).body;
+      expect(me.platformAdmin).toBe(false);
+      expect(me.clubAdmin).toBe(false);
+      expect(me.teams ?? []).toHaveLength(0);
+      expect((await get(keys.profile("u-unverified")))?.email).toBe("");
+      expect(await get(keys.clubAdmin("a5", "u-unverified"))).toBeUndefined();
+      expect(await get(keys.invite("club@example.com", T))).toBeDefined();
+    } finally {
+      setVerifiedEmailLookup();
+      await ddb.send(new DeleteCommand({ TableName: TABLE, Key: keys.invite("club@example.com", T) }));
+    }
+  });
+
+  it("uses the verified email, not what the token says", async () => {
+    setVerifiedEmailLookup(async () => "real@example.com");
+    try {
+      await call("GET", "/me", "u-real", undefined, "owner@example.com");
+      expect((await get(keys.profile("u-real")))?.email).toBe("real@example.com");
+      expect(await get(keys.platformAdmin("u-real"))).toBeUndefined();
+    } finally { setVerifiedEmailLookup(); }
+  });
+
+  it("PUT /me on a new account saves the verified email, not the sign-in id", async () => {
+    setVerifiedEmailLookup(async (username) => (username === "u-put" ? "put@example.com" : ""));
+    try {
+      expect(ok((await call("PUT", "/me", "u-put", { firstName: "Pat", lastName: "Doe" })).status)).toBe(true);
+      expect((await get(keys.profile("u-put")))?.email).toBe("put@example.com");
+    } finally { setVerifiedEmailLookup(); }
+  });
+
+  it("a listed email is granted once; a removed admin record stays removed", async () => {
+    const S = "u-listed";
+    const first = (await call("GET", "/me", S, undefined, "owner@example.com")).body;
+    expect(first.platformAdmin).toBe(true);
+    expect((await get(keys.profile(S)))?.listGrantsAt).toBeTruthy();
+    await ddb.send(new DeleteCommand({ TableName: TABLE, Key: keys.platformAdmin(S) }));
+    const again = (await call("GET", "/me", S, undefined, "owner@example.com")).body;
+    expect(again.platformAdmin).toBe(false);
+    expect(await get(keys.platformAdmin(S))).toBeUndefined();
+
+    const C = "u-listed-club";
+    expect((await call("GET", "/me", C, undefined, "club@example.com")).body.clubAdmin).toBe(true);
+    await ddb.send(new DeleteCommand({ TableName: TABLE, Key: keys.clubAdmin("a5", C) }));
+    expect((await call("GET", "/me", C, undefined, "club@example.com")).body.clubAdmin).toBe(false);
+  });
+
+  it("with no site-owner list, club admins aren't site owners", async () => {
+    const saved = process.env.PLATFORM_ADMIN_EMAILS;
+    process.env.PLATFORM_ADMIN_EMAILS = "";
+    try {
+      const me = (await call("GET", "/me", "u-club-only", undefined, "club@example.com")).body;
+      expect(me.clubAdmin).toBe(true);
+      expect(me.platformAdmin).toBe(false);
+    } finally { process.env.PLATFORM_ADMIN_EMAILS = saved; }
   });
 });
