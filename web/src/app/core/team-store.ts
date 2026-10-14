@@ -1,6 +1,7 @@
 import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
 import { Permission, can as roleCan } from '@shared/permissions';
+import { FEATURES, Feature, isOn } from '@shared/features';
 import { ApiError, ApiService } from './api.service';
 import { explain } from './errors';
 import { LiveService } from './live.service';
@@ -18,6 +19,11 @@ import { ToastService } from './toast.service';
  */
 /** Permissions that only let you see things; everything else changes something. */
 const VIEW_ONLY = new Set<Permission>(['contacts', 'allergies', 'fundView', 'ledger']);
+/** Permissions that belong to an optional feature: they don't apply while it's switched off. */
+const PERM_FEATURE: Partial<Record<Permission, Feature>> = {
+  fundView: 'fund', ledger: 'fund', finance: 'fund', reimb: 'fund',
+  meals: 'meals', refjobs: 'refjobs', tasks: 'tasks', handbook: 'handbook'
+};
 
 @Injectable()
 export class TeamStore implements OnDestroy {
@@ -80,8 +86,12 @@ export class TeamStore implements OnDestroy {
 
   /** Archived teams are read-only: everyone keeps what they could see, nobody can change anything. */
   readonly archived = computed(() => !!this.bundle()?.team?.archived);
+  /** Optional features (team settings): on unless the team switched them off. */
+  has(f: Feature): boolean { return isOn(this.settings()?.features, f); }
   can(perm: Permission): boolean {
     if (this.archived() && !VIEW_ONLY.has(perm)) return false;
+    const f = PERM_FEATURE[perm];
+    if (f && !this.has(f)) return false;
     return roleCan(this.you().roles, perm);
   }
   playerName(pid: string | undefined): string {
@@ -254,6 +264,9 @@ export class TeamStore implements OnDestroy {
   saveTask(task: Task, done = 'Task saved') { return this.save(done, (t) => this.api.saveTask(t, task)); }
   deleteTask(kid: string) { return this.save('Task deleted', (t) => this.api.deleteTask(t, kid)); }
   saveSettings(s: Settings) { return this.save('Settings saved', (t) => this.api.saveSettings(t, s)); }
+  setFeature(f: Feature, on: boolean) {
+    return this.save(`${FEATURES[f].label} turned ${on ? 'on' : 'off'}`, (t) => this.api.saveFeatures(t, { [f]: on }));
+  }
   setShareContacts(share: boolean) {
     const pid = this.myPid();
     return this.save(share ? 'Your contact details are shared with the team' : 'Your contact details are now staff-only', (t) => this.api.setShareContacts(t, pid, share));

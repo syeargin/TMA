@@ -24,7 +24,7 @@
                   <label>Last name<input formControlName="lastName"></label>
                 </div>
                 <div class="checks" formGroupName="roles">
-                  @for (r of roles; track r) { <label><input type="checkbox" [formControlName]="r"> {{ roleLabel(r) }}</label> }
+                  @for (r of roles; track r) { @if (roleShown(r, m.roles)) { <label><input type="checkbox" [formControlName]="r"> {{ roleLabel(r) }}</label> } }
                 </div>
                 <label>Family (player)
                   <select formControlName="pid">
@@ -60,7 +60,7 @@
           </div>
           <label for="inviteEmail">Email<input id="inviteEmail" type="email" formControlName="email" required autocomplete="off"></label>
           <div class="checks" formGroupName="roles">
-            @for (r of roles; track r) { <label><input type="checkbox" [formControlName]="r"> {{ roleLabel(r) }}</label> }
+            @for (r of roles; track r) { @if (roleShown(r)) { <label><input type="checkbox" [formControlName]="r"> {{ roleLabel(r) }}</label> } }
           </div>
           <label for="invitePid">Family (for parents)
             <select id="invitePid" formControlName="pid">

@@ -5,6 +5,7 @@ import { clubOfTeam, DEFAULT_CLUB, forgetTeamClubs, getClub, getClubs } from "..
 import { keys } from "../../lib/keys.js";
 import { convertPractices } from "../../lib/practices.js";
 import { fundSummary, type FundSummary } from "../../lib/fund.js";
+import { FEATURE_KEYS, type Feature } from "../../shared/features.js";
 import { ARCHIVE_DAYS, DELETE_GRACE_DAYS, daysFrom, purgeDate } from "../../lib/retention.js";
 import { isPlatformAdmin, loadAccess, loadClubAccess, requirePlatformAdmin, type Caller } from "../context.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
@@ -34,6 +35,9 @@ const settingsSchema = z.object({
   practiceColors: z.array(str(40).min(1)).max(20).optional()
 });
 
+/** Every feature can be listed; true = on. Features left out keep their saved setting. */
+const featuresSchema = z.object({ features: z.record(z.enum(FEATURE_KEYS as [Feature, ...Feature[]]), z.boolean()) });
+
 const practicesSchema = z.object({ practices: z.array(practice).max(20) });
 const MAX_CANCELLED = 500;
 
@@ -61,6 +65,8 @@ const DEFAULT_CHECKLIST = ["Court shoes", "Extra pair of socks", "Knee and elbow
  * - travel plans and uniform sizes: the family itself and admins/coordinators. Others see only
  *   that a family has entered them, so counts still work;
  * - every fund entry: finance, coordinators and admins. Others get the totals and their own entries.
+ * Features the team has turned off are left out for everyone; their data stays saved for if they're
+ * turned back on.
  */
 export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnType<typeof loadAccess>>) {
   const out = {
@@ -138,7 +144,20 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     const ct = contacts[pid] as { parents?: unknown } | undefined;
     if (ct) p.parents = ct.parents ?? [];
   }
-  if (showFund && !fullLedger) {
+  // Switched-off features: nothing for anyone (the data stays saved).
+  if (!access.has("fund")) { out.ledger = []; out.payments = []; }
+  if (!access.has("meals")) out.meals = [];
+  if (!access.has("refjobs")) out.refjobs = {};
+  if (!access.has("tasks")) out.tasks = [];
+  if (!access.has("handbook")) out.handbook = null;
+  if (!access.has("travel")) out.agenda = {};
+  if (!access.has("travel") || !access.has("uniforms")) {
+    for (const f of Object.values(out.family) as Record<string, unknown>[]) {
+      if (!access.has("travel")) f.travel = {};
+      if (!access.has("uniforms")) f.uniform = {};
+    }
+  }
+  if (showFund && !fullLedger && access.has("fund")) {
     const dues = (out.settings as { dues?: { amountCents?: number } } | null)?.dues?.amountCents ?? 0;
     out.fundSummary = fundSummary(allLedger, allPayments, out.players.map((p) => String(p.pid)), dues);
   }
@@ -250,6 +269,28 @@ export function teamRoutes(r: Router) {
       ]
     }));
     return json(200, { ok: true });
+  });
+
+  /** Turn optional features on or off for this team (admins and coordinators). */
+  r.on("PUT", "/teams/{teamId}/features", async ({ caller, params, body }) => {
+    const access = await loadAccess(caller, checkId(params.teamId, "team"));
+    access.require("settings");
+    const { features } = parseBody(featuresSchema, body);
+    const next: Record<string, boolean> = { ...access.features };
+    for (const [f, on] of Object.entries(features)) {
+      if (on) delete next[f]; else next[f] = false;
+    }
+    try {
+      await ddb.send(new UpdateCommand({
+        TableName: TABLE, Key: keys.settings(access.teamId),
+        // Touching updatedAt tells anyone with the team open to reload it.
+        UpdateExpression: "SET features = :f, updatedAt = :at, updatedBy = :by",
+        ConditionExpression: "attribute_exists(PK)",
+        ExpressionAttributeValues: { ":f": next, ":at": now(), ":by": caller.sub }
+      }));
+    } catch (e) { mapDbError(e, "This team has no settings yet."); }
+    console.log(JSON.stringify({ msg: "team features changed", teamId: access.teamId, by: caller.sub, off: Object.keys(next) }));
+    return json(200, { features: next });
   });
 
   // ---------- practices (coaches, coordinators, admins) ----------
@@ -366,6 +407,7 @@ export function teamRoutes(r: Router) {
   r.on("PUT", "/teams/{teamId}/handbook", async ({ caller, params, body }) => {
     const access = await loadAccess(caller, checkId(params.teamId, "team"));
     access.require("handbook");
+    access.requireFeature("handbook");
     const b = parseBody(handbookSchema, body);
     await putItem({ ...keys.handbook(access.teamId), type: "Handbook", ...b, updatedAt: now(), updatedBy: caller.sub });
     return json(200, { ok: true });

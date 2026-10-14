@@ -1,3 +1,6 @@
+@if (!store.has('fund')) {
+  <div class="card empty">The team fund is turned off for this team.@if (store.you().roles.includes('admin') || store.you().roles.includes('coordinator')) { An admin or coordinator can turn it back on in Team Info → Team settings. }</div>
+} @else {
 <div class="sec-h">
   <div>
     <h2>Team Fund</h2>
@@ -204,4 +207,6 @@
       </div>
     </form>
   </th-sheet>
+}
+
 }

@@ -2,6 +2,7 @@ import { Component, DestroyRef, effect, inject, signal, untracked } from '@angul
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ROLES } from '@shared/permissions';
+import { roleFeature } from '@shared/features';
 import { ApiService } from '../../core/api.service';
 import { MeService, fullName } from '../../core/me.service';
 import type { Invite, Member } from '../../core/models';
@@ -29,6 +30,11 @@ export class Members extends Page {
   readonly memberForms = signal(new Map<string, MemberForm>());
   readonly confirming = signal<string | null>(null);
   readonly roles = ROLES;
+  /** Finance and Food only show while their feature is on, unless this person already has the role. */
+  roleShown(r: string, has: readonly string[] = []) {
+    const f = roleFeature(r);
+    return !f || this.store.has(f) || has.includes(r);
+  }
   readonly roleLabel = roleLabel;
   readonly roleList = roleList;
   readonly inviteForm = this.fb.group({ firstName: '', lastName: '', email: '', roles: roleChecks(['parent']), pid: '' });

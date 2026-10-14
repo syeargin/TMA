@@ -80,7 +80,12 @@ export class Tournament {
 
   readonly event = computed(() => this.store.event(this.eid()));
   readonly item = computed(() => this.store.items().find((i) => i.key === this.eid()) ?? null as ScheduleItem | null);
-  readonly sections = computed<Section[]>(() => (this.event()?.travel ? ['gameday', 'ref', 'meals', 'travel', 'agenda'] : ['gameday', 'ref', 'meals']));
+  readonly sections = computed<Section[]>(() => {
+    const s = this.store;
+    const travel = !!this.event()?.travel && s.has('travel');
+    return (['gameday', 'ref', 'meals', 'travel', 'agenda'] as Section[]).filter((x) =>
+      x === 'gameday' || (x === 'ref' && s.has('refjobs')) || (x === 'meals' && s.has('meals')) || ((x === 'travel' || x === 'agenda') && travel));
+  });
   readonly current = computed<Section>(() => {
     const s = (this.section() || 'gameday') as Section;
     return this.sections().includes(s) ? s : 'gameday';

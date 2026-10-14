@@ -1,5 +1,6 @@
 import { Component, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { FormArray, FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FEATURES, FEATURE_KEYS, type Feature } from '@shared/features';
 import type { Settings } from '../../core/models';
 import { toCents } from '../../core/money';
 import { TeamStore } from '../../core/team-store';
@@ -22,6 +23,16 @@ const dollars = (cents?: number) => (cents ? String(cents / 100) : '');
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
         <p class="muted small">Roles are set on the Members tab, and practice times on the Schedule.</p>
         <th-messages [error]="error()" />
+        <fieldset class="group features">
+          <legend>Features</legend>
+          <p class="hint" style="margin:0 0 6px">Turn off what your team doesn’t use. It disappears for everyone and changes save right away. Nothing is deleted: turn it back on and it’s all still there.</p>
+          @for (f of featureKeys; track f) {
+            <label class="check">
+              <input type="checkbox" [checked]="store.has(f)" [disabled]="switching() === f" (change)="setFeature(f, $any($event.target).checked)">
+              <span><b>{{ features[f].label }}</b> <span class="small muted">{{ features[f].help }}</span></span>
+            </label>
+          }
+        </fieldset>
         <div class="two">
           <label>Team name<input formControlName="teamName" required></label>
           <label>Season<input formControlName="season" placeholder="2026-27"></label>
@@ -40,6 +51,7 @@ const dollars = (cents?: number) => (cents ? String(cents / 100) : '');
           }
           @if (coaches.length < 6) { <div><button class="btn sm" type="button" (click)="coaches.push(newCoach())">Add a coach</button></div> }
         </fieldset>
+        @if (store.has('fund')) {
         <fieldset class="group">
           <legend>Dues</legend>
           <div class="two">
@@ -48,6 +60,8 @@ const dollars = (cents?: number) => (cents ? String(cents / 100) : '');
           </div>
           <label>Called<input formControlName="duesLabel" placeholder="Team fund deposit"></label>
         </fieldset>
+        }
+        @if (store.has('meals')) {
         <fieldset class="group">
           <legend>Meal budget defaults</legend>
           <div class="two">
@@ -56,9 +70,12 @@ const dollars = (cents?: number) => (cents ? String(cents / 100) : '');
           </div>
           <label>People fed<input formControlName="people" inputmode="numeric" placeholder="Players plus coaches"></label>
         </fieldset>
+        }
         <label>What-to-bring checklist<textarea formControlName="checklist" rows="6"></textarea><span class="hint">One item per line. Tournaments use this unless they have their own list.</span></label>
+        @if (store.has('uniforms')) {
         <label>Uniform order items<textarea formControlName="uniformItems" rows="5"></textarea>
           <span class="hint">One item per line. Families’ sizes follow the line order, so add new items at the end.</span></label>
+        }
         <label>Practice uniform colors<textarea formControlName="practiceColors" rows="4" placeholder="Navy&#10;White&#10;Red"></textarea>
           <span class="hint">One color per line. Coaches pick from this list when they add a practice.</span></label>
         <div class="form-actions">
@@ -71,7 +88,10 @@ const dollars = (cents?: number) => (cents ? String(cents / 100) : '');
 export class SettingsForm {
   readonly open = input(false);
   readonly closed = output<void>();
-  private readonly store = inject(TeamStore);
+  readonly store = inject(TeamStore);
+  readonly features = FEATURES;
+  readonly featureKeys = FEATURE_KEYS;
+  readonly switching = signal<Feature | ''>('');
   private readonly fb = inject(NonNullableFormBuilder);
   readonly busy = signal(false);
   readonly error = signal('');
@@ -85,8 +105,10 @@ export class SettingsForm {
   constructor() {
     effect(() => {
       if (!this.open()) return;
-      const s = this.store.settings() ?? {};
+      // Filled once when the sheet opens: a reload while it's open (a feature switch, a live
+      // change) mustn't wipe what's being typed.
       untracked(() => {
+        const s = this.store.settings() ?? {};
         this.error.set('');
         this.coaches.clear();
         const cs = s.coaches ?? [];
@@ -102,6 +124,12 @@ export class SettingsForm {
         this.form.markAsPristine();
       });
     });
+  }
+
+  async setFeature(f: Feature, on: boolean) {
+    this.switching.set(f);
+    await this.store.setFeature(f, on);
+    this.switching.set('');
   }
 
   async save() {

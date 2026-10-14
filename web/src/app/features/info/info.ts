@@ -25,7 +25,7 @@ export class Info {
   readonly clubShort = computed(() => this.store.club()?.short || 'the club');
   private readonly fb = inject(NonNullableFormBuilder);
   readonly statuses = STATUSES;
-  readonly tasksView = computed(() => this.section() === 'tasks');
+  readonly tasksView = computed(() => this.section() === 'tasks' && this.store.has('tasks'));
   get editHandbook() { return this.store.can('handbook'); }
   get manageTasks() { return this.store.can('tasks'); }
   readonly settingsOpen = signal(false);
@@ -36,8 +36,8 @@ export class Info {
     return [
       { label: 'Head coaches', people: (this.store.settings()?.coaches ?? []).map((c) => c.name + (c.phone ? ` · ${c.phone}` : '')) },
       { label: 'Team coordinator', people: names('coordinator') },
-      { label: 'Food coordinators', people: names('food') },
-      { label: 'Finance', people: names('finance') },
+      ...(this.store.has('meals') ? [{ label: 'Food coordinators', people: names('food') }] : []),
+      ...(this.store.has('fund') ? [{ label: 'Finance', people: names('finance') }] : []),
       { label: 'Team admin', people: names('admin') }
     ];
   });

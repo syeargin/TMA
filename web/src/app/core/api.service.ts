@@ -1,3 +1,4 @@
+import type { Feature } from '@shared/features';
 import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom, from, switchMap, throwError } from 'rxjs';
@@ -163,5 +164,9 @@ export class ApiService {
   saveSettings(teamId: string, s: Settings) {
     const { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems, practiceColors } = s;
     return this.call('PUT', `/teams/${enc(teamId)}/settings`, { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems, practiceColors });
+  }
+  /** Switch optional features on (true) or off (false). */
+  saveFeatures(teamId: string, features: Partial<Record<Feature, boolean>>) {
+    return this.call<{ features: Partial<Record<Feature, boolean>> }>('PUT', `/teams/${enc(teamId)}/features`, { features });
   }
 }

@@ -57,7 +57,7 @@ export class TeamHome {
       });
     }
     const t0 = today();
-    if (pid && this.store.duesCents()) {
+    if (pid && this.store.duesCents() && this.store.has('fund')) {
       const d = this.store.dues(pid);
       const left = this.store.duesCents() - d.paid;
       const due = this.store.settings()?.dues?.due;
@@ -71,7 +71,7 @@ export class TeamHome {
       const p = pending(this.store.payments());
       if (p.length) out.push({ title: `Confirm ${p.length} payment${p.length > 1 ? 's or requests' : ' or request'}`, sub: 'Sent in by families', link: 'fund' });
     }
-    if (pid) {
+    if (pid && this.store.has('travel')) {
       const need = this.store.tournaments().filter((e) => e.travel && e.date >= t0 && daysUntil(e.date) <= 150 && !this.store.travelOf(pid, e.eid));
       if (need.length) out.push({
         title: `Add travel plans for ${need[0].title}`,
@@ -79,7 +79,7 @@ export class TeamHome {
         link: ['tournaments', need[0].eid, 'travel'], tone: 'warn'
       });
     }
-    if (pid || this.store.can('meals')) {
+    if ((pid || this.store.can('meals')) && this.store.has('meals')) {
       const upcomingIds = new Set(this.store.tournaments().filter((e) => (e.endDate || e.date) >= t0).map((e) => e.eid));
       const open = this.store.meals().filter((m) => !m.claimedBy && upcomingIds.has(m.eid));
       if (open.length) {
@@ -97,7 +97,7 @@ export class TeamHome {
       const open = this.store.tasks().filter((x) => x.status !== 'Done' && x.status !== 'N/A');
       if (open.length) out.push({ title: `${open.length} coordinator task${open.length > 1 ? 's' : ''} open`, sub: open[0].title, link: ['info', 'tasks'], tone: 'ok' });
     }
-    if (this.store.can('settings') && !this.store.duesCents()) {
+    if (this.store.can('settings') && !this.store.duesCents() && this.store.has('fund')) {
       out.push({ title: 'Set team dues', sub: 'Dues, coaches, checklist and uniform items live in team settings', link: 'info', tone: 'ok' });
     }
     if (this.store.can('schedule') && !this.store.settings()?.practices?.length) {
@@ -115,7 +115,7 @@ export class TeamHome {
 
   readonly contacts = computed<Contact[]>(() => {
     const out: Contact[] = (this.store.settings()?.coaches ?? []).map((c) => ({ name: c.name, role: 'Coach', phone: c.phone }));
-    for (const role of ['coordinator', 'food'] as const) {
+    for (const role of (this.store.has('meals') ? ['coordinator', 'food'] : ['coordinator']) as ('coordinator' | 'food')[]) {
       for (const m of this.store.members().filter((x) => x.roles.includes(role))) {
         const name = this.store.authorName(m.sub);
         if (!name) continue;

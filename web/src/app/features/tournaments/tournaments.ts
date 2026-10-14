@@ -39,7 +39,7 @@ import { RsvpStatus } from '../schedule/rsvp';
           <span class="pill" [class.p-travel]="e.travel" [class.p-local]="!e.travel">{{ e.travel ? 'Travel' : 'Local' }}</span>
           @if (e.division) { <span class="pill p-mute">{{ e.division }}</span> }
           @for (d of duties(e); track d.label) { @if (d.pid !== 'na') { <span>{{ d.label }}: <b>{{ store.playerName(d.pid) }}</b></span> } }
-          @if (e.travel) { <span>{{ travelPlans(e) }}/{{ store.players().length }} travel plans</span> }
+          @if (e.travel && store.has('travel')) { <span>{{ travelPlans(e) }}/{{ store.players().length }} travel plans</span> }
           @if (store.myPid()) { <th-status [value]="store.rsvp(store.myPid(), e.eid)" [showNone]="false" /> }
         </div>
       </a>

@@ -507,9 +507,12 @@ code.key{display:inline-block;max-width:100%;font-size:14px;letter-spacing:.06em
 th-two-step p+p{margin-top:8px}
 /* R3: a family's choice to share contact details */
 .share-card{margin-bottom:14px}
-.share-card .check{flex-direction:row;gap:10px;align-items:flex-start;font-weight:400;font-size:15px;color:var(--ink)}
-.share-card .check input{margin-top:4px;width:18px;height:18px;flex:none}
-.share-card .check span{display:flex;flex-direction:column;gap:2px}
+.share-card .check,.features .check{flex-direction:row;gap:10px;align-items:flex-start;font-weight:400;font-size:15px;color:var(--ink)}
+.share-card .check input,.features .check input{margin-top:4px;width:18px;height:18px;flex:none}
+.share-card .check span,.features .check>span{display:flex;flex-direction:column;gap:2px}
+/* Optional team features (team settings) */
+.features .check{padding:6px 0}
+.features .check+.check{border-top:1px solid var(--line)}
 /* R4: privacy notice, consent and account */
 .notice h3{margin:20px 0 6px;font-size:16px}
 .notice ul{padding-left:18px;display:grid;gap:6px;margin:6px 0}

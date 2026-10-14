@@ -936,3 +936,69 @@ describe("verified email and the admin lists (R5, R17)", () => {
     } finally { process.env.PLATFORM_ADMIN_EMAILS = saved; }
   });
 });
+
+describe("optional team features", () => {
+  const C = ROLE_SUBS.coordinator;
+  const setFeatures = (sub: string, features: Record<string, boolean>) => call("PUT", `/teams/${T}/features`, sub, { features });
+
+  it("everything is on until a team turns it off", async () => {
+    const team = (await call("GET", `/teams/${T}`, C)).body;
+    expect(team.settings.features ?? {}).toEqual({});
+    expect(team.meals.length).toBeGreaterThan(0);
+  });
+
+  it("only admins and coordinators can switch features, and only known ones", async () => {
+    expect((await setFeatures(ROLE_SUBS.parent, { fund: false })).status).toBe(403);
+    expect((await setFeatures(ROLE_SUBS.coach, { fund: false })).status).toBe(403);
+    expect((await setFeatures(C, { chess: false })).status).toBe(400);
+  });
+
+  it("a switched-off feature is hidden from everyone and refuses changes; its data comes back when it's on", async () => {
+    expect((await call("PUT", `/teams/${T}/ledger/l-feat`, ROLE_SUBS.finance, { kind: "in", cat: "Dues", amountCents: 1000, date: "2026-10-01", desc: "Feature test" })).status).toBe(200);
+    const off = await setFeatures(C, { fund: false, meals: false, travel: false, refjobs: false, uniforms: false, tasks: false, handbook: false });
+    expect(off.status).toBe(200);
+    expect(Object.keys(off.body.features).sort()).toEqual(["fund", "handbook", "meals", "refjobs", "tasks", "travel", "uniforms"]);
+
+    const team = (await call("GET", `/teams/${T}`, ROLE_SUBS.admin)).body;
+    expect(team.ledger).toEqual([]);
+    expect(team.payments).toEqual([]);
+    expect(team.meals).toEqual([]);
+    expect(team.tasks).toEqual([]);
+    expect(team.handbook).toBeNull();
+    expect(team.agenda).toEqual({});
+    expect(team.refjobs).toEqual({});
+    expect((await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.fundSummary).toBeUndefined();
+
+    const refused = [
+      await call("POST", `/teams/${T}/payments`, ROLE_SUBS.parent, { kind: "in", cat: "Dues", pid: "p1", amountCents: 500, date: "2026-10-01", desc: "Dues" }),
+      await call("PUT", `/teams/${T}/ledger/l-x`, ROLE_SUBS.finance, { kind: "in", amountCents: 500, date: "2026-10-01", desc: "x" }),
+      await call("PUT", `/teams/${T}/events/e1/meals/m2`, ROLE_SUBS.food, { day: "2027-01-09", meal: "Dinner" }),
+      await call("POST", `/teams/${T}/events/e1/meals/m1/claim`, ROLE_SUBS.parent, { pid: "p1" }),
+      await call("PUT", `/teams/${T}/events/e1/agenda`, C, { days: [] }),
+      await call("PUT", `/teams/${T}/events/e1/refjobs`, C, {}),
+      await call("PUT", `/teams/${T}/tasks/k1`, C, { title: "x" }),
+      await call("PUT", `/teams/${T}/handbook`, C, { sections: [] }),
+      await call("PUT", `/teams/${T}/family/p1`, ROLE_SUBS.parent, { travel: { e1: { mode: "Car" } } }),
+      await call("PUT", `/teams/${T}/family/p1`, ROLE_SUBS.parent, { uniform: { sizes: { Jersey: "M" } } })
+    ];
+    for (const r of refused) {
+      expect(r.status).toBe(409);
+      expect(r.body.error).toBe("feature_off");
+    }
+    // The rest of the team keeps working.
+    expect((await call("PUT", `/teams/${T}/family/p1`, ROLE_SUBS.parent, { rsvp: { e1: "yes" } })).status).toBe(200);
+
+    expect((await setFeatures(C, { fund: true, meals: true, travel: true, refjobs: true, uniforms: true, tasks: true, handbook: true })).body.features).toEqual({});
+    const back = (await call("GET", `/teams/${T}`, ROLE_SUBS.admin)).body;
+    expect(back.ledger.map((l: any) => l.lid)).toContain("l-feat");
+    expect(back.meals.length).toBeGreaterThan(0);
+  });
+
+  it("saving other settings keeps the feature switches", async () => {
+    await setFeatures(C, { tasks: false });
+    const s = (await call("GET", `/teams/${T}`, C)).body.settings;
+    expect((await call("PUT", `/teams/${T}/settings`, C, { teamName: s.teamName, coaches: s.coaches })).status).toBe(200);
+    expect((await call("GET", `/teams/${T}`, C)).body.settings.features).toEqual({ tasks: false });
+    await setFeatures(C, { tasks: true });
+  });
+});
