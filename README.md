@@ -222,6 +222,8 @@ Try it on dev: open the team page in two browsers (or one normal window and one 
 
 ## Site structure (Angular)
 
+**Landing page.** `/` is the public landing page for everyone: families, staff and clubs considering Team Hub (`features/landing/`, built from the "Home page (desktop)" design). It has its own navigation and footer, so the app header is hidden there. Signed-in visitors see **Your teams** where others see **Sign in**. **Your teams is at `/teams`.** "Request an invite" and "Contact" use the GitHub environment variable `CONTACT_EMAIL`, which the deploy writes into `config.json` as `contactEmail`. They're hidden until it's set.
+
 ```
 web/src/main.ts                   reads /config.json (written by the deploy), then starts the app
 web/src/app/app.ts                shell: header, Live pill, env badge

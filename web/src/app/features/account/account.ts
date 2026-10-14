@@ -36,7 +36,7 @@ import { Page } from '../../shared/page';
       <button class="btn sm danger solid" type="button" style="margin-top:8px" [disabled]="busy() || confirmText().trim().toUpperCase() !== 'DELETE'" (click)="deleteAccount()">{{ busy() ? 'Deleting…' : 'Delete my account' }}</button>
     </section>
 
-    <div class="links"><a class="link" routerLink="/">Back to your teams</a></div>`
+    <div class="links"><a class="link" routerLink="/teams">Back to your teams</a></div>`
 })
 export class Account extends Page {
   private readonly api = inject(ApiService);

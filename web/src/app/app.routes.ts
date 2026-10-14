@@ -9,6 +9,8 @@ import { TeamShell } from './layout/team-shell';
 const T = (s: string) => `${s} · Team Hub`;
 
 export const routes: Routes = [
+  // Everyone lands here: families, staff and clubs thinking about Team Hub.
+  { path: '', pathMatch: 'full', title: "Team Hub: your team's season in one place", loadComponent: () => import('./features/landing/landing').then((m) => m.Landing) },
   {
     path: 'teams/:teamId', component: TeamShell, canActivate: [signedInGuard, privacyGuard],
     children: [
@@ -32,7 +34,7 @@ export const routes: Routes = [
   {
     path: '', component: Narrow,
     children: [
-      { path: '', component: Home, canActivate: [signedInGuard, privacyGuard], title: T('Your teams') },
+      { path: 'teams', pathMatch: 'full', component: Home, canActivate: [signedInGuard, privacyGuard], title: T('Your teams') },
       { path: 'privacy', title: T('Privacy notice'), loadComponent: () => import('./features/privacy/privacy').then((m) => m.Privacy) },
       { path: 'consent', canActivate: [signedInGuard], title: T('Privacy notice'), loadComponent: () => import('./features/account/consent').then((m) => m.Consent) },
       { path: 'account', canActivate: [signedInGuard], title: T('Your account'), loadComponent: () => import('./features/account/account').then((m) => m.Account) },

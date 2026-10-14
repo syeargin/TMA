@@ -58,7 +58,7 @@ export class SignIn extends AuthPage {
     this.remember(email);
     return this.run(async () => {
       const step = await this.auth.logIn(email, password);
-      if (step === 'DONE') return this.go('/');
+      if (step === 'DONE') return this.go('/teams');
       if (step === 'CONFIRM_SIGN_UP') {
         await this.auth.resendCode(email);
         return this.go('/verify', { notice: "Verify your email first. We've sent you a new code." });
@@ -76,7 +76,7 @@ export class SignIn extends AuthPage {
     return this.run(async () => {
       try {
         const step = await this.auth.confirmCode(code);
-        if (step === 'DONE') return this.go('/');
+        if (step === 'DONE') return this.go('/teams');
         this.error.set("Sign-in needs a step this page doesn't support yet.");
         return;
       } catch (err) {
@@ -121,7 +121,7 @@ export class SignUp extends AuthPage {
     try { localStorage.setItem(PRIVACY_KEY, PRIVACY_VERSION); } catch { /* storage blocked: they'll be asked once */ }
     return this.run(async () => {
       const step = await this.auth.createAccount(email, password);
-      return step === 'CONFIRM_SIGN_UP' ? this.go('/verify') : this.go('/');
+      return step === 'CONFIRM_SIGN_UP' ? this.go('/verify') : this.go('/teams');
     });
   }
 }
@@ -147,7 +147,7 @@ export class Verify extends AuthPage {
   submit() {
     return this.run(async () => {
       const next = await this.auth.verifyEmail(this.email, this.form.getRawValue().code);
-      if (next === 'SIGNED_IN') return this.go('/', { notice: 'Email verified. Welcome to the Team Hub.' });
+      if (next === 'SIGNED_IN') return this.go('/teams', { notice: 'Email verified. Welcome to the Team Hub.' });
       return this.go('/signin', { notice: 'Email verified. Sign in to continue.' });
     });
   }

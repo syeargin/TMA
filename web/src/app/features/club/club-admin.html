@@ -2,7 +2,7 @@
   <div class="sec-h">
     <div>
       <h2>{{ detail()?.club?.name || 'Club' }}</h2>
-      <p class="muted" style="margin-top:6px">Club settings apply to every team in the club. <a routerLink="/">Back to your teams</a></p>
+      <p class="muted" style="margin-top:6px">Club settings apply to every team in the club. <a routerLink="/teams">Back to your teams</a></p>
     </div>
   </div>
   <th-messages [error]="error() || loadError()" [notice]="notice()" />

@@ -9,6 +9,8 @@ export interface AppConfig {
   userPoolClientId?: string;
   apiUrl?: string;
   wsUrl?: string;
+  /** Landing page: where "Request an invite" and "Contact" go. Unset hides them. */
+  contactEmail?: string;
 }
 
 export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG');

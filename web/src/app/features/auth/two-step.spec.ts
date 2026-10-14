@@ -39,7 +39,7 @@ describe('two-step sign-in', () => {
       page.codeForm.setValue({ code: '123 456' });
       await page.submitCode();
       expect(auth.confirmCode).toHaveBeenCalledWith('123456');
-      expect(TestBed.inject(Router).navigateByUrl).toHaveBeenCalledWith('/');
+      expect(TestBed.inject(Router).navigateByUrl).toHaveBeenCalledWith('/teams');
     });
 
     it('checks the code is 6 digits and explains a wrong one', async () => {

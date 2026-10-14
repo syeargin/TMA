@@ -1,5 +1,7 @@
 import { Component, effect, inject } from '@angular/core';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map } from 'rxjs';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/auth.service';
 import { APP_CONFIG } from './core/config';
 import { HeaderService } from './core/header.service';
@@ -13,9 +15,10 @@ import { ToastService } from './core/toast.service';
   selector: 'th-root',
   imports: [RouterOutlet, RouterLink],
   template: `
+    @if (!landing()) {
     <header class="hdr">
       <div class="hdr-in">
-        <a class="brand" routerLink="/">
+        <a class="brand" [routerLink]="auth.user() ? '/teams' : '/'">
           <svg class="crest" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" fill="none" stroke="#fff" stroke-width="2.5"/><path d="M26 2c-6 8-8 16-7 24s5 16 13 24M4.5 17c9 2 18 1 26-4s13-10 15-11M3 31c9-4 20-4 29 0s14 11 16 12" fill="none" stroke="#fff" stroke-width="2" opacity=".85"/><circle cx="26" cy="26" r="24" fill="none" class="crest-a" stroke-width="2.5" stroke-dasharray="10 140" transform="rotate(-60 26 26)"/></svg>
           <div><h1>{{ header.title() }}</h1><div class="sub">{{ header.sub() || theme.look()?.name || '' }}</div></div>
         </a>
@@ -32,7 +35,7 @@ import { ToastService } from './core/toast.service';
           }
           @if (env !== 'prod') { <span class="env">{{ env }}</span> }
           @if (auth.user(); as u) {
-            <a class="who" routerLink="/" [title]="'Signed in as ' + u.email">
+            <a class="who" routerLink="/teams" [title]="'Signed in as ' + u.email">
               <span><span class="w-l">Signed in</span><span class="w-n">{{ me.label() || u.email }}</span></span>
               <span class="w-c">Your teams</span>
             </a>
@@ -40,9 +43,10 @@ import { ToastService } from './core/toast.service';
         </div>
       </div>
     </header>
+    }
     <router-outlet />
     @if (toast.message()) { <div class="toast" [class.bad]="toast.bad()" role="status" aria-live="polite">{{ toast.message() }}</div> }
-    <footer class="foot muted">@if (commit) { Build {{ commit }} }</footer>`
+    @if (!landing()) { <footer class="foot muted">@if (commit) { Build {{ commit }} }</footer> }`
 })
 export class App {
   private readonly cfg = inject(APP_CONFIG);
@@ -54,6 +58,9 @@ export class App {
   readonly theme = inject(ThemeService);
   readonly env = this.cfg.env || 'local';
   readonly commit = this.cfg.commit?.slice(0, 7);
+  private readonly router = inject(Router);
+  /** The landing page brings its own navigation and footer. */
+  readonly landing = toSignal(this.router.events.pipe(filter((e) => e instanceof NavigationEnd), map(() => this.router.url.split(/[?#]/)[0] === '/')), { initialValue: location.pathname === '/' });
   constructor() {
     // Load the name for the header once someone is signed in.
     effect(() => { if (this.auth.user()) void this.me.load().catch(() => {}); else this.me.clear(); });

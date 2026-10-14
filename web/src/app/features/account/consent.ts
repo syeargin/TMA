@@ -38,8 +38,8 @@ export class Consent extends Page {
       const version = me.privacy?.version ?? '';
       await this.api.acceptPrivacy(version);
       this.meSvc.me.update((m) => (m ? { ...m, privacy: { version, accepted: true } } : m));
-      const next = this.route.snapshot.queryParamMap.get('next') ?? '/';
-      await this.router.navigateByUrl(next.startsWith('/') && !next.startsWith('//') ? next : '/');
+      const next = this.route.snapshot.queryParamMap.get('next') ?? '/teams';
+      await this.router.navigateByUrl(next.startsWith('/') && !next.startsWith('//') ? next : '/teams');
     });
   }
 }
