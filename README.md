@@ -105,7 +105,11 @@ Sign-up is invite-only:
 2. On sign-up, a pre-sign-up check refuses emails that have no invite.
 3. After the person enters the emailed code, a post-confirmation step turns each invite into a `MEMBER#<sub>` record on that team and deletes the invite.
 
-Emails in the `ClubAdminEmails` parameter (`samconfig.toml`) can sign up without an invite and become admins of the default club (`ClubId`, `a5`). Emails in `PlatformAdminEmails` are site owners; when that's empty, the `ClubAdminEmails` people are. Club admin invites (`INVITE#<email>` / `CLUB#<c>`) also let someone sign up.
+Emails in the `ClubAdminEmails` parameter (`samconfig.toml`) can sign up without an invite and become admins of the default club (`ClubId`, `a5`). Emails in `PlatformAdminEmails` are site owners (an empty list makes no one a site owner). Club admin invites (`INVITE#<email>` / `CLUB#<c>`) also let someone sign up.
+
+- **The lists apply once per person (R17).** They're applied when someone signs up, or on their next visit for accounts made earlier, and the time is recorded as `listGrantsAt` on their profile. After that the list is never checked again for them, so removing someone's club-admin or site-owner record takes their rights away for good, even while their email is still listed. To give the rights back, invite them as a club admin from the site, or delete `listGrantsAt` on their profile so the lists apply again on their next visit.
+- **Only verified emails count (R5).** The API never trusts an email from a token. It uses the email saved on the profile at sign-up (Cognito had just verified it), and for accounts with no profile asks Cognito (`AdminGetUser`) and uses the email only if `email_verified` is true. An account without one gets a profile with no email: no invites are accepted and no lists apply. Locally there's no user pool, so tests and the preview server set `EMAIL_CHECK=off` to use the token's email; in AWS it's ignored.
+- **Email changes aren't offered.** The site has no way to change your email, the pool won't let a change take effect until the new address is confirmed with a code (`AttributesRequireVerificationBeforeUpdate`), and the API keeps using the address from sign-up regardless. To move someone to a new address, invite the new address and remove the old account.
 
 Team admins invite people from the team page on the site. You can also add invites from CloudShell:
 
@@ -276,7 +280,7 @@ The site imports the API's role table directly (`@shared/permissions` → `api/s
 ## Clubs
 
 - The site runs any number of clubs. Each team belongs to one club (`TEAM#<t>/META#CLUB`). Teams made before clubs existed have no such record and belong to the default club (`ClubId`), so existing data needs no migration. The default club's record (A5's name and Team Info links) is written the first time it's needed.
-- **Site owners** (`PlatformAdminEmails`, or `ClubAdminEmails` when that's empty) add clubs from **Your teams → Add a club**, naming the first club admin by email. They can open any club and team.
+- **Site owners** (`PlatformAdminEmails`, applied once per person) add clubs from **Your teams → Add a club**, naming the first club admin by email. They can open any club and team.
 - **Club admins** open their club from **Your teams**. There they set the club name, short name and colors, the notes and links every team sees on Team Info, create teams, and add or remove other club admins. They act as team admin on every team in their club, and nowhere else.
 - **Colors:** a club picks a main color and an accent. The site derives the full set of light- and dark-mode colors from those two, darkening (or lightening in dark mode) only as far as needed to keep text readable (WCAG AA). The club page previews the colors on the whole page while choosing. Families see their club's colors on their team's pages; people in several clubs see the standard colors on **Your teams**.
 

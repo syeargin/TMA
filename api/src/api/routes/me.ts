@@ -1,13 +1,16 @@
 import { BatchGetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
 import { ddb, TABLE } from "../../lib/db.js";
-import { emailSet, keys } from "../../lib/keys.js";
+import { keys } from "../../lib/keys.js";
 import { acceptPendingInvites } from "../../lib/invites.js";
-import { clubsOfTeams, DEFAULT_CLUB, getClubs, platformEmails } from "../../lib/clubs.js";
+import { clubsOfTeams, DEFAULT_CLUB, getClubs } from "../../lib/clubs.js";
 import { json, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { clean, getItem, now, putItem, queryAll, str } from "../util.js";
 import { hasMfa } from "../../lib/mfa.js";
+import { listGrants } from "../../lib/admin-lists.js";
+import { verifiedEmail } from "../../lib/identity.js";
+import type { Caller } from "../context.js";
 import { PRIVACY_VERSION } from "../../shared/privacy.js";
 
 /** Which of these teams are archived (from their entries in the club team lists). */
@@ -27,21 +30,53 @@ async function archivedTeams(teamClub: Map<string, string>): Promise<Set<string>
 
 const nameSchema =z.object({ firstName: str(60).min(1, "Enter your first name."), lastName: str(60) });
 
+/**
+ * The person's profile, made now for accounts that don't have one (made before profiles existed, or if
+ * the sign-up step didn't finish). Its email is only ever a Cognito-verified one (R5): an unverified or
+ * missing email is saved as "" and grants nothing, no invites and no admin rights.
+ */
+async function ensureProfile(caller: Caller, tokenEmail = ""): Promise<Record<string, unknown>> {
+  const existing = await getItem(keys.profile(caller.sub));
+  if (existing) return existing;
+  const email = await verifiedEmail(caller.username || caller.sub, tokenEmail);
+  const profile = { ...keys.profile(caller.sub), type: "UserProfile", sub: caller.sub, email, clubAdmin: false, createdAt: now() };
+  try {
+    await putItem(profile, "attribute_not_exists(PK)");
+  } catch (e) {
+    // Two requests at once: keep whichever was saved first.
+    if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
+    return (await getItem(keys.profile(caller.sub)))!;
+  }
+  return profile;
+}
+
 export function meRoutes(r: Router) {
   /** Who am I, which teams am I on, with what roles. Also accepts any invites waiting for my email. */
   r.on("GET", "/me", async ({ caller, event }) => {
-    let profile = await getItem(keys.profile(caller.sub));
-    const tokenEmail = String(event.requestContext.authorizer.jwt.claims.email ?? caller.username ?? "").toLowerCase();
-    if (!profile) {
-      // Accounts created before the profile item existed: create it now.
-      profile = { ...keys.profile(caller.sub), type: "UserProfile", sub: caller.sub, email: tokenEmail, clubAdmin: false, createdAt: new Date().toISOString() };
-      await putItem(profile);
-    }
-    const email = String(profile.email ?? tokenEmail);
+    const tokenEmail = String(event.requestContext.authorizer.jwt.claims.email ?? "");
+    let profile = await ensureProfile(caller, tokenEmail);
+    // The email checked at sign-up, or Cognito's verified email for older accounts; "" if none is
+    // verified, which matches no invites and no admin list.
+    const email = String(profile.email ?? "");
     const name = { firstName: String(profile.firstName ?? ""), lastName: String(profile.lastName ?? "") };
-    const accepted = await acceptPendingInvites(caller.sub, email, name.firstName ? name : undefined);
+    const accepted = email ? await acceptPendingInvites(caller.sub, email, name.firstName ? name : undefined) : 0;
 
     const at = new Date().toISOString();
+    // R17: the admin lists apply once per person (sign-up sets listGrantsAt; older accounts get it here).
+    if (!profile.listGrantsAt && email) {
+      try {
+        // Claim the one-time grant first, so two requests at once can't both apply it.
+        await ddb.send(new UpdateCommand({
+          TableName: TABLE, Key: keys.profile(caller.sub),
+          UpdateExpression: "SET listGrantsAt = :at", ConditionExpression: "attribute_exists(PK) AND attribute_not_exists(listGrantsAt)",
+          ExpressionAttributeValues: { ":at": at }
+        }));
+        for (const item of listGrants(caller.sub, email, at).items) await putItem(item);
+      } catch (e) {
+        if ((e as { name?: string }).name !== "ConditionalCheckFailedException") throw e;
+      }
+      profile = { ...profile, listGrantsAt: at };
+    }
     const [adminItem, platformItem, memberships, adminOf] = await Promise.all([
       getItem(keys.clubAdmin(DEFAULT_CLUB(), caller.sub)),
       getItem(keys.platformAdmin(caller.sub)),
@@ -57,18 +92,15 @@ export function meRoutes(r: Router) {
       })
     ]);
     const adminClubs = new Set(adminOf.map((a) => String(a.GSI1SK).slice(5)));
-    // The default club's admins: configured by email, or made before admin items were indexed by person.
-    if (adminItem || emailSet(process.env.CLUB_ADMIN_EMAILS).has(email)) {
-      if (!adminItem?.GSI1PK) {
-        await putItem({ ...(adminItem ?? { grantedBy: "bootstrap", at }), ...keys.clubAdmin(DEFAULT_CLUB(), caller.sub), ...keys.clubAdminGsi(DEFAULT_CLUB(), caller.sub), type: "ClubAdmin", clubId: DEFAULT_CLUB(), sub: caller.sub, email });
+    // Default-club admin records made before they were indexed by person get the index now.
+    if (adminItem) {
+      if (!adminItem.GSI1PK) {
+        await putItem({ ...adminItem, ...keys.clubAdminGsi(DEFAULT_CLUB(), caller.sub), clubId: DEFAULT_CLUB(), sub: caller.sub, email: adminItem.email ?? email });
       }
       adminClubs.add(DEFAULT_CLUB());
     }
-    let platformAdmin = !!platformItem;
-    if (!platformAdmin && platformEmails().has(email)) {
-      await putItem({ ...keys.platformAdmin(caller.sub), type: "PlatformAdmin", sub: caller.sub, email, grantedBy: "bootstrap", at });
-      platformAdmin = true;
-    }
+    // Rights come only from stored records (R17).
+    const platformAdmin = !!platformItem;
 
     const active = memberships.filter((m) => m.status === "active");
     const teamClub = await clubsOfTeams(active.map((m) => String(m.GSI1SK).slice(5)));
@@ -117,9 +149,7 @@ export function meRoutes(r: Router) {
   r.on("PUT", "/me", async ({ caller, body }) => {
     const { firstName, lastName } = parseBody(nameSchema, body);
     const at = now();
-    if (!(await getItem(keys.profile(caller.sub)))) {
-      await putItem({ ...keys.profile(caller.sub), type: "UserProfile", sub: caller.sub, email: caller.username ?? "", clubAdmin: false, createdAt: at });
-    }
+    await ensureProfile(caller);
     const set = (Key: Record<string, string>, cond?: string) => ddb.send(new UpdateCommand({
       TableName: TABLE, Key, ConditionExpression: cond,
       UpdateExpression: "SET firstName = :f, lastName = :l, updatedAt = :at",

@@ -28,13 +28,15 @@ Parameters:
   ClubAdminEmails:
     Type: String
     Default: ""
-    Description: Comma-separated emails that may sign up without an invite and become admins of the default club (ClubId).
+    Description: >
+      Comma-separated emails that may sign up without an invite and become admins of the default club (ClubId).
+      Applied once per person (R17): removing someone's admin record removes their rights for good.
   PlatformAdminEmails:
     Type: String
     Default: ""
     Description: >
       Comma-separated emails of site owners, who can add clubs and act as an admin of any club.
-      Empty means the ClubAdminEmails people are the site owners.
+      Applied once per person, like ClubAdminEmails. Empty means no one is made a site owner from a list.
   SesFromEmail:
     Type: String
     Default: ""
@@ -202,6 +204,10 @@ Resources:
       UsernameAttributes: [email]
       UsernameConfiguration: { CaseSensitive: false }
       AutoVerifiedAttributes: [email]
+      # R5: an email change waits until the new address is confirmed with a code. The site offers no
+      # way to change email, and the API only trusts the address verified at sign-up.
+      UserAttributeUpdateSettings:
+        AttributesRequireVerificationBeforeUpdate: [email]
       AdminCreateUserConfig: { AllowAdminCreateUserOnly: false }
       AccountRecoverySetting:
         RecoveryMechanisms: [{ Name: verified_email, Priority: 1 }]

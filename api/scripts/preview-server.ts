@@ -13,6 +13,7 @@ process.env.CLUB_ID = "a5";
 process.env.AWS_REGION ??= "us-east-1";
 process.env.DYNAMODB_ENDPOINT ??= "http://127.0.0.1:8000";
 process.env.PLATFORM_ADMIN_EMAILS = "owner@example.com";
+process.env.EMAIL_CHECK ??= "off"; // no user pool locally: trust the dev token's email
 process.env.MFA_CHECK ??= "off"; // no user pool locally; run with MFA_CHECK=on to see the two-step prompts
 
 const { freshTable, event } = await import("../test/api/harness.js");
