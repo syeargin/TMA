@@ -16,7 +16,7 @@ import { AvailabilitySheet } from '../features/schedule/availability-sheet';
   template: `
     <nav class="tabs" aria-label="Team sections">
       <div class="tabs-in">
-        <a class="tab" routerLink="/" title="All your teams">‹ Teams</a>
+        <a class="tab" routerLink="/teams" title="All your teams">‹ Teams</a>
         <a class="tab" routerLink="." routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Home</a>
         <a class="tab" routerLink="schedule" routerLinkActive="active" ariaCurrentWhenActive="page">Schedule</a>
         <a class="tab" routerLink="tournaments" routerLinkActive="active" ariaCurrentWhenActive="page">Tournaments</a>
@@ -36,7 +36,7 @@ import { AvailabilitySheet } from '../features/schedule/availability-sheet';
         <router-outlet />
         <th-availability-sheet />
       } @else if (store.loadError()) {
-        <div class="banner"><p><b>This team didn't load.</b> {{ store.loadError() }}</p><a class="btn sm" routerLink="/">Your teams</a></div>
+        <div class="banner"><p><b>This team didn't load.</b> {{ store.loadError() }}</p><a class="btn sm" routerLink="/teams">Your teams</a></div>
       } @else {
         <div class="card card-b" style="padding:20px"><div class="label">Loading team</div>
           @for (i of [1, 2, 3, 4, 5]; track i) { <div class="skel"></div> }
@@ -72,7 +72,7 @@ export class TeamShell {
     });
     this.store.lost.pipe(takeUntilDestroyed()).subscribe(() => {
       this.flash.set({ error: 'You no longer have access to that team.' });
-      void this.router.navigateByUrl('/');
+      void this.router.navigateByUrl('/teams');
     });
     inject(DestroyRef).onDestroy(() => { this.header.reset(); this.theme.page.set(undefined); });
   }

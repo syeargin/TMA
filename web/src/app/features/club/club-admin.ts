@@ -217,7 +217,7 @@ export class ClubAdminPage extends Page {
   removeAdmin(sub: string) {
     const self = sub === this.mySub();
     return this.confirmThen(`admin:${sub}`, 'Admin removed.', () => this.api.removeClubAdmin(this.clubId(), sub), self
-      ? async () => { await this.meSvc.load(true).catch(() => {}); await this.go('/', { notice: `You're no longer an admin of ${this.detail()?.club.name ?? 'the club'}.` }); }
+      ? async () => { await this.meSvc.load(true).catch(() => {}); await this.go('/teams', { notice: `You're no longer an admin of ${this.detail()?.club.name ?? 'the club'}.` }); }
       : undefined);
   }
   /** Site owners: a club admin lost their phone. They sign in with just a password and set it up again. */

@@ -65,7 +65,7 @@ export const groupKey = (s: string) => s.replace(/\s+/g, '').replace(/(.{4})/g, 
         <p class="small muted" style="margin-top:10px">Once it's on you'll be signed out everywhere, then sign in again with your password and a code.</p>
       }
     }
-    <div class="links"><a class="link" routerLink="/">Back to your teams</a></div>`
+    <div class="links"><a class="link" routerLink="/teams">Back to your teams</a></div>`
 })
 export class TwoStep extends Page {
   private readonly auth = inject(AuthService);

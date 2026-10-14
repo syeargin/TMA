@@ -17,7 +17,7 @@ export const signedOutGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   if (!auth.configured) return router.parseUrl('/unconfigured');
-  return (await auth.ensureUser()) ? router.parseUrl('/') : true;
+  return (await auth.ensureUser()) ? router.parseUrl('/teams') : true;
 };
 
 /** Remembered at sign-up, so a new account isn't asked to accept the notice twice. */
