@@ -4,10 +4,12 @@
     <p class="muted" style="margin-top:6px">{{ store.players().length }} players@if (store.settings()?.age) { · {{ store.settings()?.age }} }</p>
   </div>
   <span class="spacer"></span>
+  @if (store.has('uniforms')) {
   <nav class="chips" aria-label="Roster views">
     <a class="chip" [routerLink]="['/teams', store.teamId(), 'roster']" [attr.aria-pressed]="!uniforms()">Players &amp; parents</a>
     <a class="chip" [routerLink]="['/teams', store.teamId(), 'roster', 'uniforms']" [attr.aria-pressed]="uniforms()">Uniform order</a>
   </nav>
+  }
 </div>
 
 @if (!uniforms()) {

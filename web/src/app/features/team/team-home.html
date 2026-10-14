@@ -41,6 +41,7 @@
           <div class="v">—</div><div class="s">None scheduled</div>
         }
       </a>
+      @if (store.has('fund')) {
       <a class="card stat statlink" routerLink="fund">
         <div class="label">Team fund</div>
         <div class="v tn">{{ money(store.fund().balance) }}</div>
@@ -52,6 +53,7 @@
         <div class="s">@if (store.duesCents()) { {{ money(store.duesCents()) }} per family@if (store.settings()?.dues?.due) { · due {{ fmt(store.settings()?.dues?.due, { month: 'short', day: 'numeric' }) }}} } @else { Dues not set yet }</div>
         <div class="meter"><i [style.width.%]="store.players().length ? (100 * store.fund().duesPaidFamilies) / store.players().length : 0"></i></div>
       </a>
+      }
     </div>
 
     <section class="card o-week">

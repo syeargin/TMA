@@ -34,6 +34,8 @@ export function familyRoutes(r: Router) {
     if ((b.travel || b.uniform) && !parent && !a.can("roster")) throw forbidden("You can only update your own family.");
     // Sharing contacts is the family's own choice: staff can't turn it on for them.
     if (b.shareContacts !== undefined && !parent) throw forbidden("Only the player's own parents can choose whether to share their contact details.");
+    if (b.travel) a.requireFeature("travel");
+    if (b.uniform) a.requireFeature("uniforms");
     if (!(await getItem(keys.player(a.teamId, pid)))) throw notFound("That player isn't on this team.");
 
     const key = keys.family(a.teamId, pid);

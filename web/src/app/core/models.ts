@@ -1,3 +1,4 @@
+import type { FeatureMap } from '@shared/features';
 import type { Role } from '@shared/permissions';
 
 export interface MyTeam { teamId: string; name?: string; roles: Role[]; pid?: string; clubId?: string; archived?: boolean }
@@ -58,6 +59,8 @@ export interface Settings {
   checklist?: string[]; uniformItems?: string[];
   /** Practice uniform colors offered when adding a practice. */
   practiceColors?: string[];
+  /** Optional features the team has switched off ({ fund: false, ... }); missing = on. */
+  features?: FeatureMap;
   dues?: { amountCents?: number; due?: string; label?: string };
   budget?: { costPerMealCents?: number; mealsPerDay?: number; people?: number; families?: number };
   [key: string]: unknown;

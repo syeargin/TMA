@@ -30,7 +30,7 @@ export class Roster {
 
   get manage() { return this.store.can('roster'); }
   get myPid() { return this.store.myPid(); }
-  readonly uniforms = computed(() => this.section() === 'uniforms');
+  readonly uniforms = computed(() => this.section() === 'uniforms' && this.store.has('uniforms'));
   readonly emails = computed(() => this.store.players().flatMap((p) => (p.parents ?? []).map((x) => x.email).filter((e): e is string => !!e)));
   readonly linked = computed(() => new Set(this.store.members().map((m) => m.pid).filter(Boolean)));
   hasAllergy(p: Player) { return !!p.allergies && !/^\s*(none|n\/a|no)\s*$/i.test(p.allergies); }

@@ -1,15 +1,18 @@
 <div class="sec-h">
   <div><h2>Team Info</h2></div>
   <span class="spacer"></span>
+  @if (store.has('tasks')) {
   <nav class="chips" aria-label="Team info views">
-    <a class="chip" [routerLink]="['/teams', store.teamId(), 'info']" [attr.aria-pressed]="!tasksView()">Team handbook</a>
+    <a class="chip" [routerLink]="['/teams', store.teamId(), 'info']" [attr.aria-pressed]="!tasksView()">{{ store.has('handbook') ? 'Team handbook' : 'Team info' }}</a>
     <a class="chip" [routerLink]="['/teams', store.teamId(), 'info', 'tasks']" [attr.aria-pressed]="tasksView()">Coordinator tasks</a>
   </nav>
+  }
   @if (store.can('settings')) { <button class="btn sm" type="button" (click)="settingsOpen.set(true)">Team settings</button> }
 </div>
 
 @if (!tasksView()) {
-  <div class="grid g-home">
+  <div class="grid" [class.g-home]="store.has('handbook')">
+    @if (store.has('handbook')) {
     <section class="card">
       <div class="card-h"><h3>From the kickoff meeting</h3><span class="spacer"></span>
         @if (editHandbook) { <button class="btn sm primary" type="button" (click)="editSection(-1)">Add section</button> }
@@ -32,6 +35,7 @@
         }
       </div>
     </section>
+    }
     <div class="stack">
       <section class="card">
         <div class="card-h"><h3>Who does what</h3><span class="spacer"></span>
@@ -46,6 +50,7 @@
           }
         </div>
       </section>
+      @if (store.has('handbook')) {
       <section class="card">
         <div class="card-h"><h3>Players’ jobs</h3></div>
         <div class="card-b small">
@@ -56,6 +61,7 @@
           </ul>
         </div>
       </section>
+      }
       @if (store.club(); as club) {
         @if (club.notes || club.links.length) {
           <section class="card">

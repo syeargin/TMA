@@ -29,6 +29,7 @@ export function moneyRoutes(r: Router) {
   /** A family records a dues payment (kind "in", own player) or anyone asks to be paid back (kind "out"). */
   r.on("POST", "/teams/{teamId}/payments", async ({ caller, params, body }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.requireFeature("fund");
     const p = parseBody(paymentSchema, body);
     if (p.kind === "in" && !a.isParentOf(p.pid)) throw forbidden("You can only record payments for your own family.");
     if (p.kind === "out" && !a.can("reimb")) throw forbidden();
@@ -40,6 +41,7 @@ export function moneyRoutes(r: Router) {
 
   r.on("DELETE", "/teams/{teamId}/payments/{payId}", async ({ caller, params }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.requireFeature("fund");
     const key = keys.payment(a.teamId, checkId(params.payId, "payment"));
     const pay = await getItem(key);
     if (!pay) throw notFound("That payment doesn't exist.");
@@ -53,6 +55,7 @@ export function moneyRoutes(r: Router) {
   for (const action of ["confirm", "decline"] as const) {
     r.on("POST", `/teams/{teamId}/payments/{payId}/${action}`, async ({ caller, params }) => {
       const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.requireFeature("fund");
       a.require("finance");
       const payId = checkId(params.payId, "payment");
       const key = keys.payment(a.teamId, payId);
@@ -85,6 +88,7 @@ export function moneyRoutes(r: Router) {
 
   r.on("PUT", "/teams/{teamId}/ledger/{lid}", async ({ caller, params, body }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.requireFeature("fund");
     a.require("finance");
     const lid = checkId(params.lid, "ledger entry");
     const l = parseBody(ledgerSchema, body);
@@ -97,6 +101,7 @@ export function moneyRoutes(r: Router) {
 
   r.on("DELETE", "/teams/{teamId}/ledger/{lid}", async ({ caller, params }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.requireFeature("fund");
     a.require("finance");
     await deleteItem(keys.ledger(a.teamId, checkId(params.lid, "ledger entry")));
     return json(204, undefined);

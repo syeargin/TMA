@@ -228,6 +228,7 @@ export function contentRoutes(r: Router) {
   r.on("PUT", "/teams/{teamId}/refgroups", async ({ caller, params, body }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
     a.require("refjobs");
+    a.requireFeature("refjobs");
     const { groups } = parseBody(refGroupsSchema, body);
     const entries = Object.entries(groups);
     if (entries.length > 40) throw badRequest("Too many players.");
@@ -248,6 +249,7 @@ export function contentRoutes(r: Router) {
   r.on("PUT", "/teams/{teamId}/events/{eid}/refjobs", async ({ caller, params, body }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
     a.require("refjobs");
+    a.requireFeature("refjobs");
     const eid = checkId(params.eid, "event");
     const b = parseBody(refjobsSchema, body);
     await putItem({ ...keys.refjobs(a.teamId, eid), type: "RefJobs", ...b, updatedAt: now(), updatedBy: caller.sub });
@@ -257,6 +259,7 @@ export function contentRoutes(r: Router) {
   r.on("PUT", "/teams/{teamId}/events/{eid}/agenda", async ({ caller, params, body }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
     if (!a.can("schedule") && !a.can("meals")) throw forbidden();
+    a.requireFeature("travel");
     const eid = checkId(params.eid, "event");
     const b = parseBody(agendaSchema, body);
     await putItem({ ...keys.agenda(a.teamId, eid), type: "Agenda", ...b, updatedAt: now(), updatedBy: caller.sub });
@@ -267,6 +270,7 @@ export function contentRoutes(r: Router) {
   r.on("PUT", "/teams/{teamId}/events/{eid}/meals/{mid}", async ({ caller, params, body }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
     a.require("meals");
+    a.requireFeature("meals");
     const eid = checkId(params.eid, "event"), mid = checkId(params.mid, "meal");
     const m = parseBody(mealSchema, body);
     const existing = await getItem(keys.meal(a.teamId, eid, mid));
@@ -278,12 +282,14 @@ export function contentRoutes(r: Router) {
   r.on("DELETE", "/teams/{teamId}/events/{eid}/meals/{mid}", async ({ caller, params }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
     a.require("meals");
+    a.requireFeature("meals");
     await deleteItem(keys.meal(a.teamId, checkId(params.eid, "event"), checkId(params.mid, "meal")));
     return json(204, undefined);
   });
 
   r.on("POST", "/teams/{teamId}/events/{eid}/meals/{mid}/claim", async ({ caller, params, body }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.requireFeature("meals");
     const { pid } = parseBody(claimSchema, body);
     if (!a.isParentOf(pid) && !a.can("meals")) throw forbidden("You can only sign up your own family.");
     const key = keys.meal(a.teamId, checkId(params.eid, "event"), checkId(params.mid, "meal"));
@@ -300,6 +306,7 @@ export function contentRoutes(r: Router) {
 
   r.on("DELETE", "/teams/{teamId}/events/{eid}/meals/{mid}/claim", async ({ caller, params }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.requireFeature("meals");
     const key = keys.meal(a.teamId, checkId(params.eid, "event"), checkId(params.mid, "meal"));
     const meal = await getItem(key);
     if (!meal) throw notFound("That meal doesn't exist.");
@@ -332,6 +339,7 @@ export function contentRoutes(r: Router) {
   r.on("PUT", "/teams/{teamId}/tasks/{kid}", async ({ caller, params, body }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
     a.require("tasks");
+    a.requireFeature("tasks");
     const kid = checkId(params.kid, "task");
     await putItem({ ...keys.task(a.teamId, kid), type: "Task", ...parseBody(taskSchema, body), updatedAt: now(), updatedBy: caller.sub });
     return json(200, { kid });
@@ -340,6 +348,7 @@ export function contentRoutes(r: Router) {
   r.on("DELETE", "/teams/{teamId}/tasks/{kid}", async ({ caller, params }) => {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
     a.require("tasks");
+    a.requireFeature("tasks");
     await deleteItem(keys.task(a.teamId, checkId(params.kid, "task")));
     return json(204, undefined);
   });

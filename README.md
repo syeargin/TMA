@@ -203,6 +203,24 @@ cd api && npm test
   - `scripts/delete-team.py` still deletes at once from CloudShell when needed.
 - **Deploying it** needs the bootstrap stack updated first: the function boundary allows `AdminDeleteUser`, and each execution role may manage its environment's EventBridge schedule.
 
+### Optional team features
+
+Each team can turn off what it doesn't use, from **Team Info → Team settings → Features** (admins and coordinators; `PUT /teams/{t}/features`, body `{ "features": { "fund": false } }`). Everything is on until a team turns it off, so existing teams are unchanged. The list is in `api/src/shared/features.ts`, shared with the site.
+
+| Feature | Turning it off hides |
+|---|---|
+| `fund` Team fund | The Fund tab, the fund and dues cards and reminders on the team home, dues in settings, and the Finance role in the role picker |
+| `meals` Tournament meals | Meals on tournaments, meal reminders, the meal budget in settings, and the Food role |
+| `travel` Travel and lodging | Travel and Agenda on travel tournaments, travel reminders and "plans in" counts. Events can still be marked Travel or Local. |
+| `refjobs` Ref jobs | Ref jobs on tournaments and the reminder to assign them |
+| `uniforms` Uniform order | The Uniform order view on the roster and uniform items in settings |
+| `tasks` Coordinator tasks | Team Info → Coordinator tasks and its reminder |
+| `handbook` Team handbook | The kickoff-meeting sections and players' jobs in Team Info |
+
+- **Hidden, not deleted.** Switched-off features are left out of `GET /teams/{t}` for everyone, and their routes answer 409 `feature_off`. The data stays saved and comes back when the feature is turned on. Each person's data download (`GET /me/export`) still includes it.
+- **Roles stay.** People who already have the Finance or Food role keep it; the picker just stops offering it to others while the feature is off.
+- Saved on the settings record as `features: { fund: false, ... }` (only switched-off features). `loadAccess` reads it in the same batch as the membership, so checking costs no extra request.
+
 ## Live updates (Phase 3)
 
 Changes one person makes appear for everyone else on the team page within a second or two, with no reload.
