@@ -128,17 +128,19 @@ jobs:
                 '{env: $env, commit: $commit, region: $region, userPoolId: $pool, userPoolClientId: $client, apiUrl: $api, wsUrl: $ws, contactEmail: $contact}' > public/config.json
           cat public/config.json
           npm run build
+          node ../scripts/check-csp.mjs
 
       - name: Upload site
         working-directory: web/dist
         env:
           BUCKET: ${{ steps.out.outputs.bucket }}
         run: |
-          # Angular names its bundles main-<hash>.js, chunk-<hash>.js, styles-<hash>.css: cache those for a year.
-          # Everything else (index.html, config.json) must always revalidate. --delete also clears old bundles.
-          aws s3 sync . "s3://$BUCKET" --delete --exclude "*" --include "*-*.js" --include "*-*.css" \
+          # Angular names its bundles main-<hash>.js, chunk-<hash>.js, styles-<hash>.css, and fonts
+          # media/<name>-<hash>.woff2: cache those for a year. Everything else (index.html, config.json)
+          # must always revalidate. --delete also clears old bundles.
+          aws s3 sync . "s3://$BUCKET" --delete --exclude "*" --include "*-*.js" --include "*-*.css" --include "media/*" \
             --cache-control "public,max-age=31536000,immutable"
-          aws s3 sync . "s3://$BUCKET" --delete --exclude "*-*.js" --exclude "*-*.css" --cache-control "no-cache"
+          aws s3 sync . "s3://$BUCKET" --delete --exclude "*-*.js" --exclude "*-*.css" --exclude "media/*" --cache-control "no-cache"
 
       - name: Refresh CloudFront
         env:
@@ -155,6 +157,17 @@ jobs:
             echo "Waiting for CloudFront ($code)…"; sleep 20
           done
           echo "Site did not serve this build" >&2; exit 1
+
+      - name: Security headers check
+        env:
+          URL: ${{ steps.out.outputs.url }}
+        run: |
+          headers=$(curl -sI "$URL/")
+          for h in content-security-policy strict-transport-security x-frame-options permissions-policy; do
+            echo "$headers" | grep -qi "^$h:" || { echo "Missing $h header on $URL" >&2; exit 1; }
+          done
+          echo "$headers" | grep -i "^content-security-policy:" | grep -q "script-src 'self';" || { echo "CSP doesn't lock scripts to the site" >&2; exit 1; }
+          echo "Security headers present"
 
       - name: API preflight check
         env:

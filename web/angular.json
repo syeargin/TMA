@@ -26,6 +26,26 @@
               }
             ],
             "styles": [
+              "node_modules/@fontsource/barlow/latin-400.css",
+              "node_modules/@fontsource/barlow/latin-ext-400.css",
+              "node_modules/@fontsource/barlow/latin-500.css",
+              "node_modules/@fontsource/barlow/latin-ext-500.css",
+              "node_modules/@fontsource/barlow/latin-600.css",
+              "node_modules/@fontsource/barlow/latin-ext-600.css",
+              "node_modules/@fontsource/barlow/latin-700.css",
+              "node_modules/@fontsource/barlow/latin-ext-700.css",
+              "node_modules/@fontsource/barlow-condensed/latin-500.css",
+              "node_modules/@fontsource/barlow-condensed/latin-ext-500.css",
+              "node_modules/@fontsource/barlow-condensed/latin-600.css",
+              "node_modules/@fontsource/barlow-condensed/latin-ext-600.css",
+              "node_modules/@fontsource/barlow-condensed/latin-700.css",
+              "node_modules/@fontsource/barlow-condensed/latin-ext-700.css",
+              "node_modules/@fontsource/big-shoulders-display/latin-700.css",
+              "node_modules/@fontsource/big-shoulders-display/latin-ext-700.css",
+              "node_modules/@fontsource/big-shoulders-display/latin-800.css",
+              "node_modules/@fontsource/big-shoulders-display/latin-ext-800.css",
+              "node_modules/@fontsource/big-shoulders-display/latin-900.css",
+              "node_modules/@fontsource/big-shoulders-display/latin-ext-900.css",
               "src/styles.css"
             ],
             "outputPath": {
@@ -38,7 +58,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "650kB",
+                  "maximumWarning": "700kB",
                   "maximumError": "1MB"
                 },
                 {
@@ -52,7 +72,7 @@
                 "scripts": true,
                 "styles": {
                   "minify": true,
-                  "inlineCritical": true
+                  "inlineCritical": false
                 },
                 "fonts": false
               }

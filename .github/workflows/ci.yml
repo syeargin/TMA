@@ -81,3 +81,5 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Check the site against the CSP (R6)
+        run: node ../scripts/check-csp.mjs

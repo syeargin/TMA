@@ -73,7 +73,13 @@ for (const sub of [OWNER, MOM, "u-dad"]) await api("PUT", "/me/privacy", sub, { 
 setMfaLookup();
 
 const DIST = join(import.meta.dirname, "../../web/dist");
-const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon" };
+const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".woff": "font/woff" };
+// The site's CSP from template.yaml (R6), enforced here too so problems show up locally. Reports go to
+// the real report handler and print below. Plain http locally, so no upgrade-insecure-requests.
+// @ts-expect-error plain .mjs helper shared with CI
+const { csp } = await import("../../scripts/check-csp.mjs");
+const CSP = process.env.PREVIEW_CSP === "off" ? "" : (csp({ "CspReportFunctionUrl.FunctionUrl": "http://127.0.0.1:4300/csp-report" }) as string).replace(/\s*upgrade-insecure-requests;/, "");
+const { handler: cspReport } = await import("../src/jobs/csp-report.js");
 const subOf = (auth = "") => { try { return JSON.parse(Buffer.from(auth.split(".")[1], "base64url").toString()).sub as string; } catch { return ""; } };
 
 createServer(async (req, res) => {
@@ -90,11 +96,20 @@ createServer(async (req, res) => {
     res.writeHead(r.statusCode ?? 200, { ...cors, "content-type": "application/json" }).end(r.body ?? "");
     return;
   }
+  if (url.pathname === "/csp-report") {
+    const chunks: Buffer[] = [];
+    for await (const c of req) chunks.push(c as Buffer);
+    const r = await cspReport({ requestContext: { http: { method: req.method } }, headers: req.headers, body: Buffer.concat(chunks).toString() } as never);
+    res.writeHead(r.statusCode ?? 204).end();
+    return;
+  }
   if (url.pathname === "/config.json") {
     res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ env: "preview", apiUrl: "http://127.0.0.1:4300/api", userPoolId: "us-east-1_preview", userPoolClientId: "previewclient", region: "us-east-1" }));
     return;
   }
   const file = join(DIST, url.pathname);
   const path = existsSync(file) && extname(file) ? file : join(DIST, "index.html");
-  res.writeHead(200, { "content-type": TYPES[extname(path)] ?? "application/octet-stream" }).end(readFileSync(path));
+  const headers: Record<string, string> = { "content-type": TYPES[extname(path)] ?? "application/octet-stream" };
+  if (CSP && path.endsWith(".html")) Object.assign(headers, { "content-security-policy": CSP });
+  res.writeHead(200, headers).end(readFileSync(path));
 }).listen(4300, "127.0.0.1", () => console.log("preview on http://127.0.0.1:4300"));

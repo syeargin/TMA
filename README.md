@@ -135,6 +135,19 @@ scripts/invite.sh dev coach@example.com  a5-13tom coach,admin coach:0
 - **Locally**, there's no user pool: tests and the preview server set `MFA_CHECK=off`, so everyone counts as having it on. Start the preview with `MFA_CHECK=on` to see the prompts. In AWS, `USER_POOL_ID` is always set, and then `MFA_CHECK` is ignored.
 - **Deploying it** needs the bootstrap stack updated first: the function permissions boundary now allows `AdminGetUser` and `AdminSetUserMFAPreference`.
 
+### Security headers and CSP (R6)
+
+- **Sign-ins last 7 days.** The one-hour access and ID tokens refresh until the 7-day refresh token runs out (`RefreshTokenValidity` on `UserPoolClient`), then people sign in again. Signing out revokes the refresh token, and turning on two-step sign-in signs out everywhere.
+- **Headers.** CloudFront serves our own response headers policy (`SiteHeaders` in `template.yaml`): HSTS, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` (no camera, microphone, location or payment) and `Cross-Origin-Opener-Policy`, plus an enforced Content-Security-Policy:
+  - scripts only from the site (`script-src 'self'`: no inline scripts, no `eval`);
+  - network requests only to the site, Cognito and API Gateway in the region (by its regional domain, because naming our own API would be a circular reference in the template);
+  - fonts and stylesheets only from the site (the fonts are served from the site, from the `@fontsource` packages, not Google); inline styles are allowed, since Angular sets them throughout;
+  - images from the site and `data:` (the two-step QR code); nothing may frame the site, no plugins.
+- **Reports.** Browsers report anything the CSP blocks to `CspReportFunction` (a public Lambda URL), which logs a trimmed summary: paths only, no query strings. In CloudWatch Logs Insights on its log group: `fields @timestamp, directive, blocked, page, browser | filter msg = "csp violation"`.
+- **Keeping it working.** `scripts/check-csp.mjs` runs in CI and in the deploy after the site build. It fails if the built site has an inline script or event handler, loads anything from another site, or if the policy loosens `script-src`. The deploy then checks the live headers. The local preview serves the same policy (set `PREVIEW_CSP=off` to drop it), so a blocked script shows up as a console error and a `csp violation` line in the preview's output.
+- **Adding a third-party service** (an analytics script, a map, an embed) means adding its domain to the policy in `template.yaml` on purpose.
+- **Deploying it** needs the bootstrap stack updated first: the execution roles may now create and update CloudFront response headers policies.
+
 ## API (Phase 2)
 
 Every call needs a Cognito access token (`Authorization: Bearer …`). The API loads the caller's membership for the team and checks it against [`api/src/shared/permissions.ts`](api/src/shared/permissions.ts), the same role table the site uses. Club admins have team-admin rights on every team.
