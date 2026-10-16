@@ -159,9 +159,9 @@ Resources:
           Compress: true
           AllowedMethods: [GET, HEAD, OPTIONS]
           CachedMethods: [GET, HEAD]
-          # Managed policies: CachingOptimized, SecurityHeadersPolicy
+          # Managed policy CachingOptimized; our own security headers with the CSP (R6).
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
-          ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03
+          ResponseHeadersPolicyId: !Ref SiteHeaders
         CustomErrorResponses:
           # Single-page app: unknown paths serve index.html
           - { ErrorCode: 403, ResponseCode: 200, ResponsePagePath: /index.html, ErrorCachingMinTTL: 0 }
@@ -169,6 +169,77 @@ Resources:
       Tags:
         - { Key: app, Value: team-hub }
         - { Key: env, Value: !Ref Env }
+
+  # Security headers for the site (R6), replacing the managed SecurityHeadersPolicy. The CSP lets
+  # the page run only its own scripts and talk only to itself, API Gateway and Cognito. API Gateway
+  # is allowed by its regional domain because naming our API here would be a circular reference
+  # (the API's CORS settings name this distribution). scripts/check-csp.mjs checks the built site
+  # against it, and the local preview serves the same policy.
+  SiteHeaders:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub "${AppPrefix}-${Env}-site-headers"
+        Comment: !Sub "Team Hub ${Env}: security headers and CSP (R6)"
+        SecurityHeadersConfig:
+          ContentSecurityPolicy:
+            Override: true
+            ContentSecurityPolicy: !Sub >-
+              default-src 'self';
+              script-src 'self';
+              style-src 'self' 'unsafe-inline';
+              img-src 'self' data:;
+              font-src 'self';
+              connect-src 'self' https://cognito-idp.${AWS::Region}.amazonaws.com https://*.execute-api.${AWS::Region}.amazonaws.com wss://*.execute-api.${AWS::Region}.amazonaws.com;
+              object-src 'none';
+              base-uri 'self';
+              form-action 'self';
+              frame-ancestors 'none';
+              upgrade-insecure-requests;
+              report-uri ${CspReportFunctionUrl.FunctionUrl}
+          ContentTypeOptions: { Override: true }
+          FrameOptions: { FrameOption: DENY, Override: true }
+          ReferrerPolicy: { ReferrerPolicy: strict-origin-when-cross-origin, Override: true }
+          StrictTransportSecurity: { AccessControlMaxAgeSec: 31536000, IncludeSubdomains: true, Override: true }
+        CustomHeadersConfig:
+          Items:
+            - { Header: Permissions-Policy, Value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()", Override: true }
+            - { Header: Cross-Origin-Opener-Policy, Value: same-origin, Override: true }
+
+  # Browsers send a report here whenever the CSP blocks something; each lands in CloudWatch.
+  # Public by design (browsers can't sign in to send reports): it only logs a trimmed summary.
+  CspReportFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/jobs/csp-report.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Logs Content-Security-Policy violation reports from browsers (R6).
+      CodeUri: api/
+      Handler: csp-report.handler
+      MemorySize: 128
+      Timeout: 3
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins: ["*"]
+          AllowMethods: [POST]
+          AllowHeaders: [content-type]
+          MaxAge: 600
+      # The CSP uses report-uri, which Chrome, Firefox and Safari all send here.
+
+  CspReportFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${CspReportFunction}"
+      RetentionInDays: 30
 
   SiteBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -251,7 +322,8 @@ Resources:
       EnableTokenRevocation: true
       AccessTokenValidity: 60
       IdTokenValidity: 60
-      RefreshTokenValidity: 30
+      # R6: signed in for at most 7 days, then sign in again (the 1-hour tokens refresh until then).
+      RefreshTokenValidity: 7
       TokenValidityUnits: { AccessToken: minutes, IdToken: minutes, RefreshToken: days }
       SupportedIdentityProviders: [COGNITO]
 

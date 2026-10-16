@@ -362,6 +362,10 @@ def env_block(E, env):
                   - cloudfront:CreateOriginAccessControl
                   - cloudfront:UpdateOriginAccessControl
                   - cloudfront:DeleteOriginAccessControl
+                  # The site's security headers and CSP (R6).
+                  - cloudfront:CreateResponseHeadersPolicy
+                  - cloudfront:UpdateResponseHeadersPolicy
+                  - cloudfront:DeleteResponseHeadersPolicy
                   - cloudfront:TagResource
                   - cloudfront:UntagResource
                   - "cloudfront:Get*"
