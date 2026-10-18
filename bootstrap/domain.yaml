@@ -19,6 +19,12 @@ Parameters:
     Description: >
       Set to true only after the registrar uses this zone's nameservers: the certificate is checked
       through DNS, and the stack waits until that check passes.
+  ExistingHostedZoneId:
+    Type: String
+    Default: ""
+    Description: >
+      Leave empty to create the zone. If Route 53 already has a hosted zone for the domain, enter its
+      id (like Z0123456789ABC) and the stack uses that zone instead of making a second one.
   DmarcReportEmail:
     Type: String
     Default: ""
@@ -26,11 +32,13 @@ Parameters:
 
 Conditions:
   WantCertificate: !Equals [!Ref CreateCertificate, "true"]
+  CreateZone: !Equals [!Ref ExistingHostedZoneId, ""]
   HasDmarcReports: !Not [!Equals [!Ref DmarcReportEmail, ""]]
 
 Resources:
   Zone:
     Type: AWS::Route53::HostedZone
+    Condition: CreateZone
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
@@ -55,7 +63,7 @@ Resources:
   EmailRecords:
     Type: AWS::Route53::RecordSetGroup
     Properties:
-      HostedZoneId: !Ref Zone
+      HostedZoneId: !If [CreateZone, !Ref Zone, !Ref ExistingHostedZoneId]
       RecordSets:
         # Easy DKIM: SES signs every message; these prove the signatures are ours.
         - { Name: !GetAtt EmailIdentity.DkimDNSTokenName1, Type: CNAME, TTL: "1800", ResourceRecords: [!GetAtt EmailIdentity.DkimDNSTokenValue1] }
@@ -85,16 +93,17 @@ Resources:
       ValidationMethod: DNS
       # The domain and its wildcard share one validation record, which CloudFormation adds to the zone.
       DomainValidationOptions:
-        - { DomainName: !Ref DomainName, HostedZoneId: !Ref Zone }
+        - { DomainName: !Ref DomainName, HostedZoneId: !If [CreateZone, !Ref Zone, !Ref ExistingHostedZoneId] }
       Tags:
         - { Key: app, Value: team-hub }
 
 Outputs:
   NameServers:
+    Condition: CreateZone
     Description: Enter these four at the registrar (GoDaddy → teemhub.net → DNS → Nameservers → Change → "I'll use my own nameservers").
     Value: !Join [", ", !GetAtt Zone.NameServers]
   HostedZoneId:
-    Value: !Ref Zone
+    Value: !If [CreateZone, !Ref Zone, !Ref ExistingHostedZoneId]
     Export: { Name: !Sub "${AWS::StackName}-HostedZoneId" }
   DomainName:
     Value: !Ref DomainName
