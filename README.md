@@ -118,7 +118,7 @@ scripts/invite.sh dev parent@example.com a5-13tom parent parent:p12:1 p12
 scripts/invite.sh dev coach@example.com  a5-13tom coach,admin coach:0
 ```
 
-**Email sending.** Sign-up and password-reset codes come from `noreply@teemhub.net` through Amazon SES (R10), set by `SesFromEmail` in `samconfig.toml`; dev's say "A5 Team Hub (dev)". Without it, Cognito's built-in sender is used, which is limited to about 50 emails a day. See "Domain and email" below.
+**Email sending.** Sign-up and password-reset codes come from `noreply@teemhub.net` through Amazon SES (R10), set by `SesFromEmail` in `samconfig.toml`; sent as `EmailSenderName` ("Teem Hub"; dev adds " (dev)"). Without it, Cognito's built-in sender is used, which is limited to about 50 emails a day. See "Domain and email" below.
 
 ### Domain and email (R10)
 

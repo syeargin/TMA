@@ -44,6 +44,12 @@ Parameters:
       Optional. The address sign-in emails come from, on the domain verified in Amazon SES by the
       domain stack (R10), like noreply@teemhub.net. Empty uses Cognito's built-in sender (fine for
       testing, about 50 emails a day). SES must be out of its sandbox first.
+  EmailSenderName:
+    Type: String
+    Default: Teem Hub
+    Description: >
+      The name sign-in emails come from and use in their subject and text. Dev adds " (dev)".
+      One user pool serves every club, so this names the site, not a club.
   DomainStack:
     Type: String
     Default: ""
@@ -333,14 +339,20 @@ Resources:
         - { Name: email, AttributeDataType: String, Required: true, Mutable: true }
       VerificationMessageTemplate:
         DefaultEmailOption: CONFIRM_WITH_CODE
-        EmailSubject: "Your A5 Team Hub code"
-        EmailMessage: "Your A5 Team Hub verification code is {####}. It expires in 24 hours."
+        EmailSubject: !Sub
+          - "Your ${Name} code"
+          - Name: !If [IsProd, !Ref EmailSenderName, !Sub "${EmailSenderName} (dev)"]
+        EmailMessage: !Sub
+          - "Your ${Name} verification code is {####}. It expires in 24 hours."
+          - Name: !If [IsProd, !Ref EmailSenderName, !Sub "${EmailSenderName} (dev)"]
       EmailConfiguration: !If
         - UseSes
         # The SES identity is the whole domain (noreply@teemhub.net → teemhub.net), verified by the
         # domain stack. Cognito sends through its own service-linked role, created on first use.
         - EmailSendingAccount: DEVELOPER
-          From: !If [IsProd, !Sub "A5 Team Hub <${SesFromEmail}>", !Sub "A5 Team Hub (dev) <${SesFromEmail}>"]
+          From: !Sub
+            - "${Name} <${SesFromEmail}>"
+            - Name: !If [IsProd, !Ref EmailSenderName, !Sub "${EmailSenderName} (dev)"]
           SourceArn: !Sub
             - "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${Domain}"
             - Domain: !Select [1, !Split ["@", !Ref SesFromEmail]]
