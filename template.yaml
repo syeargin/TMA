@@ -41,13 +41,33 @@ Parameters:
     Type: String
     Default: ""
     Description: >
-      Optional. A verified SES identity to send sign-in emails from. Empty uses Cognito's
-      built-in sender (fine for testing, limited to a small number of emails per day).
+      Optional. The address sign-in emails come from, on the domain verified in Amazon SES by the
+      domain stack (R10), like noreply@teemhub.net. Empty uses Cognito's built-in sender (fine for
+      testing, about 50 emails a day). SES must be out of its sandbox first.
+  DomainStack:
+    Type: String
+    Default: ""
+    Description: >
+      Optional. The domain stack's name (bootstrap/domain.yaml, normally tma-domain), deployed with
+      its certificate. With it, the site, API and live updates get the addresses below.
+  SiteDomain:
+    Type: String
+    Default: ""
+    Description: The site's address in the domain, like dev.teemhub.net or teemhub.net. Needs DomainStack.
+  ApiDomain:
+    Type: String
+    Default: ""
+    Description: The API's address, like api-dev.teemhub.net. Needs DomainStack.
+  WsDomain:
+    Type: String
+    Default: ""
+    Description: The live-updates address, like ws-dev.teemhub.net. Needs DomainStack.
 
 Conditions:
   IsProd: !Equals [!Ref Env, prod]
   HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
   UseSes: !Not [!Equals [!Ref SesFromEmail, ""]]
+  HasDomain: !Not [!Equals [!Ref DomainStack, ""]]
 
 Globals:
   Function:
@@ -148,6 +168,13 @@ Resources:
         IPV6Enabled: true
         PriceClass: PriceClass_100
         DefaultRootObject: index.html
+        Aliases: !If [HasDomain, [!Ref SiteDomain], !Ref AWS::NoValue]
+        ViewerCertificate: !If
+          - HasDomain
+          - AcmCertificateArn: { "Fn::ImportValue": !Sub "${DomainStack}-CertificateArn" }
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - !Ref AWS::NoValue
         Origins:
           - Id: site
             DomainName: !GetAtt SiteBucket.RegionalDomainName
@@ -184,19 +211,26 @@ Resources:
         SecurityHeadersConfig:
           ContentSecurityPolicy:
             Override: true
-            ContentSecurityPolicy: !Sub >-
-              default-src 'self';
-              script-src 'self';
-              style-src 'self' 'unsafe-inline';
-              img-src 'self' data:;
-              font-src 'self';
-              connect-src 'self' https://cognito-idp.${AWS::Region}.amazonaws.com https://*.execute-api.${AWS::Region}.amazonaws.com wss://*.execute-api.${AWS::Region}.amazonaws.com;
-              object-src 'none';
-              base-uri 'self';
-              form-action 'self';
-              frame-ancestors 'none';
-              upgrade-insecure-requests;
-              report-uri ${CspReportFunctionUrl.FunctionUrl}
+            ContentSecurityPolicy: !Sub
+              - >-
+                default-src 'self';
+                script-src 'self';
+                style-src 'self' 'unsafe-inline';
+                img-src 'self' data:;
+                font-src 'self';
+                connect-src 'self' https://cognito-idp.${AWS::Region}.amazonaws.com ${ApiOrigins};
+                object-src 'none';
+                base-uri 'self';
+                form-action 'self';
+                frame-ancestors 'none';
+                upgrade-insecure-requests;
+                report-uri ${CspReportFunctionUrl.FunctionUrl}
+              # With the domain, only our own API and live-updates addresses. Without it, API Gateway's
+              # regional domain (naming our API here would be a circular reference).
+              - ApiOrigins: !If
+                  - HasDomain
+                  - !Sub "https://${ApiDomain} wss://${WsDomain}"
+                  - !Sub "https://*.execute-api.${AWS::Region}.amazonaws.com wss://*.execute-api.${AWS::Region}.amazonaws.com"
           ContentTypeOptions: { Override: true }
           FrameOptions: { FrameOption: DENY, Override: true }
           ReferrerPolicy: { ReferrerPolicy: strict-origin-when-cross-origin, Override: true }
@@ -303,9 +337,13 @@ Resources:
         EmailMessage: "Your A5 Team Hub verification code is {####}. It expires in 24 hours."
       EmailConfiguration: !If
         - UseSes
+        # The SES identity is the whole domain (noreply@teemhub.net → teemhub.net), verified by the
+        # domain stack. Cognito sends through its own service-linked role, created on first use.
         - EmailSendingAccount: DEVELOPER
-          From: !Sub "A5 Team Hub <${SesFromEmail}>"
-          SourceArn: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${SesFromEmail}"
+          From: !If [IsProd, !Sub "A5 Team Hub <${SesFromEmail}>", !Sub "A5 Team Hub (dev) <${SesFromEmail}>"]
+          SourceArn: !Sub
+            - "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${Domain}"
+            - Domain: !Select [1, !Split ["@", !Ref SesFromEmail]]
         - EmailSendingAccount: COGNITO_DEFAULT
       UserPoolTags:
         app: team-hub
@@ -420,6 +458,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins:
           - !Sub "https://${SiteDistribution.DomainName}"
+          - !If [HasDomain, !Sub "https://${SiteDomain}", !Ref AWS::NoValue]
           - !If [IsProd, !Ref AWS::NoValue, "http://localhost:4200"]
         AllowHeaders: [authorization, content-type]
         AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
@@ -896,10 +935,69 @@ Resources:
         - Notification: { NotificationType: FORECASTED, ComparisonOperator: GREATER_THAN, Threshold: 100 }
           Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref AlertEmail }]
 
+  # ---------- Addresses in the domain (R10; bootstrap/domain.yaml has the zone and certificate) ----------
+  SiteDnsRecords:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: HasDomain
+    Properties:
+      HostedZoneId: { "Fn::ImportValue": !Sub "${DomainStack}-HostedZoneId" }
+      RecordSets:
+        # Z2FDTNDATAQYW2 is CloudFront's own hosted zone id, the same for every distribution.
+        - { Name: !Ref SiteDomain, Type: A, AliasTarget: { DNSName: !GetAtt SiteDistribution.DomainName, HostedZoneId: Z2FDTNDATAQYW2 } }
+        - { Name: !Ref SiteDomain, Type: AAAA, AliasTarget: { DNSName: !GetAtt SiteDistribution.DomainName, HostedZoneId: Z2FDTNDATAQYW2 } }
+
+  ApiDomainName:
+    Type: AWS::ApiGatewayV2::DomainName
+    Condition: HasDomain
+    Properties:
+      DomainName: !Ref ApiDomain
+      DomainNameConfigurations:
+        - CertificateArn: { "Fn::ImportValue": !Sub "${DomainStack}-CertificateArn" }
+          EndpointType: REGIONAL
+          SecurityPolicy: TLS_1_2
+      Tags: { app: team-hub, env: !Ref Env }
+
+  ApiMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Condition: HasDomain
+    DependsOn: HttpApiApiGatewayDefaultStage
+    Properties:
+      DomainName: !Ref ApiDomainName
+      ApiId: !Ref HttpApi
+      Stage: $default
+
+  WsDomainName:
+    Type: AWS::ApiGatewayV2::DomainName
+    Condition: HasDomain
+    Properties:
+      DomainName: !Ref WsDomain
+      DomainNameConfigurations:
+        - CertificateArn: { "Fn::ImportValue": !Sub "${DomainStack}-CertificateArn" }
+          EndpointType: REGIONAL
+          SecurityPolicy: TLS_1_2
+      Tags: { app: team-hub, env: !Ref Env }
+
+  WsMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Condition: HasDomain
+    Properties:
+      DomainName: !Ref WsDomainName
+      ApiId: !Ref WebSocketApi
+      Stage: !Ref WebSocketStage
+
+  ApiDnsRecords:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: HasDomain
+    Properties:
+      HostedZoneId: { "Fn::ImportValue": !Sub "${DomainStack}-HostedZoneId" }
+      RecordSets:
+        - { Name: !Ref ApiDomain, Type: A, AliasTarget: { DNSName: !GetAtt ApiDomainName.RegionalDomainName, HostedZoneId: !GetAtt ApiDomainName.RegionalHostedZoneId } }
+        - { Name: !Ref WsDomain, Type: A, AliasTarget: { DNSName: !GetAtt WsDomainName.RegionalDomainName, HostedZoneId: !GetAtt WsDomainName.RegionalHostedZoneId } }
+
 Outputs:
   SiteUrl:
-    Description: Where the site is served until a custom domain is added.
-    Value: !Sub "https://${SiteDistribution.DomainName}"
+    Description: The site's address (its own domain once DomainStack is set).
+    Value: !If [HasDomain, !Sub "https://${SiteDomain}", !Sub "https://${SiteDistribution.DomainName}"]
   SiteBucketName:
     Value: !Ref SiteBucket
   DistributionId:
@@ -912,7 +1010,11 @@ Outputs:
     Value: !Ref UserPool
   UserPoolClientId:
     Value: !Ref UserPoolClient
+  CloudFrontUrl:
+    Description: The distribution's own address, which keeps working alongside the domain.
+    Value: !Sub "https://${SiteDistribution.DomainName}"
   ApiUrl:
-    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Value: !If [HasDomain, !Sub "https://${ApiDomain}", !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"]
   WsUrl:
-    Value: !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/live"
+    # A custom domain maps straight to the "live" stage, so its address has no /live.
+    Value: !If [HasDomain, !Sub "wss://${WsDomain}", !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/live"]

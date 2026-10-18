@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Team Hub (TMA) domain: the Route 53 DNS zone for the site's domain, the Amazon SES identity that
+  sign-in emails are sent from (R10), and the TLS certificate for the site and API addresses.
+  Deployed by hand once (stack name tma-domain), like the bootstrap stack; both environments use it.
+  Step 1: deploy with CreateCertificate=false, then point the domain's nameservers at the
+  NameServers output (at the registrar). Step 2, once DNS answers from Route 53: update the stack
+  with CreateCertificate=true. See README, "Domain and email".
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: teemhub.net
+    AllowedPattern: "^[a-z0-9-]+(\\.[a-z0-9-]+)+$"
+  CreateCertificate:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "false"
+    Description: >
+      Set to true only after the registrar uses this zone's nameservers: the certificate is checked
+      through DNS, and the stack waits until that check passes.
+  DmarcReportEmail:
+    Type: String
+    Default: ""
+    Description: Optional. An address that receives daily DMARC reports (who sent mail as this domain).
+
+Conditions:
+  WantCertificate: !Equals [!Ref CreateCertificate, "true"]
+  HasDmarcReports: !Not [!Equals [!Ref DmarcReportEmail, ""]]
+
+Resources:
+  Zone:
+    Type: AWS::Route53::HostedZone
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: !Ref DomainName
+      HostedZoneConfig: { Comment: Team Hub (managed by the tma-domain stack and the app stacks) }
+      HostedZoneTags:
+        - { Key: app, Value: team-hub }
+
+  # ---------- Email (R10): sign-in codes come from noreply@<domain> through SES ----------
+  EmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref DomainName
+      DkimSigningAttributes: { NextSigningKeyLength: RSA_2048_BIT }
+      # Bounces come back to mail.<domain> (SES) so SPF lines up with the From domain.
+      MailFromAttributes:
+        MailFromDomain: !Sub "mail.${DomainName}"
+        BehaviorOnMxFailure: USE_DEFAULT_VALUE
+      # noreply@ has no mailbox; SES's account-level suppression list handles bounces and complaints.
+      FeedbackAttributes: { EmailForwardingEnabled: false }
+
+  EmailRecords:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId: !Ref Zone
+      RecordSets:
+        # Easy DKIM: SES signs every message; these prove the signatures are ours.
+        - { Name: !GetAtt EmailIdentity.DkimDNSTokenName1, Type: CNAME, TTL: "1800", ResourceRecords: [!GetAtt EmailIdentity.DkimDNSTokenValue1] }
+        - { Name: !GetAtt EmailIdentity.DkimDNSTokenName2, Type: CNAME, TTL: "1800", ResourceRecords: [!GetAtt EmailIdentity.DkimDNSTokenValue2] }
+        - { Name: !GetAtt EmailIdentity.DkimDNSTokenName3, Type: CNAME, TTL: "1800", ResourceRecords: [!GetAtt EmailIdentity.DkimDNSTokenValue3] }
+        # Custom MAIL FROM (bounce) domain.
+        - { Name: !Sub "mail.${DomainName}", Type: MX, TTL: "1800", ResourceRecords: [!Sub "10 feedback-smtp.${AWS::Region}.amazonses.com"] }
+        - { Name: !Sub "mail.${DomainName}", Type: TXT, TTL: "1800", ResourceRecords: ['"v=spf1 include:amazonses.com ~all"'] }
+        # Only SES sends mail as this domain.
+        - { Name: !Ref DomainName, Type: TXT, TTL: "1800", ResourceRecords: ['"v=spf1 include:amazonses.com -all"'] }
+        - Name: !Sub "_dmarc.${DomainName}"
+          Type: TXT
+          TTL: "1800"
+          ResourceRecords:
+            - !If
+              - HasDmarcReports
+              - !Sub '"v=DMARC1; p=quarantine; adkim=r; aspf=r; rua=mailto:${DmarcReportEmail}"'
+              - '"v=DMARC1; p=quarantine; adkim=r; aspf=r"'
+
+  # ---------- TLS: one certificate for <domain> and *.<domain> (dev., api., api-dev., ws., ws-dev.) ----------
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: WantCertificate
+    Properties:
+      DomainName: !Ref DomainName
+      SubjectAlternativeNames: [!Sub "*.${DomainName}"]
+      ValidationMethod: DNS
+      # The domain and its wildcard share one validation record, which CloudFormation adds to the zone.
+      DomainValidationOptions:
+        - { DomainName: !Ref DomainName, HostedZoneId: !Ref Zone }
+      Tags:
+        - { Key: app, Value: team-hub }
+
+Outputs:
+  NameServers:
+    Description: Enter these four at the registrar (GoDaddy → teemhub.net → DNS → Nameservers → Change → "I'll use my own nameservers").
+    Value: !Join [", ", !GetAtt Zone.NameServers]
+  HostedZoneId:
+    Value: !Ref Zone
+    Export: { Name: !Sub "${AWS::StackName}-HostedZoneId" }
+  DomainName:
+    Value: !Ref DomainName
+    Export: { Name: !Sub "${AWS::StackName}-DomainName" }
+  CertificateArn:
+    Condition: WantCertificate
+    Value: !Ref Certificate
+    Export: { Name: !Sub "${AWS::StackName}-CertificateArn" }

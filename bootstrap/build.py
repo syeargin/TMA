@@ -31,6 +31,10 @@ Parameters:
     AllowedValues: ["true", "false"]
     Default: "true"
     Description: Set to false if this account already has the token.actions.githubusercontent.com provider.
+  DomainName:
+    Type: String
+    Default: teemhub.net
+    Description: The site's domain (bootstrap/domain.yaml). Each environment may change only its own DNS names in it.
   AppPrefix:
     Type: String
     Default: tma
@@ -156,6 +160,9 @@ Resources:
 
 def env_block(E, env):
     cond = f"Has{E}"
+    # The addresses this environment may point at itself (template.yaml SiteDomain, ApiDomain, WsDomain).
+    hosts = ["dev", "api-dev", "ws-dev"] if env == "dev" else [None, "api", "ws"]
+    names = "[" + ", ".join(f'!Sub "{h + "." if h else ""}${{DomainName}}"' for h in hosts) + "]"
     return f'''
   # ================= {env} =================
 
@@ -304,7 +311,8 @@ def env_block(E, env):
                 Effect: Allow
                 Action: iam:CreateServiceLinkedRole
                 Resource: "*"
-                Condition: {{ StringEquals: {{ "iam:AWSServiceName": [ops.apigateway.amazonaws.com, replication.dynamodb.amazonaws.com] }} }}
+                # email.cognito-idp: Cognito's role for sending sign-in email through SES (R10).
+                Condition: {{ StringEquals: {{ "iam:AWSServiceName": [ops.apigateway.amazonaws.com, replication.dynamodb.amazonaws.com, email.cognito-idp.amazonaws.com] }} }}
               - Sid: LogGroups
                 Effect: Allow
                 Action: "logs:*"
@@ -353,6 +361,9 @@ def env_block(E, env):
                   - !Sub "arn:aws:apigateway:${{AWS::Region}}::/apis"
                   - !Sub "arn:aws:apigateway:${{AWS::Region}}::/apis/*"
                   - !Sub "arn:aws:apigateway:${{AWS::Region}}::/tags/*"
+                  # The API and live-updates addresses in the domain (R10).
+                  - !Sub "arn:aws:apigateway:${{AWS::Region}}::/domainnames"
+                  - !Sub "arn:aws:apigateway:${{AWS::Region}}::/domainnames/*"
               - Sid: Cdn
                 Effect: Allow
                 Action:
@@ -370,6 +381,25 @@ def env_block(E, env):
                   - cloudfront:UntagResource
                   - "cloudfront:Get*"
                   - "cloudfront:List*"
+                Resource: "*"
+              # DNS records in the domain stack's zone (bootstrap/domain.yaml, R10): only this
+              # environment's own addresses.
+              - Sid: DnsRecords
+                Effect: Allow
+                Action: route53:ChangeResourceRecordSets
+                Resource: "arn:aws:route53:::hostedzone/*"
+                Condition:
+                  "ForAllValues:StringEquals":
+                    "route53:ChangeResourceRecordSetsNormalizedRecordNames": {names}
+              - Sid: DnsReads
+                Effect: Allow
+                Action: [route53:GetHostedZone, route53:ListResourceRecordSets, route53:GetChange, route53:ListHostedZones]
+                Resource: "*"
+              # The domain's certificate (used by CloudFront and API Gateway) and the SES identity
+              # Cognito sends from: read only, both belong to the domain stack.
+              - Sid: CertificateAndEmailReads
+                Effect: Allow
+                Action: [acm:DescribeCertificate, acm:ListCertificates, acm:GetCertificate, ses:GetEmailIdentity, ses:GetIdentityVerificationAttributes, ses:ListIdentities]
                 Resource: "*"
               # Cognito, API Gateway and CloudFront are allowed by service above. Refuse anything
               # tagged (or being tagged) for a different environment.
