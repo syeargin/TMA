@@ -1,5 +1,5 @@
 import { Component, effect, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/auth.service';
@@ -10,6 +10,11 @@ import { MeService } from './core/me.service';
 import { ThemeService } from './core/theme.service';
 import type { LiveStatus } from './core/live-client';
 import { ToastService } from './core/toast.service';
+
+/** Pages for signed-out people (a signed-in visitor goes to their teams). */
+const SIGNED_OUT_PAGES = new Set(['/signin', '/signup', '/verify', '/forgot', '/reset']);
+/** Pages anyone can see. */
+const PUBLIC_PAGES = new Set(['/', '/privacy', '/unconfigured']);
 
 @Component({
   selector: 'th-root',
@@ -64,6 +69,21 @@ export class App {
   constructor() {
     // Load the name for the header once someone is signed in.
     effect(() => { if (this.auth.user()) void this.me.load().catch(() => {}); else this.me.clear(); });
+    // Another tab signed in, out, or as someone else: follow it, so this tab never acts on an old answer.
+    this.auth.changedElsewhere.pipe(takeUntilDestroyed()).subscribe(() => void this.followOtherTab());
+  }
+
+  private lastSub = '';
+  private async followOtherTab() {
+    const before = this.lastSub || this.me.me()?.sub || '';
+    this.me.clear();
+    const user = await this.auth.ensureUser();
+    this.lastSub = user?.sub ?? '';
+    const path = this.router.url.split(/[?#]/)[0];
+    if (user && SIGNED_OUT_PAGES.has(path)) { await this.router.navigateByUrl('/teams'); return; }
+    if (!user && !PUBLIC_PAGES.has(path) && !SIGNED_OUT_PAGES.has(path)) { await this.router.navigateByUrl('/signin'); return; }
+    // Signed in as someone else: start them on their own teams.
+    if (user && before && before !== user.sub && !PUBLIC_PAGES.has(path)) await this.router.navigateByUrl('/teams');
   }
   readonly liveText: Record<LiveStatus, string> = { off: '', live: 'Live', connecting: 'Connecting…', reconnecting: 'Reconnecting…' };
 }
