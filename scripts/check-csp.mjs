@@ -12,15 +12,20 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 /** The CSP from template.yaml (SiteHeaders), with ${...} references filled in from `vars`. */
 export function csp(vars = {}) {
   const lines = readFileSync(join(root, "template.yaml"), "utf8").split("\n");
-  const start = lines.findIndex((l) => /ContentSecurityPolicy: !Sub >-\s*$/.test(l));
-  if (start < 0) throw new Error("template.yaml has no SiteHeaders ContentSecurityPolicy");
+  // ContentSecurityPolicy: !Sub, then "- >-" and the policy as a folded block.
+  const key = lines.findIndex((l) => /ContentSecurityPolicy: !Sub\s*$/.test(l));
+  if (key < 0 || !/^\s*- >-\s*$/.test(lines[key + 1] ?? "")) throw new Error("template.yaml has no SiteHeaders ContentSecurityPolicy");
+  const start = key + 1;
   const indent = lines[start].search(/\S/);
   const body = [];
   for (const l of lines.slice(start + 1)) {
     if (l.trim() && l.search(/\S/) <= indent) break;
     if (l.trim()) body.push(l.trim());
   }
-  const vals = { "AWS::Region": "us-east-1", "CspReportFunctionUrl.FunctionUrl": "https://csp-report.invalid/", ...vars };
+  const vals = {
+    "AWS::Region": "us-east-1", "CspReportFunctionUrl.FunctionUrl": "https://csp-report.invalid/",
+    ApiOrigins: "https://*.execute-api.us-east-1.amazonaws.com wss://*.execute-api.us-east-1.amazonaws.com", ...vars
+  };
   return body.join(" ").replace(/\$\{([^}]+)\}/g, (_, k) => {
     if (!(k in vals)) throw new Error(`no value for \${${k}}`);
     return vals[k];

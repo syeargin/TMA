@@ -20,7 +20,9 @@ s3_bucket = "tma-sam-artifacts-774924543698-us-east-1"
 s3_prefix = "tma-dev"
 role_arn = "arn:aws:iam::774924543698:role/tma-cfn-exec-dev"
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "Env=dev AppPrefix=tma AlertEmail=sam.yeargin@gmail.com ClubAdminEmails=sam.yeargin@gmail.com PlatformAdminEmails=sam.yeargin@gmail.com"
+# R10: the domain stack (bootstrap/domain.yaml) must be deployed with its certificate, and SES out of
+# its sandbox, before these take effect. See README, "Domain and email".
+parameter_overrides = "Env=dev AppPrefix=tma AlertEmail=sam.yeargin@gmail.com ClubAdminEmails=sam.yeargin@gmail.com PlatformAdminEmails=sam.yeargin@gmail.com SesFromEmail=noreply@teemhub.net DomainStack=tma-domain SiteDomain=dev.teemhub.net ApiDomain=api-dev.teemhub.net WsDomain=ws-dev.teemhub.net"
 confirm_changeset = false
 fail_on_empty_changeset = false
 tags = "app=team-hub env=dev"
@@ -32,7 +34,7 @@ s3_bucket = "tma-sam-artifacts-774924543698-us-east-1"
 s3_prefix = "tma-prod"
 role_arn = "arn:aws:iam::774924543698:role/tma-cfn-exec-prod"
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "Env=prod AppPrefix=tma ClubAdminEmails=sam.yeargin@gmail.com PlatformAdminEmails=sam.yeargin@gmail.com"
+parameter_overrides = "Env=prod AppPrefix=tma ClubAdminEmails=sam.yeargin@gmail.com PlatformAdminEmails=sam.yeargin@gmail.com SesFromEmail=noreply@teemhub.net DomainStack=tma-domain SiteDomain=teemhub.net ApiDomain=api.teemhub.net WsDomain=ws.teemhub.net"
 confirm_changeset = false
 fail_on_empty_changeset = false
 tags = "app=team-hub env=prod"

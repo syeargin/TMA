@@ -118,7 +118,31 @@ scripts/invite.sh dev parent@example.com a5-13tom parent parent:p12:1 p12
 scripts/invite.sh dev coach@example.com  a5-13tom coach,admin coach:0
 ```
 
-**Email sending.** By default Cognito sends verification and reset codes from `no-reply@verificationemail.com`, which is limited to a small number of emails per day. That's fine for testing. For real use, verify a sender in Amazon SES, request SES production access, and set `SesFromEmail=<address>` in `samconfig.toml`.
+**Email sending.** Sign-up and password-reset codes come from `noreply@teemhub.net` through Amazon SES (R10), set by `SesFromEmail` in `samconfig.toml`; sent as `EmailSenderName` ("Teem Hub"; dev adds " (dev)"). Without it, Cognito's built-in sender is used, which is limited to about 50 emails a day. See "Domain and email" below.
+
+### Domain and email (R10)
+
+`teemhub.net` is registered at GoDaddy; its DNS is served by Route 53. `bootstrap/domain.yaml` (stack `tma-domain`, deployed by hand once, used by both environments) holds:
+- the Route 53 zone;
+- the SES identity for the whole domain, with DKIM, a `mail.teemhub.net` bounce domain, SPF and DMARC records;
+- one certificate for `teemhub.net` and `*.teemhub.net`.
+
+Each app stack adds its own addresses (`SiteDomain`, `ApiDomain`, `WsDomain` in `samconfig.toml`), and its execution role may change only those DNS names (checked by `bootstrap/check.py`):
+
+| | Site | API | Live updates |
+|---|---|---|---|
+| dev | `dev.teemhub.net` | `api-dev.teemhub.net` | `ws-dev.teemhub.net` |
+| prod | `teemhub.net` | `api.teemhub.net` | `ws.teemhub.net` |
+
+The CloudFront address keeps working too (stack output `CloudFrontUrl`). With the domain set, the CSP names the API and live-updates addresses exactly instead of API Gateway's regional wildcard.
+
+**Setting it up (once, in this order):**
+1. **Deploy the domain stack:** CloudFormation → Create stack → upload `bootstrap/domain.yaml`, name it `tma-domain`, leave `CreateCertificate=false`. Copy the `NameServers` output.
+2. **Point GoDaddy at Route 53:** GoDaddy → teemhub.net → DNS → Nameservers → Change → "I'll use my own nameservers" → paste the four. Remove any domain forwarding first, and turn off DNSSEC there if it's on. Wait until `dig NS teemhub.net +short` shows the Route 53 servers: usually an hour or two, at most 48.
+3. **Add the certificate:** update the `tma-domain` stack with `CreateCertificate=true`. It finishes once AWS has checked the certificate through DNS, usually within minutes. In SES → Identities, `teemhub.net` should show "Verified" for the domain and DKIM.
+4. **Get SES out of the sandbox:** SES → Account dashboard → Request production access. Mail type: Transactional. Website: https://teemhub.net. Use case: "Sign-up verification codes and password-reset codes for an invite-only youth sports team site. We only email people who are invited by their team and sign up themselves. Bounces and complaints use SES's account-level suppression list." Approval usually takes about a day. Until then, SES only delivers to verified addresses, so sign-up emails would fail.
+5. **Update the bootstrap stack** (`bootstrap/github-oidc.yaml`): the execution roles may now manage their own DNS records, API custom domains and Cognito's email role.
+6. **Merge and deploy:** dev first (it moves to `dev.teemhub.net`), then tag a release for prod (`teemhub.net`). Before step 6, deploys would fail, because `samconfig.toml` already names the domain stack.
 
 ### Two-step sign-in (R2)
 

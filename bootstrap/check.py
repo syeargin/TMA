@@ -33,6 +33,15 @@ for env in ("Dev", "Prod"):
     for kind in ("Boundary", "ExecRole", "DeployRole"):
         if env + kind not in resources:
             problems.append(f"missing {env}{kind}")
+# R10: each environment may point only its own addresses at itself (the zone is shared).
+want_dns = {"Dev": ["dev.${DomainName}", "api-dev.${DomainName}", "ws-dev.${DomainName}"],
+            "Prod": ["${DomainName}", "api.${DomainName}", "ws.${DomainName}"]}
+for env, names in want_dns.items():
+    stmts = [st for pol in resources.get(f"{env}ExecRole", {}).get("Properties", {}).get("Policies", [])
+             for st in pol["PolicyDocument"]["Statement"] if st.get("Sid") == "DnsRecords"]
+    got = [n.get("Sub") for st in stmts for n in st["Condition"]["ForAllValues:StringEquals"]["route53:ChangeResourceRecordSetsNormalizedRecordNames"]]
+    if got != names:
+        problems.append(f"{env}ExecRole may change DNS names {got}, expected {names}")
 if problems:
     sys.exit("\n".join(problems))
 print(f"bootstrap ok: {len(resources)} resources, environments kept apart")
