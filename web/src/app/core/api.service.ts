@@ -18,7 +18,7 @@ export class ApiError extends Error {
   readonly code?: string;
 }
 
-/** Adds the signed-in user's access token to calls to the Team Hub API (and only to those). */
+/** Adds the signed-in user's access token to calls to the Teem Hub API (and only to those). */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const base = inject(APP_CONFIG).apiUrl;
   if (!base || !req.url.startsWith(base)) return next(req);
@@ -32,7 +32,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
 const enc = encodeURIComponent;
 
-/** The Team Hub REST API. Every method resolves with the response body or throws an ApiError. */
+/** The Teem Hub REST API. Every method resolves with the response body or throws an ApiError. */
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);

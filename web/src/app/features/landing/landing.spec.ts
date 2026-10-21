@@ -38,7 +38,7 @@ describe('landing page', () => {
     expect(links(el)).toContainEqual({ text: 'Contact', href: 'mailto:pilot@example.org' });
   });
 
-  it("doesn't promise things Team Hub doesn't do", () => {
+  it("doesn't promise things Teem Hub doesn't do", () => {
     const text = render(null).textContent!;
     expect(text).not.toMatch(/approve|birth date|address(es)? ,|every family is notified|player role/i);
   });

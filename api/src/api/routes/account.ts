@@ -69,7 +69,7 @@ export function accountRoutes(r: Router) {
     const invites = email ? await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `INVITE#${email}` } }) : [];
     return json(200, {
       exportedAt: now(),
-      about: "Everything Team Hub stores about you and your family. Teams' schedules, announcements and other families' records aren't included.",
+      about: "Everything Teem Hub stores about you and your family. Teams' schedules, announcements and other families' records aren't included.",
       account: profile ? clean(profile) : { sub: caller.sub },
       siteOwner: !!owner,
       clubAdminOf: adminOf.map((a) => clubOf(a)),

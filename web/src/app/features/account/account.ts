@@ -23,7 +23,7 @@ import { Page } from '../../shared/page';
 
     <section class="acct">
       <h3>Your data</h3>
-      <p class="small">Download a file with everything Team Hub keeps about you and your family: your account, teams and roles, your player's details, availability, travel, sizes and your fund entries.</p>
+      <p class="small">Download a file with everything Teem Hub keeps about you and your family: your account, teams and roles, your player's details, availability, travel, sizes and your fund entries.</p>
       <button class="btn sm" type="button" (click)="download()" [disabled]="busy()">Download my data</button>
       <p class="small muted" style="margin-top:8px">To correct or remove your player's details, ask your team coordinator. See the <a routerLink="/privacy">privacy notice</a>@if (me()?.privacy?.acceptedAt) {, which you accepted {{ acceptedOn() }}}.</p>
     </section>
@@ -62,7 +62,7 @@ export class Account extends Page {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `team-hub-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `teem-hub-my-data-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       this.notice.set('Your data is downloading.');
@@ -75,7 +75,7 @@ export class Account extends Page {
       // The sign-in no longer exists; clear this device too.
       await this.auth.logOut().catch(() => undefined);
       this.meSvc.me.set(null);
-      await this.go('/signin', { notice: 'Your account is deleted. Thank you for using Team Hub.' });
+      await this.go('/signin', { notice: 'Your account is deleted. Thank you for using Teem Hub.' });
     });
   }
 }

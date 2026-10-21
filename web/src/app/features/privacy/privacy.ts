@@ -15,13 +15,13 @@ import { PRIVACY_VERSION, RETENTION } from '@shared/privacy';
       <h2>Privacy notice</h2>
       <p class="small muted">Version {{ version }}</p>
 
-      <p>Team Hub is where youth sports teams keep their schedule, roster, travel and team fund. It's run by your club and its team volunteers. This page explains what it keeps about you and your children, who can see it, how long it's kept, and how to see or delete it.</p>
+      <p>Teem Hub is where youth sports teams keep their schedule, roster, travel and team fund. It's run by your club and its team volunteers. This page explains what it keeps about you and your children, who can see it, how long it's kept, and how to see or delete it.</p>
 
       <h3>What we keep</h3>
       <ul>
         <li><b>About you:</b> your name, email address, password (stored scrambled by our sign-in service), and your roles on each team.</li>
         <li><b>About your family, entered by you or your team coordinator:</b> your player's name, jersey and shirt numbers, hometown, food allergies, uniform sizes, availability for practices and events, travel plans for tournaments, meal sign-ups, and parents' names, phone numbers and emails.</li>
-        <li><b>Money:</b> dues and reimbursements recorded in the team fund. Team Hub never takes payments or card numbers; families pay the way the coordinator asks.</li>
+        <li><b>Money:</b> dues and reimbursements recorded in the team fund. Teem Hub never takes payments or card numbers; families pay the way the coordinator asks.</li>
         <li><b>Records kept automatically:</b> which account did what and when, and server logs of requests (including your internet address) for {{ r.logDays }} days.</li>
       </ul>
       <p>Children don't have accounts. Information about players is entered by their parents or the team's coordinators and coaches.</p>
@@ -61,9 +61,9 @@ import { PRIVACY_VERSION, RETENTION } from '@shared/privacy';
       </ul>
 
       <h3>Changes</h3>
-      <p>When this notice changes in a way that matters, you'll be asked to read it again the next time you open Team Hub.</p>
+      <p>When this notice changes in a way that matters, you'll be asked to read it again the next time you open Teem Hub.</p>
 
-      <div class="links"><a class="link" routerLink="/">Back to Team Hub</a></div>
+      <div class="links"><a class="link" routerLink="/">Back to Teem Hub</a></div>
     </article>`
 })
 export class Privacy {
