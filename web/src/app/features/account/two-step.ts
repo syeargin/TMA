@@ -48,7 +48,7 @@ export const groupKey = (s: string) => s.replace(/\s+/g, '').replace(/(.{4})/g, 
         <ol class="steps">
           <li>Open your authenticator app and add an account.</li>
           <li>Scan this code with it.
-            @if (qr()) { <img class="qr" [src]="qr()" width="200" height="200" alt="QR code to add Team Hub to your authenticator app"> }
+            @if (qr()) { <img class="qr" [src]="qr()" width="200" height="200" alt="QR code to add Teem Hub to your authenticator app"> }
             <span class="small muted">Can't scan? Choose "enter a setup key" (time-based) and type:</span>
             <code class="key" aria-label="Setup key">{{ key() }}</code>
             <a class="small" [href]="uri()">On this phone? Open it in your app</a>
@@ -103,7 +103,7 @@ export class TwoStep extends Page {
     this.confirmOff.set(false);
     return this.run(async () => {
       const email = (await this.auth.ensureUser())?.email ?? '';
-      const { secret, uri } = await this.auth.startTwoStep('Team Hub', email);
+      const { secret, uri } = await this.auth.startTwoStep('Teem Hub', email);
       this.key.set(groupKey(secret));
       this.uri.set(uri);
       // qrcode is CommonJS: its functions arrive under default.

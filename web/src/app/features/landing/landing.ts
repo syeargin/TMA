@@ -5,7 +5,7 @@ import { APP_CONFIG } from '../../core/config';
 import { HeaderService } from '../../core/header.service';
 
 /**
- * "/" — the public landing page for everyone: families, staff and clubs thinking about Team Hub.
+ * "/" — the public landing page for everyone: families, staff and clubs thinking about Teem Hub.
  * Signed-in people see "Your teams" where others see "Sign in". The app header is hidden here
  * (the page has its own navigation); see app.ts.
  */
@@ -22,7 +22,7 @@ export class Landing {
   /** Where "Request an invite" and "Contact" go (config.json contactEmail). Hidden until set. */
   readonly contact = this.cfg.contactEmail?.trim() || '';
   readonly inviteMail = this.contact
-    ? `mailto:${this.contact}?subject=${encodeURIComponent('Team Hub pilot invite')}&body=${encodeURIComponent('Club and team:\nYour role:\nRoughly how many families:\n')}`
+    ? `mailto:${this.contact}?subject=${encodeURIComponent('Teem Hub pilot invite')}&body=${encodeURIComponent('Club and team:\nYour role:\nRoughly how many families:\n')}`
     : '';
 
   constructor() {

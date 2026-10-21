@@ -29,7 +29,7 @@ export function toCalEvent(it: ScheduleItem, link: string): CalEvent {
   const base = {
     title: it.kind === 'practice' && !/practice/i.test(it.title) ? `${it.title} practice` : it.title,
     location: [it.location, courtLabel(it.court), it.address].filter(Boolean).join(', '),
-    details: [it.uniformColor ? `Practice uniform: ${it.uniformColor}` : '', it.note, `Team Hub: ${link}`].filter(Boolean).join('\n\n'),
+    details: [it.uniformColor ? `Practice uniform: ${it.uniformColor}` : '', it.note, `Teem Hub: ${link}`].filter(Boolean).join('\n\n'),
     uid: `${it.key}@a5-team-hub`
   };
   const allDay = { ...base, allDay: true, startDate: it.date, endDate: addDays(it.end || it.date, 1) };
@@ -58,7 +58,7 @@ export function toSeriesCalEvent(it: ScheduleItem, link: string, from = today())
   const series = e ? { ...it, title: e.title, time: timeText(e.time, e.endTime) || it.time, location: e.location || e.city || '', address: e.address, court: e.court, uniformColor: e.uniformColor, note: e.notes || '' } : it;
   const base = toCalEvent({ ...series, date: startDate, end: startDate, cancelled: false }, link);
   const changed = Object.entries(e?.overrides ?? {}).filter(([d, o]) => d >= startDate && Object.values(o).some(Boolean)).length;
-  if (changed) base.details = `${changed === 1 ? 'One date has' : `${changed} dates have`} its own time or details. Check Team Hub for the latest.\n\n${base.details}`;
+  if (changed) base.details = `${changed === 1 ? 'One date has' : `${changed} dates have`} its own time or details. Check Teem Hub for the latest.\n\n${base.details}`;
   const active = new Set(s.active);
   const exdates = s.dates.filter((d) => d > startDate && !active.has(d));
   let until: string;
@@ -110,7 +110,7 @@ function fold(line: string): string {
 /** An .ics file: Apple Calendar on iPhone and Mac, and desktop Outlook. */
 export function ics(e: CalEvent, now = new Date()): string {
   const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Team Hub//Team Hub//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Teem Hub//Teem Hub//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     'BEGIN:VEVENT', `UID:${e.uid}`, `DTSTAMP:${utc(now)}`,
     ...(e.allDay
       ? [`DTSTART;VALUE=DATE:${compact(e.startDate)}`, `DTEND;VALUE=DATE:${compact(e.endDate)}`]

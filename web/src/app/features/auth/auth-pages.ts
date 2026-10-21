@@ -147,7 +147,7 @@ export class Verify extends AuthPage {
   submit() {
     return this.run(async () => {
       const next = await this.auth.verifyEmail(this.email, this.form.getRawValue().code);
-      if (next === 'SIGNED_IN') return this.go('/teams', { notice: 'Email verified. Welcome to the Team Hub.' });
+      if (next === 'SIGNED_IN') return this.go('/teams', { notice: 'Email verified. Welcome to Teem Hub.' });
       return this.go('/signin', { notice: 'Email verified. Sign in to continue.' });
     });
   }

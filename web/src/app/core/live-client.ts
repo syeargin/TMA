@@ -1,4 +1,4 @@
-// Live updates over the Team Hub WebSocket. Framework-free, so it can be unit tested with a fake socket.
+// Live updates over the Teem Hub WebSocket. Framework-free, so it can be unit tested with a fake socket.
 //
 // The socket only carries short "something changed" notices ({type:"changed", teamId, collections}).
 // The page then re-reads through the REST API, so the API stays the single place that decides who

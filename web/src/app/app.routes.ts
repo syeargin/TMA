@@ -6,11 +6,11 @@ import { TeamHome } from './features/team/team-home';
 import { Narrow } from './layout/narrow';
 import { TeamShell } from './layout/team-shell';
 
-const T = (s: string) => `${s} · Team Hub`;
+const T = (s: string) => `${s} · Teem Hub`;
 
 export const routes: Routes = [
-  // Everyone lands here: families, staff and clubs thinking about Team Hub.
-  { path: '', pathMatch: 'full', title: "Team Hub: your team's season in one place", loadComponent: () => import('./features/landing/landing').then((m) => m.Landing) },
+  // Everyone lands here: families, staff and clubs thinking about Teem Hub.
+  { path: '', pathMatch: 'full', title: "Teem Hub: your team's season in one place", loadComponent: () => import('./features/landing/landing').then((m) => m.Landing) },
   {
     path: 'teams/:teamId', component: TeamShell, canActivate: [signedInGuard, privacyGuard],
     children: [

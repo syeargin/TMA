@@ -12,7 +12,7 @@ import { Page } from '../../shared/page';
   template: `
     <h2>Before you continue</h2>
     <th-messages [error]="error()" [notice]="notice()" />
-    <p>Please read how Team Hub handles your family's information.</p>
+    <p>Please read how Teem Hub handles your family's information.</p>
     <ul class="small" style="margin:10px 0 14px;padding-left:18px;display:grid;gap:4px">
       <li>Your team sees the schedule, roster names and who's coming. Allergies, travel plans, sizes and each family's dues are kept to your family and the staff who need them.</li>
       <li>Other families see your phone and email only if you choose to share them.</li>
