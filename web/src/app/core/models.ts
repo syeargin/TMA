@@ -26,12 +26,15 @@ export interface ClubTeam {
 }
 /** POST …/import: a preview (applied false) or the result of saving one part. */
 export interface ImportProblem { sheet: string; row?: number; message: string; level: 'error' | 'warning' }
+export interface ImportInvite { email: string; name: string; roles: string[]; player: string; status: 'new' | 'member'; flags: string[] }
 export interface ImportTeamSummary {
   teamId: string; name: string; status: 'new' | 'update';
   players: { add: number; update: number; kept: number };
   events: { add: number; update: number };
   practices: number | null;
-  invites: { staff: number; parents: number; alreadyOnTeam: number };
+  invites: { staff: number; parents: number; alreadyOnTeam: number; flagged?: number };
+  /** Every address the import would invite, flagged ones first (R30). */
+  inviteList?: ImportInvite[];
   lists: string[];
   copiedFrom?: string;
 }
@@ -46,7 +49,7 @@ export interface ImportResult {
 export interface ClubAdmin { sub: string; email: string; firstName?: string; lastName?: string; /** Two-step sign-in on: their admin tools work. */ mfa?: boolean }
 export interface ClubDetail { club: Club; teams: ClubTeam[]; admins: ClubAdmin[]; invites: { email: string; firstName?: string; lastName?: string }[] }
 export interface Member { sub?: string; email?: string; firstName?: string; lastName?: string; person?: string; roles: Role[]; pid?: string; status?: string }
-export interface Invite { email: string; firstName?: string; lastName?: string; roles?: Role[]; pid?: string }
+export interface Invite { email: string; firstName?: string; lastName?: string; roles?: Role[]; pid?: string; /** Past its date: can no longer be accepted (R30). */ expired?: boolean }
 
 export interface Coach { name: string; phone?: string }
 export interface Practice {

@@ -177,6 +177,16 @@ main.narrow{max-width:480px}
 .imp-table th,.imp-table td{border-bottom:0}
 .imp-table tbody tr:last-child>*{border-bottom:1px solid var(--line-2)}
 .import-row{margin-top:18px}
+/* R30: every address an import invites, flagged ones first */
+.invites-check{border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;margin:10px 0}
+.invites-check summary{cursor:pointer;font-size:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.inv-list{list-style:none;margin:8px 0 0;padding:0;max-height:360px;overflow:auto}
+.inv-list li{padding:7px 0;border-top:1px solid var(--line-2)}
+.inv-list li.flagged{background:var(--warn-soft);margin:0 -8px;padding:7px 8px;border-radius:6px}
+.inv-list li.member .inv-email{color:var(--ink-3)}
+.inv-main{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.inv-email{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;overflow-wrap:anywhere}
+.inv-flag{color:var(--warn);margin-top:2px}
 .progress{display:flex;flex-direction:column;gap:6px;margin:10px 0}
 .progress .bar{height:8px;border-radius:99px;background:var(--sunken);overflow:hidden}
 .progress .bar span{display:block;height:100%;background:var(--navy);transition:width .3s}

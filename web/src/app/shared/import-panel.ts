@@ -1,7 +1,8 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { ApiService } from '../core/api.service';
 import { explain } from '../core/errors';
-import type { ImportProblem, ImportResult, ImportTeamSummary } from '../core/models';
+import type { ImportInvite, ImportProblem, ImportResult, ImportTeamSummary } from '../core/models';
+import { roleList } from './roles';
 import { readWorkbook, workbookKind, type Sheets } from '../core/xlsx';
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
@@ -34,7 +35,11 @@ export class ImportPanel {
   readonly progress = signal<{ done: number; total: number; label: string } | null>(null);
 
   readonly errors = computed(() => (this.preview()?.problems ?? []).filter((p) => p.level === 'error'));
-  readonly warnings = computed(() => (this.preview()?.problems ?? []).filter((p) => p.level === 'warning'));
+  /** Addresses flagged in a team's invite list (R30): shown there, so not repeated in the warnings. */
+  private readonly flaggedEmails = computed(() => new Set((this.preview()?.teams ?? []).flatMap((t) => (t.inviteList ?? []).filter((i) => i.flags.length).map((i) => i.email))));
+  readonly warnings = computed(() => (this.preview()?.problems ?? []).filter((p) => p.level === 'warning' && !this.flaggedEmails().has(p.message.split(':')[0])));
+  readonly roleList = roleList;
+  newInvites(t: ImportTeamSummary): ImportInvite[] { return (t.inviteList ?? []).filter((i) => i.status === 'new'); }
   readonly needsTeamId = computed(() => !this.teamId() && this.kind() === 'team');
   readonly canImport = computed(() => !!this.preview() && !this.errors().length && !!this.preview()?.teams?.length && !this.busy());
   readonly importLabel = computed(() => {

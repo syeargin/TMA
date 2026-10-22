@@ -127,7 +127,7 @@ describe("team import", () => {
       // Dana is already on the team; Kim is staff and a parent (one invite, both roles); Bo has two players.
       invites: { staff: 2, parents: 2, alreadyOnTeam: 1 }
     });
-    expect(prev.body.problems.some((p: any) => /bo.cole@example.com is a parent of more than one player/.test(p.message))).toBe(true);
+    expect(prev.body.problems.some((p: any) => /bo.cole@example.com: .*parent of 2 players/.test(p.message))).toBe(true);
     expect((await partition("test-15")).length).toBe(before);
 
     const done = await boss("POST", "/teams/test-15/import", { sheets: TEAM, apply: true });
@@ -243,5 +243,55 @@ describe("club import", () => {
     expect(made.status).toBe(200);
     expect(made.body.teams[0]).toMatchObject({ teamId: "test-15c", status: "new" });
     expect((await boss("GET", "/teams/test-15c")).body.clubId).toBe("test");
+  });
+});
+
+describe("checking invite addresses before an import (R30)", () => {
+  const clone = () => JSON.parse(JSON.stringify(TEAM));
+  const cell = (sheets: any, first: string, col: string) => {
+    const head = sheets.Roster[0] as string[];
+    return { row: sheets.Roster.find((r: any[]) => r[1] === first), i: head.indexOf(col) };
+  };
+  const set = (sheets: any, first: string, col: string, v: string) => { const c = cell(sheets, first, col); c.row[c.i] = v; };
+  const preview = (sheets: unknown) => boss("POST", "/clubs/test/import", { sheets, teamId: "test-30" });
+
+  it("lists every address with its role and player, and flags likely typos", async () => {
+    await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.invite("bo.cole@example.com", "rivals-14"), ...keys.inviteGsi("bo.cole@example.com", "rivals-14"), type: "Invite", teamId: "rivals-14", email: "bo.cole@example.com", roles: ["parent"], ttl: Math.floor(Date.now() / 1000) + 86400 } }));
+    const sheets = clone();
+    set(sheets, "June", "Parent 1 email *", "ana.hale@gmial.com");
+    set(sheets, "Ivy", "Parent 2 email", "kim.ruiz@exampel.com");
+    set(sheets, "Ivy", "Parent 2 invite", "Y");
+    const r = await preview(sheets);
+    expect(r.status).toBe(200);
+    const t = r.body.teams[0];
+    const by = Object.fromEntries(t.inviteList.map((i: any) => [i.email, i]));
+    expect(by["dana.fox@example.com"]).toMatchObject({ roles: ["admin", "coach"], status: "new", flags: [] });
+    expect(by["kim.ruiz@example.com"]).toMatchObject({ roles: ["finance", "parent"], player: "Ivy Ruiz", status: "new" });
+    expect(by["ana.hale@gmial.com"].flags.join(" ")).toMatch(/did you mean ana\.hale@gmail\.com/);
+    expect(by["kim.ruiz@exampel.com"].flags.join(" ")).toMatch(/Looks a lot like kim\.ruiz@example\.com/);
+    expect(by["bo.cole@example.com"].flags.join(" ")).toMatch(/parent of 2 players.*Already invited to rivals-14/);
+    expect(t.invites.flagged).toBe(4); // kim.ruiz@example.com looks like the misspelt one too
+    expect(t.inviteList.slice(0, t.invites.flagged).every((i: any) => i.flags.length)).toBe(true);
+    const flagged = r.body.problems.filter((p: any) => /gmial|exampel/.test(p.message));
+    expect(flagged).toHaveLength(3); // both typos, and the real address they look like
+    expect(flagged.every((p: any) => p.level === "warning")).toBe(true);
+  });
+
+  it("imported invites expire after 14 days; an expired invite is never accepted", async () => {
+    const r = await boss("POST", "/clubs/test/import", { sheets: clone(), teamId: "test-30", apply: "test-30" });
+    expect(r.status).toBe(200);
+    const inv = (await ddb.send(new QueryCommand({ TableName: TABLE, KeyConditionExpression: "PK = :p AND SK = :s", ExpressionAttributeValues: { ":p": "INVITE#ana.hale@example.com", ":s": "TEAM#test-30" } }))).Items![0];
+    const days = (Number(inv.ttl) - Date.now() / 1000) / 86400;
+    expect(days).toBeGreaterThan(13.9);
+    expect(days).toBeLessThan(14.1);
+    expect(inv.source).toBe("import");
+
+    // Past its date but not yet removed by DynamoDB: listed as expired, and not accepted.
+    await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...inv, ttl: Math.floor(Date.now() / 1000) - 60 } }));
+    const list = (await boss("GET", "/teams/test-30/invites")).body.invites;
+    expect(list.find((i: any) => i.email === "ana.hale@example.com").expired).toBe(true);
+    expect(list.find((i: any) => i.email === "dana.fox@example.com").expired).toBeUndefined();
+    const me = (await call("GET", "/me", "u-ana", undefined, "ana.hale@example.com")).body;
+    expect(me.teams.map((x: any) => x.teamId)).not.toContain("test-30");
   });
 });

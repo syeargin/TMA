@@ -105,6 +105,15 @@ export class Members extends Page {
   }
 
   removeMember(sub: string) { return this.confirmThen(`member:${sub}`, 'Removed from the team.', () => this.api.removeMember(this.store.teamId(), sub)); }
+  /** An expired invite (R30) can't be accepted; inviting the address again gives it a fresh 60 days. */
+  resend(i: Invite) {
+    return this.run(async () => {
+      await this.api.invite(this.store.teamId(), { email: i.email, firstName: i.firstName || undefined, lastName: i.lastName || undefined, roles: i.roles ?? ['parent'], pid: i.pid || undefined });
+      this.notice.set(`Invited ${i.email} again.`);
+      await this.loadInvites();
+    });
+  }
+
   cancelInvite(email: string) { return this.confirmThen(`invite:${email}`, 'Invite cancelled.', () => this.api.cancelInvite(this.store.teamId(), email)); }
 
   private confirmThen(key: string, done: string, action: () => Promise<unknown>) {

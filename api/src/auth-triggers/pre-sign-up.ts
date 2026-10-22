@@ -2,6 +2,7 @@ import type { PreSignUpTriggerHandler } from "aws-lambda";
 import { QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE } from "../lib/db.js";
 import { platformEmails } from "../lib/clubs.js";
+import { isExpired } from "../lib/invites.js";
 import { emailSet, keys, normEmail } from "../lib/keys.js";
 
 /** Message shown on the sign-up screen (Cognito prefixes it; the page strips the prefix). */
@@ -21,13 +22,13 @@ export const handler: PreSignUpTriggerHandler = async (event) => {
 
   if (emailSet(process.env.CLUB_ADMIN_EMAILS).has(email) || platformEmails().has(email)) return event;
 
+  // Only an invite that hasn't expired counts (R30).
   const res = await ddb.send(new QueryCommand({
     TableName: TABLE,
     KeyConditionExpression: "PK = :pk",
-    ExpressionAttributeValues: { ":pk": keys.invitePrefix(email) },
-    Limit: 1
+    ExpressionAttributeValues: { ":pk": keys.invitePrefix(email) }
   }));
 
-  if (!res.Items?.length) throw new Error(NOT_INVITED);
+  if (!(res.Items ?? []).some((i) => !isExpired(i))) throw new Error(NOT_INVITED);
   return event;
 };

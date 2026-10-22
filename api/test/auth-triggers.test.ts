@@ -125,3 +125,13 @@ describe("post-confirmation", () => {
     expect(ddbMock.calls()).toHaveLength(0);
   });
 });
+
+describe("expired invites (R30)", () => {
+  it("pre-sign-up refuses an email whose only invite has expired", async () => {
+    const past = Math.floor(Date.now() / 1000) - 60, future = past + 86400;
+    ddbMock.on(QueryCommand).resolves({ Items: [{ PK: "INVITE#late@example.com", SK: "TEAM#t1", ttl: past }] });
+    await expect(preSignUp(preEvent("late@example.com"), ctx, noop)).rejects.toThrow(NOT_INVITED);
+    ddbMock.on(QueryCommand).resolves({ Items: [{ PK: "INVITE#late@example.com", SK: "TEAM#t1", ttl: past }, { PK: "INVITE#late@example.com", SK: "TEAM#t2", ttl: future }] });
+    await expect(preSignUp(preEvent("late@example.com"), ctx, noop)).resolves.toBeTruthy();
+  });
+});
