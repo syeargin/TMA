@@ -78,7 +78,8 @@
       <div class="card-b">
         @for (i of invites(); track i.email) {
           <div class="li">
-            <div class="grow"><b>{{ fullName(i) || i.email }}</b>@if (fullName(i)) { <div class="small muted">{{ i.email }}</div> }<div class="small muted">{{ roleList(i.roles) }}@if (i.pid) { · family: {{ playerLabel(i.pid) }}}</div></div>
+            <div class="grow"><b>{{ fullName(i) || i.email }}</b>@if (i.expired) { <span class="pill p-warn">Expired</span> }@if (fullName(i)) { <div class="small muted">{{ i.email }}</div> }<div class="small muted">{{ roleList(i.roles) }}@if (i.pid) { · family: {{ playerLabel(i.pid) }}}</div></div>
+            @if (i.expired) { <button class="link-btn small" type="button" (click)="resend(i)" [disabled]="busy()">Send again</button> }
             <button class="link-btn small" type="button" [class.confirm]="confirming() === 'invite:' + i.email" (click)="cancelInvite(i.email)">
               {{ confirming() === 'invite:' + i.email ? 'Tap again to confirm' : 'Cancel' }}
             </button>

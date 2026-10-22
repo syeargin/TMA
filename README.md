@@ -371,6 +371,16 @@ How it works:
 
 Tests: `api/test/import/`. The sample workbooks there are made by `make-samples.py`, then read the way the browser reads them by `to-json.mjs`.
 
+### Checking invite addresses (R30)
+
+The import preview lists every address it would invite, with the person's name, roles and player, flagged ones first, so a typo can't quietly invite a stranger. Flags are warnings, so the admin can still apply:
+- **Misspelt domains**, such as `gmial.com`, `yaho.com` and `gmail.con`, with a suggested fix (`lib/import/email-check.ts`).
+- **Near-duplicates:** an address within two typos of another one in the file, on the team, or already invited to it.
+- **One address listed as a parent of several players.**
+- **A parent already invited to another team.** Staff often run several teams, so they aren't flagged for this.
+
+Imported invites expire after **14 days**; invites sent from the Members page last 60. An invite past its date is never accepted, even before DynamoDB's TTL removes it (it can take a day or two): sign-up, sign-in and `GET /me` all check the date. The Members page marks it **Expired** with a **Send again** button.
+
 ## Importing a team from the claude.ai hub
 
 1. Export the hub's database for the team as JSON files (`teams/<t>.json` and `teams/<t>/<collection>/<doc>.json`).

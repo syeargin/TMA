@@ -5,6 +5,7 @@ import { loadAccess } from "../context.js";
 import { conflict, json, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { checkId, clean, deleteItem, getItem, now, optStr, putItem, queryAll } from "../util.js";
+import { isExpired } from "../../lib/invites.js";
 
 const roles = z.array(z.enum(ROLES)).min(1).max(ROLES.length).transform((r) => [...new Set(r)]);
 const inviteSchema = z.object({
@@ -37,7 +38,8 @@ export function peopleRoutes(r: Router) {
       KeyConditionExpression: "GSI1PK = :t AND begins_with(GSI1SK, :i)",
       ExpressionAttributeValues: { ":t": `TEAM#${a.teamId}`, ":i": "INVITE#" }
     });
-    return json(200, { invites: items.map((i) => clean(i)) });
+    // Expired invites can't be accepted any more (R30); show them as expired until DynamoDB removes them.
+    return json(200, { invites: items.map((i) => ({ ...clean(i), ...(isExpired(i) ? { expired: true } : {}) })) });
   });
 
   /** Invites an email to this team. People who already have an account get it the next time they open the app. */

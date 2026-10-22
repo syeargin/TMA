@@ -81,6 +81,27 @@
           </div>
         }
 
+        @for (t of p.teams ?? []; track t.teamId) {
+          @if (t.inviteList?.length) {
+            <details class="invites-check" [open]="!!t.invites.flagged">
+              <summary>
+                <b>Who gets invited{{ (p.teams?.length ?? 0) > 1 ? ' to ' + t.name : '' }}</b> · {{ plural(newInvites(t).length, 'address', 'addresses') }}
+                @if (t.invites.flagged) { <span class="pill p-warn">{{ t.invites.flagged }} to check</span> }
+              </summary>
+              <p class="small muted">Read each address before applying. Whoever owns an address gets that role (and, for parents, sees that player's family details) once they sign up. Imported invites expire after 14 days.</p>
+              <ul class="inv-list">
+                @for (i of t.inviteList; track i.email) {
+                  <li [class.flagged]="i.flags.length" [class.member]="i.status === 'member'">
+                    <div class="inv-main"><span class="inv-email">{{ i.email }}</span>
+                      <span class="small muted">@if (i.name) { {{ i.name }} · }{{ roleList(i.roles) }}@if (i.player) { · {{ i.player }} }@if (i.status === 'member') { · already on the team }</span></div>
+                    @for (f of i.flags; track $index) { <div class="inv-flag small">⚠ {{ f }}</div> }
+                  </li>
+                }
+              </ul>
+            </details>
+          }
+        }
+
         @if (warnings().length) {
           <details class="problems warn" [open]="warnings().length <= 5">
             <summary>{{ plural(warnings().length, 'thing') }} to check (these won't stop the import)</summary>

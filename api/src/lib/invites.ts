@@ -2,8 +2,14 @@ import { QueryCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE } from "./db.js";
 import { keys, normEmail } from "./keys.js";
 
-type Invite = { PK: string; SK: string; teamId?: string; clubId?: string; person?: string; firstName?: string; lastName?: string; pid?: string; roles?: string[]; invitedBy?: string };
+type Invite = { PK: string; SK: string; ttl?: number; teamId?: string; clubId?: string; person?: string; firstName?: string; lastName?: string; pid?: string; roles?: string[]; invitedBy?: string };
 type TxItem = NonNullable<ConstructorParameters<typeof TransactWriteCommand>[0]["TransactItems"]>[number];
+
+/**
+ * An invite past its date. DynamoDB deletes expired items on its own schedule (it can take a day or
+ * two), so the date is checked here too: an expired invite is never accepted (R30, R16).
+ */
+export const isExpired = (i: { ttl?: unknown }, nowSec = Date.now() / 1000) => Number(i.ttl) > 0 && Number(i.ttl) < nowSec;
 
 /** Every invite waiting for this email: team invites (SK TEAM#<t>) and club admin invites (SK CLUB#<c>). */
 export async function pendingInvites(email: string): Promise<Invite[]> {
@@ -16,7 +22,7 @@ export async function pendingInvites(email: string): Promise<Invite[]> {
       ExpressionAttributeValues: { ":pk": keys.invitePrefix(email) },
       ExclusiveStartKey: startKey
     }));
-    out.push(...((res.Items ?? []) as Invite[]));
+    out.push(...((res.Items ?? []) as Invite[]).filter((i) => !isExpired(i)));
     startKey = res.LastEvaluatedKey;
   } while (startKey);
   return out;

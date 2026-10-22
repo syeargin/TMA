@@ -13,9 +13,11 @@ import { getItem, newId, now, queryAll } from "../../api/util.js";
 import type { Role } from "../../shared/permissions.js";
 import { convertPractices, firstOnOrAfter, practiceEvent, seasonEnd } from "../practices.js";
 import { eventKey, playerName, type ClubPlan, type Problem, type TeamPlan } from "./parse.js";
+import { domainTypo, lookAlikes } from "./email-check.js";
 
 export const DEFAULT_CHECKLIST = ["Court shoes", "Extra pair of socks", "Knee and elbow pads", "2 pairs of spandex", "Both jerseys", "Warmups", "Hair ties, ribbons, brush", "Volleyball backpack", "Water bottle", "Snacks", "Lunch"];
-const INVITE_DAYS = 60;
+/** Imported invites expire sooner than ones sent from the Members page (60 days): a mistyped address can't wait for long (R30). */
+export const IMPORT_INVITE_DAYS = 14;
 
 type Item = Record<string, unknown>;
 export type TeamSummary = {
@@ -23,10 +25,27 @@ export type TeamSummary = {
   players: { add: number; update: number; kept: number };
   events: { add: number; update: number };
   practices: number | null;
-  invites: { staff: number; parents: number; alreadyOnTeam: number };
+  invites: { staff: number; parents: number; alreadyOnTeam: number; flagged: number };
+  /** Every address the import would invite (R30), flagged ones first, so the admin can read them before applying. */
+  inviteList: InvitePreview[];
   lists: string[];
   copiedFrom?: string;
 };
+
+export type InvitePreview = {
+  email: string; name: string; roles: Role[]; player: string;
+  /** "new": invited by this import; "member": already on the team, nothing sent. */
+  status: "new" | "member";
+  /** Plain-language reasons to double-check this address. */
+  flags: string[];
+};
+
+/** Team ids where this address already has an invite waiting (not counting `teamId`). */
+async function invitedElsewhere(email: string, teamId: string): Promise<string[]> {
+  const items = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :t)", ExpressionAttributeValues: { ":p": keys.invitePrefix(email), ":t": "TEAM#" } });
+  const nowSec = Date.now() / 1000;
+  return items.filter((i) => !(Number(i.ttl) && Number(i.ttl) < nowSec)).map((i) => String(i.SK).slice(5)).filter((t) => t !== teamId);
+}
 
 /** Removes undefined values (DynamoDB rejects them) and empty strings for optional fields. */
 function defined<T extends Item>(o: T): T {
@@ -232,37 +251,66 @@ export async function importTeam(opts: {
   // ---------- people ----------
   const members = saved.filter((i) => String(i.SK).startsWith("MEMBER#") && i.status === "active");
   const memberEmails = new Set(members.map((m) => normEmail(String(m.email ?? ""))));
-  type Inv = { email: string; firstName: string; lastName: string; roles: Set<Role>; pid?: string; staff: boolean };
+  type Inv = { email: string; firstName: string; lastName: string; roles: Set<Role>; pid?: string; staff: boolean; rows: { sheet: string; row: number }[]; pids: Set<string> };
   const invites = new Map<string, Inv>();
-  const add = (email: string, firstName: string, lastName: string, roles: Role[], pid: string | undefined, staff: boolean) => {
-    const cur = invites.get(email) ?? { email, firstName, lastName, roles: new Set<Role>(), pid: undefined, staff };
+  const add = (email: string, firstName: string, lastName: string, roles: Role[], pid: string | undefined, staff: boolean, at: { sheet: string; row: number }) => {
+    const cur = invites.get(email) ?? { email, firstName, lastName, roles: new Set<Role>(), pid: undefined, staff, rows: [], pids: new Set<string>() };
     roles.forEach((r) => cur.roles.add(r));
     cur.pid ??= pid;
+    if (pid) cur.pids.add(pid);
     cur.staff ||= staff;
+    cur.rows.push(at);
     invites.set(email, cur);
   };
-  for (const s of t.staff) add(s.email, s.first, s.last, s.roles, undefined, true);
+  for (const s of t.staff) add(s.email, s.first, s.last, s.roles, undefined, true, { sheet: s.sheet, row: s.row });
   for (const p of t.players) {
     for (const par of p.parents) {
       if (!par.invite || !par.email) continue;
       const [first, ...last] = par.name.split(/\s+/);
-      const existing = invites.get(par.email);
-      if (existing?.pid && existing.pid !== pidOfRow.get(p.row)) {
-        problems.push({ sheet: p.sheet, row: p.row, level: "warning", message: `${par.email} is a parent of more than one player. Their account answers for the first one; a team admin can change that on the Members page.` });
-      }
-      add(par.email, first ?? "", last.join(" "), ["parent"], pidOfRow.get(p.row), false);
+      add(par.email, first ?? "", last.join(" "), ["parent"], pidOfRow.get(p.row), false, { sheet: p.sheet, row: p.row });
     }
   }
-  const counts = { staff: 0, parents: 0, alreadyOnTeam: 0 };
+  const counts = { staff: 0, parents: 0, alreadyOnTeam: 0, flagged: 0 };
+  // R30: check each address before anyone is invited. Compared with everyone in this import, people
+  // already on the team, and invites already waiting for this team.
+  const waiting = isNew ? [] : (await queryAll({
+    IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :t AND begins_with(GSI1SK, :i)",
+    ExpressionAttributeValues: { ":t": `TEAM#${t.teamId}`, ":i": "INVITE#" }
+  })).map((i) => normEmail(String(i.email ?? "")));
+  const known = new Set([...invites.keys(), ...memberEmails, ...waiting].filter(Boolean));
+  const playerLabel = new Map(t.players.map((p) => [pidOfRow.get(p.row), [p.first, p.last].filter(Boolean).join(" ")]));
+  const inviteList: InvitePreview[] = [];
   for (const inv of invites.values()) {
-    if (memberEmails.has(inv.email)) { counts.alreadyOnTeam++; continue; }
+    const member = memberEmails.has(inv.email);
+    const flags: string[] = [];
+    if (!member) {
+      const typo = domainTypo(inv.email);
+      if (typo) flags.push(`Check the spelling: did you mean ${typo}?`);
+      const alike = lookAlikes(inv.email, known);
+      if (alike.length) flags.push(`Looks a lot like ${alike.slice(0, 2).join(" and ")}. Same person, or a typo?`);
+      if (inv.pids.size > 1) flags.push(`Listed as a parent of ${inv.pids.size} players. Their account answers for the first one.`);
+      // Staff often run several teams; for parents, another team is worth a second look.
+      const elsewhere = inv.staff ? [] : await invitedElsewhere(inv.email, t.teamId);
+      if (elsewhere.length) flags.push(`Already invited to ${elsewhere.slice(0, 3).join(", ")}${elsewhere.length > 3 ? " and more" : ""}.`);
+    }
+    if (flags.length) {
+      counts.flagged++;
+      const first = inv.rows[0];
+      problems.push({ sheet: first.sheet, row: first.row, level: "warning", message: `${inv.email}: ${flags.join(" ")}` });
+    }
+    inviteList.push({
+      email: inv.email, name: [inv.firstName, inv.lastName].filter(Boolean).join(" "), roles: [...inv.roles],
+      player: inv.pid ? playerLabel.get(inv.pid) ?? "" : "", status: member ? "member" : "new", flags
+    });
+    if (member) { counts.alreadyOnTeam++; continue; }
     if (inv.staff) counts.staff++; else counts.parents++;
     puts.push(defined({
       ...keys.invite(inv.email, t.teamId), ...keys.inviteGsi(inv.email, t.teamId),
       type: "Invite", teamId: t.teamId, email: inv.email, roles: [...inv.roles], person: "", firstName: inv.firstName, lastName: inv.lastName, pid: inv.pid ?? "",
-      invitedBy: by, at, ttl: Math.floor(Date.now() / 1000) + INVITE_DAYS * 86400
+      invitedBy: by, at, ttl: Math.floor(Date.now() / 1000) + IMPORT_INVITE_DAYS * 86400, source: "import"
     }));
   }
+  inviteList.sort((a, b) => Number(b.flags.length > 0) - Number(a.flags.length > 0) || Number(a.status === "member") - Number(b.status === "member") || a.email.localeCompare(b.email));
   // Keep the club's team list in step with the settings.
   const savedDir = await getItem(keys.teamDir(clubId, t.teamId));
   const dir = defined({
@@ -273,7 +321,7 @@ export async function importTeam(opts: {
 
   const summary: TeamSummary = {
     teamId: t.teamId, name: String(settings.teamName ?? t.teamId), status: isNew ? "new" : "update",
-    players, events, practices: t.practices ? t.practices.length : copiedPractices.length || null, invites: counts, lists, copiedFrom
+    players, events, practices: t.practices ? t.practices.length : copiedPractices.length || null, invites: counts, inviteList, lists, copiedFrom
   };
   if (!write) return summary;
 
@@ -330,7 +378,7 @@ export async function importClub(opts: { clubId: string; plan: ClubPlan; by: str
     puts.push({
       ...keys.clubInvite(a.email, clubId), ...keys.clubInviteGsi(a.email, clubId),
       type: "ClubInvite", clubId, email: a.email, role: "clubAdmin", firstName: a.firstName, lastName: a.lastName,
-      invitedBy: by, at, ttl: Math.floor(Date.now() / 1000) + INVITE_DAYS * 86400
+      invitedBy: by, at, ttl: Math.floor(Date.now() / 1000) + IMPORT_INVITE_DAYS * 86400, source: "import"
     });
   }
   await putMany(puts);
