@@ -20,7 +20,7 @@ CHOICES={
  "Repeats":["None","Weekly","Every 2 weeks","Every 3 weeks"],
  "Shirts":["Youth S","Youth M","Youth L","Youth XL","Adult XS","Adult S","Adult M","Adult L","Adult XL","Adult 2XL"],
  "RefGroups":["A","B"],
- "Lists":["Packing checklist","Uniform items","Practice uniform colors"],
+ "Lists":["Packing checklist","Uniform items","Practice uniform colors","Handbook section"],
  "Programs":["National","Regional","Boys"],
  "DefaultKinds":["Handbook section","Packing checklist","Uniform items","Practice uniform colors"],
 }
@@ -56,7 +56,7 @@ def sheet(wb, title, cols, example, rule_kinds):
         c=ws.cell(1,i,h+(" *" if req else ""))
         c.font=F(bold=True,color="FFFFFF"); c.fill=REQ_FILL if req else HDR_FILL
         c.alignment=Alignment(wrap_text=True, vertical="center")
-        if note: c.comment=Comment(note, "Team Hub")
+        if note: c.comment=Comment(note, "Teem Hub")
         ws.column_dimensions[get_column_letter(i)].width=w
     ws.row_dimensions[1].height=32
     for i,v in enumerate(example,1):
@@ -163,7 +163,7 @@ def readme(wb, title, intro, tabs, extra):
     for t in ["You see a preview first: what will be created, and each problem by tab and row. Nothing is saved until you confirm.",
               "Uploading again updates what's there instead of adding duplicates. Teams match on Team ID, players on jersey or name, events on type, date and title, people on email. Blank cells keep what's saved.",
               "Nothing is removed: players, events and people already on a team but not in the workbook stay, and so do answers, payments and travel plans families entered.",
-              "Each person marked for an invite gets the right role, linked to their player, as soon as they sign in or create an account with that email. Team Hub doesn't email them yet, so let them know."]:
+              "Each person marked for an invite gets the right role, linked to their player, as soon as they sign in or create an account with that email. Teem Hub doesn't email them yet, so let them know."]:
         c=ws.cell(r,1,"•"); c.font=F(); c.alignment=Alignment(horizontal="right",vertical="top")
         c=ws.cell(r,2,t); c.font=F(); c.alignment=Alignment(wrap_text=True); r+=1
     ws.sheet_view.showGridLines=False
@@ -171,10 +171,10 @@ def readme(wb, title, intro, tabs, extra):
 
 # ================= TEAM WORKBOOK =================
 wb=Workbook(); add_choices(wb)
-readme(wb,"Team setup","Fill in this workbook to set up one team in Team Hub: who's on it, its staff and practices, and its season schedule. Club admins upload it from the team's Members page, or from the club page to create a new team.",
+readme(wb,"Team setup","Fill in this workbook to set up one team in Teem Hub: who's on it, its staff and practices, and its season schedule. Club admins upload it from the team's Members page, or from the club page to create a new team.",
  [("Team","One row: the team's name, season and fund settings.","A"),("Staff","One row per coach, coordinator or other staff member.","C"),
   ("Roster","One row per player, with up to four parents.","B"),("Practices","One row per practice series: weekly, every 2 weeks or every 3 weeks.","A"),
-  ("Schedule","One row per tournament, team event, deadline or one-off practice.","B"),("Lists","Optional: packing checklist, uniform items and practice uniform colors.","B")],[])
+  ("Schedule","One row per tournament, team event, deadline or one-off practice.","B"),("Lists","Optional: packing checklist, uniform items, practice uniform colors and handbook sections.","A")],[])
 sheet(wb,"Team",[("Team name",True,18,None),("Season",True,10,"Like 2026-27."),("Age group",True,10,"Like 13U."),("Level / division",False,14,None),
  ("Team code",False,16,"The tournament registration code, shown on game-day pages."),("Dues amount",False,12,"Each family's team fund deposit, in dollars."),
  ("Dues due date",False,13,None),("Dues label",False,24,None),("Meal cost per person",False,12,"For the tournament meal budget."),("Meals per day",False,10,None),("People fed",False,10,"Players plus coaches.")],
@@ -184,18 +184,20 @@ sheet(wb,"Staff",STAFF,STAFF_EX,STAFF_RULES)
 sheet(wb,"Roster",ROSTER,ROSTER_EX,ROSTER_RULES)
 sheet(wb,"Practices",PRACTICE,PRACTICE_EX,PRACTICE_RULES)
 sheet(wb,"Schedule",SCHED+SCHED_FAMILY+SCHED_REPEAT+SCHED_PRACTICE,SCHED_EX+["Not needed","Not needed","None","","","Schedules post the Wednesday before.","","","285 Andrew Young International Blvd NW, Atlanta, GA 30313",""],SCHED_RULES)
-sheet(wb,"Lists",[("List",True,20,None),("Item",True,40,None)],["Packing checklist","Knee and elbow pads"],{"List":("list","Lists")})
+# Title is for handbook sections. Lists given here replace the team's list of that kind.
+sheet(wb,"Lists",[("List",True,20,None),("Item",True,40,"The item, or for a handbook section its text."),("Title",False,24,"For handbook sections.")],["Packing checklist","Knee and elbow pads",""],{"List":("list","Lists")})
 wb.move_sheet("Choices", offset=len(wb.sheetnames))
 wb.save("web/public/templates/Team-Setup-Template.xlsx")
 
 # ================= CLUB WORKBOOK =================
 wb=Workbook(); add_choices(wb)
-readme(wb,"Club setup","Fill in this workbook to set up a whole club in Team Hub at once: the club's look and links, every team, its staff and roster, practices by age group and the tournaments teams share. Club admins and site owners upload it from the club page.",
+readme(wb,"Club setup","Fill in this workbook to set up a whole club in Teem Hub at once: the club's look and links, every team, its staff and roster, practices by age group and the tournaments teams share. Club admins and site owners upload it from the club page.",
  [("Club","One row: the club's name, colors and notes for every team.","A"),("Club links","Links every team sees on Team Info.","A"),
   ("Club admins","People who run the club; they get club-admin invites.","C"),("Teams","One row per team. Every other tab refers to teams by Team ID.","A"),
   ("Staff","One row per person per team. A coach on two teams has two rows.","A"),("Rosters","One row per player, all teams together.","A"),
   ("Practice patterns","One row per practice series, for a team or a whole group.","A"),("Shared schedule","Tournaments and events, each listed once for all the teams going.","A"),
-  ("Defaults","Optional: the starting handbook, lists and practice uniform colors for every team.","A")],
+  ("Defaults","Optional: the starting handbook, lists and practice uniform colors for every team.","A"),
+  ("Team lists","Optional: one team's own handbook and lists, replacing the defaults for that team.","A")],
  [("Team ID","Lowercase letters, numbers and dashes, like a5-13-tom. It becomes part of the team's web address and can't be changed later."),
   ("Groups","On Practice patterns and Shared schedule you can name a group instead of listing teams: All, All National, All Regional, All Boys, an age group like 13U, or both like 13U National. Or list Team IDs separated by commas.")])
 sheet(wb,"Club",[("Club name",True,20,None),("Short name",False,11,"Used in sentences like 'A5 reimburses the fee'."),("Club ID",True,12,"Lowercase, like a5. Can't be changed later."),
@@ -216,6 +218,8 @@ sheet(wb,"Shared schedule",[("Teams",True,18,"Team IDs separated by commas, or a
  ["All National"]+SCHED_EX+["None","","","Schedules post the Wednesday before.","","","285 Andrew Young International Blvd NW, Atlanta, GA 30313",""],SCHED_RULES)
 sheet(wb,"Defaults",[("Kind",True,18,None),("Title",False,24,"For handbook sections."),("Text or item",True,60,None)],
  ["Handbook section","Attendance","Practices are mandatory. Tell your coach by text if you'll miss one."],{"Kind":("list","DefaultKinds")})
+sheet(wb,"Team lists",[tid,("List",True,20,None),("Title",False,24,"For handbook sections."),("Text or item",True,60,None)],
+ ["a5-13-tom","Packing checklist","","Knee and elbow pads"],{"Team ID":("teamid",),"List":("list","Lists")})
 wb.move_sheet("Choices", offset=len(wb.sheetnames))
 wb.save("web/public/templates/Club-Setup-Template.xlsx")
 print("ok")

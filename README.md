@@ -371,6 +371,22 @@ How it works:
 
 Tests: `api/test/import/`. The sample workbooks there are made by `make-samples.py`, then read the way the browser reads them by `to-json.mjs`.
 
+### Exporting to a spreadsheet
+
+Team admins (on the team's **Members** page) and club admins and site owners (on the **club page**) can download the team or club as a filled-in copy of the upload template. They can edit it and upload it again, or keep it as a copy.
+- **Server:** `GET /teams/{t}/export` (needs the `accounts` permission, which team admins have) and `GET /clubs/{c}/export` (club admins and site owners) return rows per tab, keyed by the template's column names (`api/src/lib/export/export.ts`). Each export is logged (`"msg":"export"`) with who, which team or club, and how many players.
+- **It's the importer's mirror image:** `test/import/export.test.ts` imports a team and a club, exports them, uploads the export again and checks that **nothing changes**. Keep that test passing when either side changes.
+- **Site:** `core/xlsx-fill.ts` writes the rows into the template from `/templates/` with the browser's own zip support (no spreadsheet library), keeping the Read me, notes, dropdowns and formatting.
+  - Text is written as text cells, never formulas.
+  - Dates are written as Excel dates in the date columns.
+  - Row 2 (the example) is overwritten.
+- **Not exported** (no place in the templates): availability, travel plans, meal claims, ref job assignments, uniform sizes and the fund ledger. Archived teams are left out of a club export.
+- **Lists:** the team template's **Lists** tab now takes handbook sections (`Handbook section`, with a **Title**), and the club template has a **Team lists** tab for each team's own lists and handbook. Lists given there replace that list on the team.
+- **Import rules this changed:**
+  - A roster row without a parent, or a staff row without a name, is now a warning instead of an error, since teams built on the site can have both.
+  - A team without a Program is a warning.
+  - Coach cards keep saved coaches the workbook doesn't list (nothing is removed).
+
 ### Checking invite addresses (R30)
 
 The import preview lists every address it would invite, with the person's name, roles and player, flagged ones first, so a typo can't quietly invite a stranger. Flags are warnings, so the admin can still apply:

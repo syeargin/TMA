@@ -9,6 +9,7 @@ import { familyRoutes } from "./routes/family.js";
 import { moneyRoutes } from "./routes/money.js";
 import { peopleRoutes } from "./routes/people.js";
 import { clubRoutes } from "./routes/clubs.js";
+import { exportRoutes } from "./routes/exports.js";
 import { importRoutes } from "./routes/imports.js";
 import { assertTeamWritable } from "./context.js";
 import { ID } from "./util.js";
@@ -23,6 +24,7 @@ moneyRoutes(router);
 peopleRoutes(router);
 clubRoutes(router);
 importRoutes(router);
+exportRoutes(router);
 
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyStructuredResultV2> {
   const method = event.requestContext.http.method;

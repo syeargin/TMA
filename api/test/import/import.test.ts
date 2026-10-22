@@ -80,7 +80,7 @@ describe("reading workbooks", () => {
     const msgs = p.problems.map((x) => `${x.level} ${x.sheet} ${x.row ?? ""}: ${x.message}`);
     expect(msgs).toEqual(expect.arrayContaining([
       expect.stringMatching(/^error Roster 3: Parent 1 email isn't an email/),
-      expect.stringMatching(/^error Roster 4: .*Player last name is required|^error Roster 4: Parent 1 name is required/),
+      expect.stringMatching(/^warning Roster 4: No parent is listed/),
       expect.stringMatching(/^error Roster 5: Jersey 3 is also on row 3/),
       expect.stringMatching(/^error Schedule 3: Start date isn't a date/),
       expect.stringMatching(/^error Schedule 3: Tournaments can't repeat/),

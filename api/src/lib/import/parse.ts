@@ -41,6 +41,8 @@ export type TeamPlan = {
   practices?: PracticePlan[];
   events: EventPlan[];
   checklist?: string[]; uniformItems?: string[]; practiceColors?: string[];
+  /** Handbook sections from the workbook; replaces the team's handbook when given. */
+  handbook?: { t: string; b: string }[];
 };
 export type ClubPlan = {
   clubId?: string; name?: string; short?: string; colors?: { primary?: string; accent?: string }; notes?: string;
@@ -74,7 +76,8 @@ const EXAMPLES: Record<string, string[]> = {
   "Club links": ["Registration and player-parent contract", "https://a5volleyball.sprocketsports.com/", ""],
   "Club admins": ["Pat", "Rivera", "pat.rivera@example.com"],
   "Teams": ["a5-13-tom", "A5 13-2 Tom", "National"],
-  "Defaults": ["Handbook section", "Attendance", "Practices are mandatory. Tell your coach by text if you'll miss one."]
+  "Defaults": ["Handbook section", "Attendance", "Practices are mandatory. Tell your coach by text if you'll miss one."],
+  "Team lists": ["a5-13-tom", "Packing checklist", ""]
 };
 
 const text = (v: Cell | undefined): string => {
@@ -212,9 +215,11 @@ function staffRows(tab: Tab): StaffPlan[] {
     if (r.yes("Food")) roles.push("food");
     if (r.yes("Finance")) roles.push("finance");
     const email = r.email("Email", true);
-    const first = r.need("First name", 60), last = r.need("Last name", 60);
+    // People who joined without giving a name export with blank names, so a name isn't required.
+    const first = r.str("First name", 60), last = r.str("Last name", 60);
+    if (!first && !last) r.warn("No name given, so they're shown by email until they add their own.");
     if (!roles.length) r.warn("No role is marked Y, so they're invited as a coach.");
-    if (!email || !first) continue;
+    if (!email) continue;
     out.push({ row: r.n, sheet: tab.name, first, last, email, mobile: r.opt("Mobile", 40), roles: roles.length ? roles : ["coach"], showPhone: !!r.yes("Show phone to families") });
   }
   return out;
@@ -225,8 +230,9 @@ function rosterRow(r: Row, order: number): PlayerPlan | null {
   const parents: ParentPlan[] = [];
   for (const n of [1, 2, 3, 4]) {
     const name = r.str(`Parent ${n} name`, 120);
-    const email = r.email(`Parent ${n} email`, n === 1);
-    if (!name && !email) { if (n === 1) r.err("Parent 1 name is required."); continue; }
+    // Players added on the site may have no parent listed yet, so an exported roster can have none.
+    const email = r.email(`Parent ${n} email`);
+    if (!name && !email) { if (n === 1) r.warn("No parent is listed, so nobody is invited for this player."); continue; }
     if (!name) r.err(`Parent ${n} name is required when there's an email.`);
     const invite = r.yes(`Parent ${n} invite`) ?? true;
     if (invite && !email) r.warn(`Parent ${n} has no email, so they can't be invited.`);
@@ -338,6 +344,16 @@ function listsTab(tab: Tab, kindCol: string, itemCol: string, kinds: Record<stri
   return out;
 }
 
+const LIST_KINDS = { "packing checklist": "checklist", "uniform items": "uniformItems", "practice uniform colors": "practiceColors", "handbook section": "handbook" } as const;
+
+/** Lists the workbook gives replace the team's list of that kind; kinds it leaves out keep what's saved. */
+function setLists(t: TeamPlan, lists: ReturnType<typeof listsTab>) {
+  if (lists.checklist.length) t.checklist = lists.checklist;
+  if (lists.uniformItems.length) t.uniformItems = lists.uniformItems;
+  if (lists.practiceColors.length) t.practiceColors = [...new Set(lists.practiceColors)].slice(0, 20);
+  if (lists.handbook.length) t.handbook = lists.handbook.slice(0, 60);
+}
+
 // ---------------------------------------------------------------- workbooks
 
 export function workbookKind(sheets: Sheets): "team" | "club" | null {
@@ -371,10 +387,8 @@ export function parseTeamWorkbook(sheets: Sheets, teamId: string): Parsed {
   for (const r of pr.rows()) { const p = practiceRow(r); if (p) practices.push(p); }
   if (practices.length) t.practices = practices;
   for (const r of tab(sheets, "Schedule", problems).rows()) { const e = eventRow(r, true); if (e) t.events.push(e); }
-  const lists = listsTab(tab(sheets, "Lists", problems), "List", "Item", { "packing checklist": "checklist", "uniform items": "uniformItems", "practice uniform colors": "practiceColors" });
-  if (lists.checklist.length) t.checklist = lists.checklist;
-  if (lists.uniformItems.length) t.uniformItems = lists.uniformItems;
-  if (lists.practiceColors.length) t.practiceColors = [...new Set(lists.practiceColors)].slice(0, 20);
+  const lists = listsTab(tab(sheets, "Lists", problems), "List", "Item", LIST_KINDS, "Title");
+  setLists(t, lists);
   checkTeam(t, problems);
   return { kind: "team", team: t, problems };
 }
@@ -426,7 +440,8 @@ export function parseClubWorkbook(sheets: Sheets, clubId: string): Parsed {
     t.row = r.n;
     teamColumns(r, t);
     const program = r.str("Program");
-    if (!program) r.err("Program is required.");
+    // Teams made on the site have no program, so an exported club workbook can leave it blank.
+    if (!program) r.warn("Program is blank, so groups like \"All National\" won't include this team.");
     t.program = program ? program[0].toUpperCase() + program.slice(1).toLowerCase() : undefined;
     const copy = r.str("Copy setup from").toLowerCase();
     if (copy) t.copyFrom = copy;
@@ -473,6 +488,18 @@ export function parseClubWorkbook(sheets: Sheets, clubId: string): Parsed {
     { "handbook section": "handbook", "packing checklist": "checklist", "uniform items": "uniformItems", "practice uniform colors": "practiceColors" }, "Title");
   club.defaults = d;
 
+  // One team's own lists and handbook (replacing the defaults for that team).
+  const teamLists = tab(sheets, "Team lists", problems);
+  const perTeam = new Map<TeamPlan, Row[]>();
+  for (const r of teamLists.rows()) {
+    const t = teamOf(r);
+    if (t) perTeam.set(t, [...(perTeam.get(t) ?? []), r]);
+  }
+  for (const [t, rows] of perTeam) {
+    const one = new RowsTab(teamLists, rows);
+    setLists(t, listsTab(one, "List", "Text or item", LIST_KINDS, "Title"));
+  }
+
   for (const t of all) {
     if (t.copyFrom && t.copyFrom === t.teamId) { problems.push({ sheet: "Teams", row: t.row, level: "error", message: "Copy setup from can't be the team itself." }); t.copyFrom = undefined; }
     checkTeam(t, problems);
@@ -486,6 +513,14 @@ class SingleRowTab extends Tab {
   override has(col: string) { return this.parent.has(col); }
   override col(name: string) { return this.parent.col(name); }
   override *rows(): Generator<Row> { yield this.only; }
+}
+
+/** A Tab over some already-read rows (one team's rows on the club's Team lists tab). */
+class RowsTab extends Tab {
+  constructor(private readonly parent: Tab, private readonly some: Row[]) { super(parent.name, [], []); }
+  override has(col: string) { return this.parent.has(col); }
+  override col(name: string) { return this.parent.col(name); }
+  override *rows(): Generator<Row> { yield* this.some; }
 }
 
 /** "13U National", "All Regional", "All", "a5-13-tom, a5-14-tom". */

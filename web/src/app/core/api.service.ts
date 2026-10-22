@@ -1,3 +1,5 @@
+import type { ExportRows } from './xlsx-fill';
+export type SetupExport = { kind: 'team' | 'club'; name: string; sheets: Record<string, ExportRows>; archived?: string[] };
 import type { Feature } from '@shared/features';
 import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
@@ -67,6 +69,9 @@ export class ApiService {
   /** Your own data (R4). */
   acceptPrivacy(version: string) { return this.call<{ version: string; at: string }>('PUT', '/me/privacy', { version }); }
   exportMyData() { return this.call<Record<string, unknown>>('GET', '/me/export'); }
+  /** A team's or club's setup, as rows for the upload template (team admins; club admins and site owners). */
+  exportTeam(teamId: string) { return this.call<SetupExport>('GET', `/teams/${enc(teamId)}/export`); }
+  exportClub(clubId: string) { return this.call<SetupExport>('GET', `/clubs/${enc(clubId)}/export`); }
   deleteMyAccount(confirm: string) { return this.call('DELETE', '/me', { confirm }); }
   deleteTeam(teamId: string, confirm: string) { return this.call<{ teamId: string; purgeAt?: string }>('DELETE', `/teams/${enc(teamId)}`, { confirm }); }
 
