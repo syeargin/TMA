@@ -794,6 +794,9 @@ Resources:
       Handler: messages.handler
       Environment:
         Variables:
+          # Replies go to the API's own address: with the custom domain, the browser's address
+          # (ws-dev.teemhub.net) has no stage in its path.
+          WS_ENDPOINT: !Sub "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/live"
           CLUB_ID: !Ref ClubId
           CLUB_ADMIN_EMAILS: !Ref ClubAdminEmails
           PLATFORM_ADMIN_EMAILS: !Ref PlatformAdminEmails
