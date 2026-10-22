@@ -203,6 +203,10 @@
         </section>
       </div>
     </div>
+    <section class="card export-card">
+      <div class="card-h"><h2>Export to a spreadsheet</h2></div>
+      <div class="card-b"><th-export-button [clubId]="d.club.clubId" label="Download the club workbook" /></div>
+    </section>
     <div class="import-row"><th-import-panel [clubId]="d.club.clubId" (imported)="afterImport($event)" /></div>
   } @else if (!loadError() && !needsTwoStep()) {
     <div class="card card-b" style="padding:20px"><div class="label">Loading club</div>

@@ -9,6 +9,7 @@ import { MeService, fullName } from '../../core/me.service';
 import type { ClubDetail, ClubLink, ClubTeam } from '../../core/models';
 import { DEFAULT_COLORS, colorAdvice, isHex } from '../../core/theme';
 import { ThemeService } from '../../core/theme.service';
+import { ExportButton } from '../../shared/export-button';
 import { ImportPanel } from '../../shared/import-panel';
 import { RETENTION } from '@shared/privacy';
 import { Messages } from '../../shared/messages';
@@ -31,7 +32,7 @@ const PRESETS: { name: string; primary: string; accent: string }[] = [
 /** /clubs/:clubId — a club admin's page: name and colors, Team Info links, teams, and admins. */
 @Component({
   selector: 'th-club-admin',
-  imports: [ReactiveFormsModule, RouterLink, Messages, DatePipe, ImportPanel, TwoStepPrompt],
+  imports: [ReactiveFormsModule, RouterLink, Messages, DatePipe, ImportPanel, TwoStepPrompt, ExportButton],
   templateUrl: './club-admin.html'
 })
 export class ClubAdminPage extends Page {

@@ -34,13 +34,13 @@ import { PRIVACY_VERSION, RETENTION } from '@shared/privacy';
         <li><b>Travel plans and uniform sizes</b> are seen by your family and the team coordinators and admins. Other families only see whether you've entered them.</li>
         <li><b>The full team fund</b>, including each family's dues, is seen by your family (your own lines), the finance volunteer, coordinators and admins. Everyone else sees the totals.</li>
         <li><b>Club admins and site owners</b> can open every team in their club to help run it. They have to use two-step sign-in to do so.</li>
+        <li><b>Spreadsheet copies:</b> a team's admins, club admins and site owners can download the team's setup as a spreadsheet (the roster with parents' names, phone numbers, emails and players' food allergies, the staff and the schedule) to edit it and upload it again. Each download is recorded, and they're asked to keep the file private and delete it when they're done. Availability, travel plans, meal sign-ups and the team fund aren't in it.</li>
       </ul>
       <p>We don't sell your information, show ads, or use tracking or analytics tools.</p>
 
       <h3>Services that handle it</h3>
       <ul>
         <li><b>Amazon Web Services</b> (in the United States) stores everything, signs you in, and sends sign-in codes by email.</li>
-        <li><b>Google Fonts</b> supplies the lettering on these pages, so your browser asks Google for it.</li>
         <li><b>Only when you choose to use them:</b> "Add to calendar" sends that event's details to Google Calendar, Outlook or your calendar app, and map links open Apple Maps or Google Maps.</li>
       </ul>
       <p>Your browser keeps your sign-in on this device so you stay signed in. It's removed when you sign out.</p>

@@ -177,6 +177,8 @@ main.narrow{max-width:480px}
 .imp-table th,.imp-table td{border-bottom:0}
 .imp-table tbody tr:last-child>*{border-bottom:1px solid var(--line-2)}
 .import-row{margin-top:18px}
+.export-card{margin-top:18px}
+.export-note{margin-top:8px}
 /* R30: every address an import invites, flagged ones first */
 .invites-check{border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;margin:10px 0}
 .invites-check summary{cursor:pointer;font-size:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}

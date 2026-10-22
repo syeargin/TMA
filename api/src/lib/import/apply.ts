@@ -181,12 +181,19 @@ export async function importTeam(opts: {
     }
     handbook ??= { ...keys.handbook(t.teamId), type: "Handbook", sections: [], updatedAt: at };
   }
-  const coaches = t.staff.filter((s) => s.roles.includes("coach")).slice(0, 6).map((s) => defined({ name: `${s.first} ${s.last}`.trim(), phone: s.showPhone ? s.mobile : undefined }));
+  // Coach cards: the workbook's coaches (with a name) first, then saved coaches it doesn't list (nothing is removed).
+  const fromSheet = t.staff.filter((s) => s.roles.includes("coach") && `${s.first} ${s.last}`.trim()).map((s) => defined({ name: `${s.first} ${s.last}`.trim(), phone: s.showPhone ? s.mobile : undefined }));
+  const listed = new Set(fromSheet.map((c) => String(c.name).toLowerCase()));
+  const coaches = fromSheet.length ? [...fromSheet, ...((base.coaches ?? []) as Item[]).filter((c) => !listed.has(String(c.name ?? "").toLowerCase()))].slice(0, 6) : [];
   const savedDues = (base.dues ?? {}) as Item, savedBudget = (base.budget ?? {}) as Item;
   const lists: string[] = [];
   if (t.checklist) lists.push("packing checklist");
   if (t.uniformItems) lists.push("uniform items");
   if (t.practiceColors) lists.push("practice uniform colors");
+  if (t.handbook) {
+    lists.push("handbook");
+    handbook = { ...(handbook ?? bySk.get("META#HANDBOOK") ?? {}), ...keys.handbook(t.teamId), type: "Handbook", sections: t.handbook, updatedAt: at, updatedBy: by };
+  }
   // Uniform colors used on practices join the team's list, so coaches can pick them later.
   const colors = [...((t.practiceColors ?? base.practiceColors ?? []) as string[])];
   for (const c of [...(t.practices ?? []).map((p) => p.uniformColor), ...t.events.map((e) => e.uniformColor)]) {
@@ -344,6 +351,8 @@ export async function importTeam(opts: {
     }
   } else {
     puts.push(settings, dir);
+    // Existing teams: the handbook changes only when the workbook has handbook sections.
+    if (t.handbook && handbook) puts.push(handbook);
   }
   await putMany(puts);
   return summary;

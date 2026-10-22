@@ -7,6 +7,7 @@ import { ApiService } from '../../core/api.service';
 import { MeService, fullName } from '../../core/me.service';
 import type { Invite, Member } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
+import { ExportButton } from '../../shared/export-button';
 import { ImportPanel } from '../../shared/import-panel';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
@@ -17,7 +18,7 @@ type MemberForm = FormGroup<{ roles: RoleChecks; pid: FormControl<string>; first
 /** Team admins: who's on the team, their roles and family, and pending invites. */
 @Component({
   selector: 'th-members',
-  imports: [ReactiveFormsModule, Messages, ImportPanel],
+  imports: [ReactiveFormsModule, Messages, ImportPanel, ExportButton],
   templateUrl: './members.html'
 })
 export class Members extends Page {
