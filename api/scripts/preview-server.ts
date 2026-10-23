@@ -15,6 +15,9 @@ process.env.DYNAMODB_ENDPOINT ??= "http://127.0.0.1:8000";
 process.env.PLATFORM_ADMIN_EMAILS = "owner@example.com";
 process.env.EMAIL_CHECK ??= "off"; // no user pool locally: trust the dev token's email
 process.env.MFA_CHECK ??= "off"; // no user pool locally; run with MFA_CHECK=on to see the two-step prompts
+process.env.MAIL_TRANSPORT ??= "memory"; // emails are collected, not sent
+process.env.SITE_URL ??= "http://127.0.0.1:4300";
+process.env.APP_ENV ??= "dev";
 
 const { freshTable, event } = await import("../test/api/harness.js");
 const { handler } = await import("../src/api/handler.js");
@@ -67,6 +70,19 @@ for (const [lid, pid, kind, cat, amountCents] of [["l1", "p1", "in", "Dues", 300
   await api("PUT", `/teams/test-13/ledger/${lid}`, OWNER, { kind, cat, ...(pid ? { pid } : {}), amountCents, date: "2026-10-05", desc: kind === "in" ? "Dues" : "Pizza after practice" });
 }
 
+// Invites in each email state (Messaging M1): emailed and delivered, bounced, and imported without an email.
+await api("POST", "/teams/test-13/invites", OWNER, { email: "coach.lee@example.com", firstName: "Lee", lastName: "Park", roles: ["coach"] });
+await api("POST", "/teams/test-13/invites", OWNER, { email: "d.torres@gmial.com", roles: ["parent"], pid: "p3" });
+await api("POST", "/teams/test-13/invites", OWNER, { email: "kim.ruiz@example.com", roles: ["parent"], pid: "p2", sendEmail: false });
+await api("POST", "/teams/test-13/invites", OWNER, { email: "sam.ruiz@example.com", roles: ["parent"], pid: "p2", sendEmail: false });
+{
+  const { applySesEvent } = await import("../src/lib/mail/outbox.js");
+  const { GetCommand } = await import("@aws-sdk/lib-dynamodb");
+  const delivery = async (email: string) => String((await ddb.send(new GetCommand({ TableName: TABLE, Key: keys.invite(email, "test-13") }))).Item?.emailDelivery);
+  await applySesEvent({ eventType: "Delivery", mail: { tags: { delivery: [await delivery("coach.lee@example.com")] } } });
+  await applySesEvent({ eventType: "Bounce", bounce: { bounceType: "Permanent" }, mail: { tags: { delivery: [await delivery("d.torres@gmial.com")] } } });
+}
+
 // Everyone but Gloria (u-gran) has accepted the privacy notice, so she shows the consent page.
 const { PRIVACY_VERSION } = await import("../src/shared/privacy.js");
 for (const sub of [OWNER, MOM, "u-dad"]) await api("PUT", "/me/privacy", sub, { version: PRIVACY_VERSION });
@@ -101,6 +117,12 @@ createServer(async (req, res) => {
     for await (const c of req) chunks.push(c as Buffer);
     const r = await cspReport({ requestContext: { http: { method: req.method } }, headers: req.headers, body: Buffer.concat(chunks).toString() } as never);
     res.writeHead(r.statusCode ?? 204).end();
+    return;
+  }
+  // Emails "sent" in the preview, newest last.
+  if (url.pathname === "/outbox") {
+    const { memoryOutbox } = await import("../src/lib/mail/outbox.js");
+    res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(memoryOutbox));
     return;
   }
   if (url.pathname === "/config.json") {

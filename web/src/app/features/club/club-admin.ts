@@ -9,6 +9,7 @@ import { MeService, fullName } from '../../core/me.service';
 import type { ClubDetail, ClubLink, ClubTeam } from '../../core/models';
 import { DEFAULT_COLORS, colorAdvice, isHex } from '../../core/theme';
 import { ThemeService } from '../../core/theme.service';
+import { EmailStatusView } from '../../shared/email-status';
 import { ExportButton } from '../../shared/export-button';
 import { ImportPanel } from '../../shared/import-panel';
 import { RETENTION } from '@shared/privacy';
@@ -32,7 +33,7 @@ const PRESETS: { name: string; primary: string; accent: string }[] = [
 /** /clubs/:clubId — a club admin's page: name and colors, Team Info links, teams, and admins. */
 @Component({
   selector: 'th-club-admin',
-  imports: [ReactiveFormsModule, RouterLink, Messages, DatePipe, ImportPanel, TwoStepPrompt, ExportButton],
+  imports: [ReactiveFormsModule, RouterLink, Messages, DatePipe, ImportPanel, TwoStepPrompt, ExportButton, EmailStatusView],
   templateUrl: './club-admin.html'
 })
 export class ClubAdminPage extends Page {
@@ -210,7 +211,7 @@ export class ClubAdminPage extends Page {
     return this.run(async () => {
       await this.api.inviteClubAdmin(this.clubId(), { email: v.email.trim(), firstName: v.firstName.trim() || undefined, lastName: v.lastName.trim() || undefined });
       this.adminForm.reset({ firstName: '', lastName: '', email: '' });
-      this.notice.set(`Invited ${v.email.trim()}. They become an admin when they next sign in, or when they create an account with that email.`);
+      this.notice.set(`Invited ${v.email.trim()}. The invite email is on its way; they become an admin when they sign in or create an account with that address.`);
       await this.refresh();
     });
   }
@@ -225,6 +226,13 @@ export class ClubAdminPage extends Page {
   resetTwoStep(sub: string) {
     return this.confirmThen(`mfa:${sub}`, "Two-step sign-in reset. They can sign in with their password and set it up again; their admin tools are locked until they do.",
       () => this.api.resetClubAdminMfa(this.clubId(), sub));
+  }
+  emailInvite(email: string) {
+    return this.run(async () => {
+      await this.api.emailClubInvite(this.clubId(), email);
+      this.notice.set(`Emailed the invite to ${email}.`);
+      await this.refresh();
+    });
   }
   withdraw(email: string) { return this.confirmThen(`invite:${email}`, 'Invite withdrawn.', () => this.api.withdrawClubInvite(this.clubId(), email)); }
 

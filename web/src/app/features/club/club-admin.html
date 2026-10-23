@@ -183,7 +183,10 @@
             }
             @for (i of d.invites; track i.email) {
               <div class="li">
-                <div class="grow"><b>{{ fullName(i) || i.email }}</b> <span class="pill p-warn">Invited</span>@if (fullName(i)) { <div class="small muted">{{ i.email }}</div> }</div>
+                <div class="grow"><b>{{ fullName(i) || i.email }}</b> <span class="pill p-warn">{{ i.expired ? 'Expired' : 'Invited' }}</span>@if (fullName(i)) { <div class="small muted">{{ i.email }}</div> }
+                  <th-email-status [status]="i.emailStatus" [at]="i.emailAt" [detail]="i.emailDetail" />
+                </div>
+                @if (i.emailStatus !== 'bounced' && i.emailStatus !== 'complained') { <button class="link-btn small" type="button" (click)="emailInvite(i.email)" [disabled]="busy()">{{ i.emailStatus ? 'Email again' : 'Email invite' }}</button> }
                 <button class="link-btn small" type="button" [class.confirm]="confirming() === 'invite:' + i.email" (click)="withdraw(i.email)">
                   {{ confirming() === 'invite:' + i.email ? 'Tap again to withdraw' : 'Withdraw' }}
                 </button>
@@ -197,7 +200,7 @@
               </div>
               <label for="aEmail">Email<input id="aEmail" type="email" formControlName="email" required autocomplete="off"></label>
               <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Invite admin' }}</button>
-              <p class="hint">No email is sent yet. Tell them to sign in, or create an account at this site with that address.</p>
+              <p class="hint">They get an email with a link to create an account with that address, or to sign in if they already have one.</p>
             </form>
           </div>
         </section>

@@ -1,3 +1,4 @@
+import type { EmailStatus } from '@shared/messages';
 import type { FeatureMap } from '@shared/features';
 import type { Role } from '@shared/permissions';
 
@@ -47,9 +48,17 @@ export interface ImportResult {
   problems: ImportProblem[];
 }
 export interface ClubAdmin { sub: string; email: string; firstName?: string; lastName?: string; /** Two-step sign-in on: their admin tools work. */ mfa?: boolean }
-export interface ClubDetail { club: Club; teams: ClubTeam[]; admins: ClubAdmin[]; invites: { email: string; firstName?: string; lastName?: string }[] }
+export interface ClubDetail { club: Club; teams: ClubTeam[]; admins: ClubAdmin[]; invites: { email: string; firstName?: string; lastName?: string; expires?: string; expired?: boolean; emailStatus?: EmailStatus; emailAt?: string; emailDetail?: string }[] }
 export interface Member { sub?: string; email?: string; firstName?: string; lastName?: string; person?: string; roles: Role[]; pid?: string; status?: string }
-export interface Invite { email: string; firstName?: string; lastName?: string; roles?: Role[]; pid?: string; /** Past its date: can no longer be accepted (R30). */ expired?: boolean }
+export interface EmailTemplate { id: string; channel: 'email' | 'text'; label: string; help: string; required: boolean; live: boolean }
+
+export interface Invite {
+  email: string; firstName?: string; lastName?: string; roles?: Role[]; pid?: string;
+  /** Past its date: can no longer be accepted (R30). */ expired?: boolean;
+  /** When it stops working, in seconds (DynamoDB's TTL). */ ttl?: number;
+  /** The latest invite email (Messaging M1). None: never emailed. */
+  emailStatus?: EmailStatus; emailAt?: string; emailDetail?: string; emailCount?: number;
+}
 
 export interface Coach { name: string; phone?: string }
 export interface Practice {

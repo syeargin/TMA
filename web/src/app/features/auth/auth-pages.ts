@@ -11,6 +11,20 @@ import { Page } from '../../shared/page';
 
 const IMPORTS = [ReactiveFormsModule, RouterLink, Messages, Autofocus];
 
+/**
+ * Invite emails link to /signup#email=…. The address is in the fragment, which browsers never send to
+ * a server, so it stays out of request logs; it's removed from the address bar once read.
+ */
+export function emailFromLink(): string | null {
+  try {
+    const m = /(?:^#|&)email=([^&]+)/.exec(window.location.hash);
+    if (!m) return null;
+    history.replaceState(history.state, '', window.location.pathname + window.location.search);
+    const v = decodeURIComponent(m[1]).trim();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : null;
+  } catch { return null; }
+}
+
 abstract class AuthPage extends Page {
   protected readonly auth = inject(AuthService);
   protected readonly fb = inject(NonNullableFormBuilder);
@@ -98,7 +112,8 @@ export class SignIn extends AuthPage {
   imports: IMPORTS,
   template: `
     <h2>Create your account</h2>
-    <p class="muted">Use the email address your coach or team coordinator invited.</p>
+    @if (fromInvite) { <p class="muted">Your invite is for <b>{{ fromInvite }}</b>. Create your account with that address.</p> }
+    @else { <p class="muted">Use the email address your coach or team coordinator invited.</p> }
     <th-messages [error]="error()" [notice]="notice()" />
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <label for="email">Email<input id="email" type="email" formControlName="email" autocomplete="email" required thAutofocus></label>
@@ -111,7 +126,8 @@ export class SignIn extends AuthPage {
     <div class="links"><span>Already have an account? <a class="link" routerLink="/signin">Sign in</a></span></div>`
 })
 export class SignUp extends AuthPage {
-  readonly form = this.fb.group({ email: this.auth.email(), password: '', confirm: '', agree: false });
+  readonly fromInvite = emailFromLink();
+  readonly form = this.fb.group({ email: this.fromInvite ?? this.auth.email(), password: '', confirm: '', agree: false });
   submit() {
     const { email, password, confirm, agree } = this.form.getRawValue();
     this.remember(email);

@@ -98,7 +98,7 @@
           <label for="clubShort">Short name<input id="clubShort" formControlName="short" maxlength="12" placeholder="Rivals"></label>
         </div>
         <label for="clubId">Club id<input id="clubId" formControlName="clubId" required placeholder="rivals" pattern="[a-z0-9-]+"><span class="hint">Lowercase letters, numbers and dashes. It can't be changed later.</span></label>
-        <label for="clubAdmin">First club admin's email<input id="clubAdmin" type="email" formControlName="adminEmail" placeholder="director@example.com"><span class="hint">They can create an account with this email and will run the club.</span></label>
+        <label for="clubAdmin">First club admin's email<input id="clubAdmin" type="email" formControlName="adminEmail" placeholder="director@example.com"><span class="hint">We email them an invite to create an account with this address and run the club.</span></label>
         <div class="two">
           <label for="clubPrimary">Main color<input id="clubPrimary" type="color" formControlName="primary"></label>
           <label for="clubAccent">Accent color<input id="clubAccent" type="color" formControlName="accent"></label>
@@ -106,6 +106,7 @@
         <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Add club' }}</button>
       </form>
     </details>
+    <th-email-templates />
   }
 } @else {
   <p class="muted">Loading…</p>

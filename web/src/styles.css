@@ -178,6 +178,16 @@ main.narrow{max-width:480px}
 .imp-table tbody tr:last-child>*{border-bottom:1px solid var(--line-2)}
 .import-row{margin-top:18px}
 .export-card{margin-top:18px}
+/* Invite emails (Messaging M1) */
+.check-row{flex-direction:row;align-items:center;gap:8px;font-weight:600;color:var(--ink);cursor:pointer;margin:2px 0 10px}
+.waiting-invites{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;background:var(--warn-soft);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+.email-status{margin-top:3px}
+.email-status .pill{font-size:11.5px}
+.email-detail{margin-top:2px;color:var(--ink-2)}
+.email-detail.bad{color:var(--bad)}
+.email-list{display:flex;flex-direction:column}
+.email-list .li{align-items:flex-start}
+.email-preview{width:100%;height:560px;border:1px solid var(--line);border-radius:10px;background:#EDF0F5;margin-top:10px}
 .export-note{margin-top:8px}
 /* R30: every address an import invites, flagged ones first */
 .invites-check{border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;margin:10px 0}
