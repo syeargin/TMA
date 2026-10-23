@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { EmailTemplates } from './email-templates';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { MeService } from '../../core/me.service';
@@ -13,7 +14,7 @@ import { roleLabel } from '../../shared/roles';
 
 @Component({
   selector: 'th-home',
-  imports: [ReactiveFormsModule, RouterLink, Messages, TwoStepPrompt],
+  imports: [ReactiveFormsModule, RouterLink, Messages, TwoStepPrompt, EmailTemplates],
   templateUrl: './home.html'
 })
 export class Home extends Page {

@@ -5,7 +5,10 @@ import { ddb, TABLE } from "../../lib/db.js";
 import { keys, normEmail } from "../../lib/keys.js";
 import { isPlatformAdmin, loadClubAccess, requirePlatformAdmin } from "../context.js";
 import { hasMfa, resetMfa } from "../../lib/mfa.js";
-import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
+import { isExpired } from "../../lib/invites.js";
+import { badRequest, conflict, forbidden, HttpError, json, mapDbError, notFound, parseBody } from "../http.js";
+import { dispatch, queueClubInvite, siteUrl } from "../../lib/mail/invite-mail.js";
+import { queueEmail } from "../../lib/mail/outbox.js";
 import type { Router } from "../router.js";
 import { checkId, clean, deleteItem, getItem, now, optStr, putItem, queryAll, str } from "../util.js";
 
@@ -32,7 +35,7 @@ const createSchema = z.object({
   colors: colors.optional(),
   adminEmails: z.array(email).max(10).default([])
 });
-const adminSchema = z.object({ email, firstName: optStr(60), lastName: optStr(60) });
+const adminSchema = z.object({ email, firstName: optStr(60), lastName: optStr(60), sendEmail: z.boolean().default(true) });
 
 const INVITE_DAYS = 60;
 
@@ -76,6 +79,13 @@ export function clubRoutes(r: Router) {
         ]
       }));
     } catch (e) { mapDbError(e, "A club with that id already exists."); }
+    const ids: string[] = [];
+    for (const addr of new Set(b.adminEmails)) {
+      const invite = await getItem(keys.clubInvite(addr, b.clubId));
+      const id = invite ? await queueClubInvite(invite, caller.sub) : null;
+      if (id) ids.push(id);
+    }
+    await dispatch(ids);
     return json(201, club);
   });
 
@@ -94,7 +104,11 @@ export function clubRoutes(r: Router) {
       teams: teams.map((t) => ({ teamId: String(t.SK).slice(5), ...clean(t) })),
       // Whether each admin has two-step sign-in on: their admin tools work only when it is.
       admins: await Promise.all(adminList.map(async (a) => ({ ...a, mfa: await hasMfa(a.sub) }))),
-      invites: invites.map((i) => ({ email: i.email, firstName: i.firstName ?? "", lastName: i.lastName ?? "", at: i.at }))
+      invites: invites.map((i) => ({
+        email: i.email, firstName: i.firstName ?? "", lastName: i.lastName ?? "", at: i.at,
+        ...(Number(i.ttl) > 0 ? { expires: new Date(Number(i.ttl) * 1000).toISOString(), ...(isExpired(i) ? { expired: true } : {}) } : {}),
+        ...(i.emailStatus ? { emailStatus: i.emailStatus, emailAt: i.emailAt, emailDetail: i.emailDetail || undefined } : {})
+      }))
     });
   });
 
@@ -123,8 +137,13 @@ export function clubRoutes(r: Router) {
     const { clubId } = await loadClubAccess(caller, checkId(params.clubId, "club"));
     const b = parseBody(adminSchema, body);
     if ((await admins(clubId)).some((a) => normEmail(a.email) === b.email)) throw conflict("That person is already an admin of this club.");
-    await putItem(inviteItem(b.email, clubId, caller.sub, b));
-    return json(201, { email: b.email });
+    const invite = inviteItem(b.email, clubId, caller.sub, b);
+    await putItem(invite);
+    if (b.sendEmail) {
+      const id = await queueClubInvite(invite, caller.sub);
+      if (id) await dispatch([id]);
+    }
+    return json(201, { email: b.email, emailed: b.sendEmail });
   });
 
   r.on("DELETE", "/clubs/{clubId}/admins/{sub}", async ({ caller, params }) => {
@@ -146,7 +165,37 @@ export function clubRoutes(r: Router) {
     if (!(await admins(clubId)).some((a) => a.sub === sub)) throw notFound("That person isn't an admin of this club.");
     await resetMfa(sub);
     console.log(JSON.stringify({ audit: "reset-mfa", by: caller.sub, sub, clubId }));
+    // Tell them, in case they didn't ask for it.
+    const admin = (await admins(clubId)).find((a) => a.sub === sub);
+    if (admin?.email) {
+      const club = await getClub(clubId);
+      const { id, queued } = await queueEmail({
+        msg: "mfaReset", to: admin.email, clubId, by: caller.sub, dedupe: `mfaReset:${sub}:${now()}`,
+        data: { firstName: admin.firstName, clubName: club?.name ?? clubId, siteUrl: siteUrl() }
+      });
+      if (queued) await dispatch([id]);
+    }
     return json(204, undefined);
+  });
+
+  /** Emails a club admin invite (again), reviving an expired one for two more weeks. */
+  r.on("POST", "/clubs/{clubId}/invites/{email}/send", async ({ caller, params }) => {
+    const { clubId } = await loadClubAccess(caller, checkId(params.clubId, "club"));
+    if (!email.safeParse(params.email).success) throw badRequest("That isn't an email address.");
+    const invite = await getItem(keys.clubInvite(params.email, clubId));
+    if (!invite) throw notFound("That invite isn't waiting any more. It may have been accepted.");
+    if (invite.emailStatus === "bounced" || invite.emailStatus === "complained") {
+      throw conflict("Mail to that address won't be sent again. Withdraw this invite and invite the right address.");
+    }
+    if (invite.emailAt && Date.now() - Date.parse(String(invite.emailAt)) < 10 * 60_000 && ["queued", "sent", "delivered"].includes(String(invite.emailStatus))) {
+      throw new HttpError(429, "It was emailed a few minutes ago. Give it a little while, and ask them to check spam.", "too_soon");
+    }
+    const minTtl = Math.floor(Date.now() / 1000) + 14 * 86400;
+    const renewed = Number(invite.ttl) < minTtl ? { ...invite, ttl: minTtl } : invite;
+    if (renewed !== invite) await putItem(renewed);
+    const id = await queueClubInvite(renewed, caller.sub);
+    if (id) await dispatch([id]);
+    return json(202, { email: invite.email });
   });
 
   r.on("DELETE", "/clubs/{clubId}/invites/{email}", async ({ caller, params }) => {

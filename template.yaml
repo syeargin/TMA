@@ -74,6 +74,9 @@ Conditions:
   HasAlertEmail: !Not [!Equals [!Ref AlertEmail, ""]]
   UseSes: !Not [!Equals [!Ref SesFromEmail, ""]]
   HasDomain: !Not [!Equals [!Ref DomainStack, ""]]
+  # Team email (Messaging M1) goes through the domain stack's SES configuration set, whose events
+  # (delivered, bounced, complaint) come back through EventBridge.
+  SendsMail: !And [!Condition UseSes, !Condition HasDomain]
 
 Globals:
   Function:
@@ -511,8 +514,14 @@ Resources:
           PLATFORM_ADMIN_EMAILS: !Ref PlatformAdminEmails
           USER_POOL_ID: !Ref UserPool
           NODE_OPTIONS: --enable-source-maps
+          APP_ENV: !Ref Env
+          # Links in emails. Not the CloudFront address: the site's headers already depend on the API.
+          SITE_URL: !If [HasDomain, !Sub "https://${SiteDomain}", ""]
+          MAIL_SENDER_FUNCTION: !Ref MailSenderFunction
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+        # Routes queue emails and hand them to the sender without waiting (Messaging M1).
+        - LambdaInvokePolicy: { FunctionName: !Ref MailSenderFunction }
         # Is two-step sign-in on (club-admin and site-owner rights), the site owner's reset for a lost
         # phone, and Delete my account (R4).
         - Statement:
@@ -897,6 +906,117 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${PurgeFunction}"
       RetentionInDays: 30
+
+  # ---------- Email (Messaging M1): see api/src/lib/mail/outbox.ts ----------
+  MailSenderFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/jobs/mail-sender.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Sends queued emails through SES, each one once.
+      CodeUri: api/
+      Handler: mail-sender.handler
+      Timeout: 120
+      Environment:
+        Variables:
+          APP_ENV: !Ref Env
+          MAIL_FROM: !If [SendsMail, !Ref SesFromEmail, ""]
+          MAIL_CONFIG_SET: !If [SendsMail, { "Fn::ImportValue": !Sub "${DomainStack}-MailConfigSet" }, ""]
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+        - !If
+          - SendsMail
+          - Statement:
+              - Effect: Allow
+                Action: ses:SendEmail
+                Resource:
+                  - !Sub
+                    - "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${Domain}"
+                    - Domain: !Select [1, !Split ["@", !Ref SesFromEmail]]
+                  - !Sub
+                    - "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/${Set}"
+                    - Set: { "Fn::ImportValue": !Sub "${DomainStack}-MailConfigSet" }
+          - !Ref AWS::NoValue
+      EventInvokeConfig:
+        MaximumRetryAttempts: 2
+        MaximumEventAgeInSeconds: 3600
+
+  MailSenderFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${MailSenderFunction}"
+      RetentionInDays: 30
+
+  # SES events for this environment's emails only (they carry an env tag); Cognito's sign-in codes
+  # and the other environment's mail are filtered out by the rule.
+  MailEventsFunction:
+    Type: AWS::Serverless::Function
+    Condition: SendsMail
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/jobs/mail-events.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Records SES delivered, bounced and complaint events on the emails this environment sent.
+      CodeUri: api/
+      Handler: mail-events.handler
+      Timeout: 30
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+      Events:
+        Ses:
+          Type: EventBridgeRule
+          Properties:
+            RuleName: !Sub "${AppPrefix}-${Env}-mail-events"
+            Pattern:
+              source: [aws.ses]
+              detail:
+                mail:
+                  tags:
+                    env: [!Ref Env]
+            RetryPolicy:
+              MaximumRetryAttempts: 20
+              MaximumEventAgeInSeconds: 86400
+
+  MailEventsFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Condition: SendsMail
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${MailEventsFunction}"
+      RetentionInDays: 30
+
+  MailFailuresAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AppPrefix}-${Env}-mail-errors"
+      AlarmDescription: The email sender failed (after its retries, emails stay queued or marked failed).
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions: [{ Name: FunctionName, Value: !Ref MailSenderFunction }]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
 
   FanoutFunctionLogs:
     Type: AWS::Logs::LogGroup

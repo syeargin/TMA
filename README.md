@@ -144,6 +144,23 @@ The CloudFront address keeps working too (stack output `CloudFrontUrl`). With th
 5. **Update the bootstrap stack** (`bootstrap/github-oidc.yaml`): the execution roles may now manage their own DNS records, API custom domains and Cognito's email role.
 6. **Merge and deploy:** dev first (it moves to `dev.teemhub.net`), then tag a release for prod (`teemhub.net`). Before step 6, deploys would fail, because `samconfig.toml` already names the domain stack.
 
+### Team email (Messaging M1)
+
+Teem Hub sends its own email through SES, from the same `noreply@` address as sign-in codes (`SesFromEmail`). Today that's invites and account notices; the weekly email, reminders and texts follow (see the build plan, Messaging).
+
+- **Catalog:** `api/src/shared/messages.ts` lists every message, sent or planned. Templates are in `api/src/lib/mail/templates.ts` and share one frame (`frame.ts`).
+- **Sending:** a route queues a delivery record (`DELIV#<id>`, deleted after 90 days) and starts `MailSenderFunction` without waiting. Each record is sent once, even if the sender is retried. Without `SesFromEmail` emails are recorded as "skipped".
+- **Events:** SES sends delivered, bounced, complaint and reject events through the domain stack's configuration set (`tma-domain-mail`) to EventBridge. Each app stack's rule picks up the events tagged with its environment (`MailEventsFunction`). The invite shows "Delivered", "Bounced" and so on. A bounced or complained-about address isn't emailed again.
+- **Invites:** the Members page emails invites when they're made (a checkbox can hold it back), has "Email invite" or "Email again" per invite, and "Email them now" for invites a spreadsheet import saved. Emailing an expired invite gives it two more weeks. The link is `/signup#email=…`: the address is in the fragment, so it never reaches a server log.
+- **Account notices:** "Your account was deleted" and "Two-step sign-in was reset", always sent.
+- **Site owners** see every template under "Emails Teem Hub sends" on Your teams, with a preview and "Send me a test".
+- **Locally:** `MAIL_TRANSPORT=memory` collects mail instead of sending it (tests and the preview, which lists it at `/outbox`).
+
+**Setting it up (once, before merging the PR that added it):**
+1. **Update the domain stack** (`tma-domain`) with the new `bootstrap/domain.yaml`, keeping the parameters. It adds the configuration set and its EventBridge destination, and exports `tma-domain-MailConfigSet`.
+2. **Update the bootstrap stack** (`bootstrap/github-oidc.yaml`): app roles may now send through SES and start their own functions.
+3. **Merge:** dev deploys and starts sending. Send yourself a test from Your teams → Emails Teem Hub sends, then invite a test address and watch it change to "Delivered".
+
 ### Two-step sign-in (R2)
 
 - Anyone can turn on an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy) under **Your teams › Two-step sign-in** (`/security`). The user pool's MFA is `OPTIONAL` with authenticator apps only: no text messages, no remembered devices. Once it's on, Cognito asks for a 6-digit code at every sign-in.
@@ -366,7 +383,7 @@ How it works:
   - practices on name, so cancelled dates stay attached
   - people on email
 - Blank cells keep what's saved, and nothing is removed. Players, events and people not in the workbook stay, and so does everything families entered.
-- Staff and parents are added as invites with the right roles, and parents are linked to their player. People get access when they sign in or create an account with that email; no email is sent.
+- Staff and parents are added as invites with the right roles, and parents are linked to their player. People get access when they sign in or create an account with that email. The import saves the invites without emailing them; email them from the Members page ("Email them now") when you're ready.
 - Archived teams can't be imported into. A Team ID another club uses is an error.
 
 Tests: `api/test/import/`. The sample workbooks there are made by `make-samples.py`, then read the way the browser reads them by `to-json.mjs`.

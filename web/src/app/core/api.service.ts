@@ -9,7 +9,7 @@ import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
 import type { Repeat } from './series';
 import type { Sheets } from './xlsx';
-import type { Agenda, Club, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
+import type { Agenda, Club, EmailTemplate, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
   constructor(readonly status: number, body?: { message?: string; error?: string } | null) {
@@ -85,9 +85,19 @@ export class ApiService {
   /** Site owners: turn off a club admin's authenticator app (lost phone) so they can set it up again. */
   resetClubAdminMfa(clubId: string, sub: string) { return this.call('POST', `/clubs/${enc(clubId)}/admins/${enc(sub)}/reset-mfa`); }
   withdrawClubInvite(clubId: string, email: string) { return this.call('DELETE', `/clubs/${enc(clubId)}/invites/${enc(email)}`); }
+  emailClubInvite(clubId: string, email: string) { return this.call('POST', `/clubs/${enc(clubId)}/invites/${enc(email)}/send`); }
+
+  // Email templates (site owners)
+  emailTemplates() { return this.call<{ messages: EmailTemplate[]; sending: boolean }>('GET', '/admin/emails'); }
+  previewEmail(msg: string) { return this.call<{ subject: string; fromName: string; html: string; text: string }>('GET', `/admin/emails/${enc(msg)}/preview`); }
+  testEmail(msg: string) { return this.call<{ to: string }>('POST', `/admin/emails/${enc(msg)}/test`); }
   team(teamId: string) { return this.call<TeamBundle>('GET', `/teams/${enc(teamId)}`); }
   invites(teamId: string) { return this.call<{ invites: Invite[] }>('GET', `/teams/${enc(teamId)}/invites`); }
-  invite(teamId: string, v: { email: string; firstName?: string; lastName?: string; roles: Role[]; pid?: string }) { return this.call('POST', `/teams/${enc(teamId)}/invites`, v); }
+  invite(teamId: string, v: { email: string; firstName?: string; lastName?: string; roles: Role[]; pid?: string; sendEmail?: boolean }) { return this.call('POST', `/teams/${enc(teamId)}/invites`, v); }
+  /** Emails an invite (again); revives an expired one for two weeks. */
+  emailInvite(teamId: string, email: string) { return this.call<{ email: string; expires: string }>('POST', `/teams/${enc(teamId)}/invites/${enc(email)}/send`); }
+  /** Emails every waiting invite that was never emailed (imports save invites without emailing them). */
+  emailWaitingInvites(teamId: string) { return this.call<{ queued: number }>('POST', `/teams/${enc(teamId)}/invites/send-waiting`); }
   cancelInvite(teamId: string, email: string) { return this.call('DELETE', `/teams/${enc(teamId)}/invites/${enc(email)}`); }
   updateMember(teamId: string, sub: string, v: { roles: Role[]; pid?: string; firstName?: string; lastName?: string }) { return this.call('PUT', `/teams/${enc(teamId)}/members/${enc(sub)}`, v); }
   removeMember(teamId: string, sub: string) { return this.call('DELETE', `/teams/${enc(teamId)}/members/${enc(sub)}`); }

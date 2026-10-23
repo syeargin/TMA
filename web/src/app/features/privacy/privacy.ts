@@ -23,6 +23,7 @@ import { PRIVACY_VERSION, RETENTION } from '@shared/privacy';
         <li><b>About your family, entered by you or your team coordinator:</b> your player's name, jersey and shirt numbers, hometown, food allergies, uniform sizes, availability for practices and events, travel plans for tournaments, meal sign-ups, and parents' names, phone numbers and emails.</li>
         <li><b>Money:</b> dues and reimbursements recorded in the team fund. Teem Hub never takes payments or card numbers; families pay the way the coordinator asks.</li>
         <li><b>Records kept automatically:</b> which account did what and when, and server logs of requests (including your internet address) for {{ r.logDays }} days.</li>
+        <li><b>Emails we send you:</b> which email went to which address, when, and whether it arrived or bounced, for {{ r.deliveryDays }} days. Team admins see whether their invites arrived.</li>
       </ul>
       <p>Children don't have accounts. Information about players is entered by their parents or the team's coordinators and coaches.</p>
 
@@ -40,7 +41,7 @@ import { PRIVACY_VERSION, RETENTION } from '@shared/privacy';
 
       <h3>Services that handle it</h3>
       <ul>
-        <li><b>Amazon Web Services</b> (in the United States) stores everything, signs you in, and sends sign-in codes by email.</li>
+        <li><b>Amazon Web Services</b> (in the United States) stores everything, signs you in, and sends Teem Hub's emails: sign-in codes, team invites and notices about your account.</li>
         <li><b>Only when you choose to use them:</b> "Add to calendar" sends that event's details to Google Calendar, Outlook or your calendar app, and map links open Apple Maps or Google Maps.</li>
       </ul>
       <p>Your browser keeps your sign-in on this device so you stay signed in. It's removed when you sign out.</p>
@@ -50,7 +51,7 @@ import { PRIVACY_VERSION, RETENTION } from '@shared/privacy';
         <li>A team's information is kept while the team is active. When a season ends and the team is archived, it's kept read-only for <b>{{ r.archivedTeamDays }} days</b>, then deleted.</li>
         <li>When a site owner deletes a team, it's removed after <b>{{ r.deletedTeamDays }} days</b>, so a mistake can be undone.</li>
         <li>When you delete your account, it's removed right away.</li>
-        <li>Backups are kept for up to {{ r.backupDays }} days for recovery, then expire on their own. Server logs are kept for {{ r.logDays }} days.</li>
+        <li>Backups are kept for up to {{ r.backupDays }} days for recovery, then expire on their own. Server logs are kept for {{ r.logDays }} days, and records of emails sent for {{ r.deliveryDays }} days.</li>
       </ul>
 
       <h3>Seeing, correcting and deleting your information</h3>

@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   Team Hub (TMA) domain: the Route 53 DNS zone for the site's domain, the Amazon SES identity that
-  sign-in emails are sent from (R10), and the TLS certificate for the site and API addresses.
+  sign-in and team emails are sent from (R10), the SES configuration set team email goes through
+  (Messaging M1), and the TLS certificate for the site and API addresses.
   Deployed by hand once (stack name tma-domain), like the bootstrap stack; both environments use it.
   Step 1: deploy with CreateCertificate=false, then point the domain's nameservers at the
   NameServers output (at the registrar). Step 2, once DNS answers from Route 53: update the stack
@@ -83,6 +84,29 @@ Resources:
               - !Sub '"v=DMARC1; p=quarantine; adkim=r; aspf=r; rua=mailto:${DmarcReportEmail}"'
               - '"v=DMARC1; p=quarantine; adkim=r; aspf=r"'
 
+  # Team email (Messaging M1): the app stacks send through this configuration set and tag each message
+  # with its environment; delivered, bounced, complaint and reject events go to EventBridge, where
+  # each app stack's rule picks up its own. Sign-in codes from Cognito don't use it.
+  MailConfigSet:
+    Type: AWS::SES::ConfigurationSet
+    Properties:
+      Name: !Sub "${AWS::StackName}-mail"
+      ReputationOptions: { ReputationMetricsEnabled: true }
+      SendingOptions: { SendingEnabled: true }
+      # Addresses that bounced or complained aren't sent to again (SES's account-level list).
+      SuppressionOptions: { SuppressedReasons: [BOUNCE, COMPLAINT] }
+
+  MailEventDestination:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    Properties:
+      ConfigurationSetName: !Ref MailConfigSet
+      EventDestination:
+        Name: eventbridge
+        Enabled: true
+        MatchingEventTypes: [DELIVERY, BOUNCE, COMPLAINT, REJECT]
+        EventBridgeDestination:
+          EventBusArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default"
+
   # ---------- TLS: one certificate for <domain> and *.<domain> (dev., api., api-dev., ws., ws-dev.) ----------
   Certificate:
     Type: AWS::CertificateManager::Certificate
@@ -108,6 +132,10 @@ Outputs:
   DomainName:
     Value: !Ref DomainName
     Export: { Name: !Sub "${AWS::StackName}-DomainName" }
+  MailConfigSet:
+    Description: The SES configuration set the app stacks send team email through.
+    Value: !Ref MailConfigSet
+    Export: { Name: !Sub "${AWS::StackName}-MailConfigSet" }
   CertificateArn:
     Condition: WantCertificate
     Value: !Ref Certificate

@@ -121,8 +121,8 @@ export class ImportPanel {
       this.progress.set(null);
       const n = done.length;
       const msg = this.kind() === 'club'
-        ? `Imported the club and ${plural(n, 'team')}. Invited people get access when they sign in or create an account with their email.`
-        : 'Imported the team. Invited people get access when they sign in or create an account with their email.';
+        ? `Imported the club and ${plural(n, 'team')}. The invites are saved but not emailed: email them from each team's Members page when you're ready.`
+        : 'Imported the team. The invites are saved but not emailed: use "Email them now" under Pending invites when you\'re ready.';
       this.reset();
       this.imported.emit(msg);
     } catch (err) {

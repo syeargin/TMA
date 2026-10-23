@@ -209,6 +209,18 @@ def env_block(E, env):
             Effect: Allow
             Action: execute-api:ManageConnections
             Resource: !Sub "arn:aws:execute-api:${{AWS::Region}}:${{AWS::AccountId}}:*/live/POST/@connections/*"
+          # Team email (Messaging M1): the sender sends through SES from the domain's identity and
+          # configuration set, and the API starts the sender without waiting.
+          - Sid: SendEmail
+            Effect: Allow
+            Action: ses:SendEmail
+            Resource:
+              - !Sub "arn:aws:ses:${{AWS::Region}}:${{AWS::AccountId}}:identity/*"
+              - !Sub "arn:aws:ses:${{AWS::Region}}:${{AWS::AccountId}}:configuration-set/*"
+          - Sid: StartOwnFunctions
+            Effect: Allow
+            Action: lambda:InvokeFunction
+            Resource: !Sub "arn:aws:lambda:${{AWS::Region}}:${{AWS::AccountId}}:function:${{AppPrefix}}-{env}-*"
 
   # The role CloudFormation uses for the {env} stack. Resources with predictable names are limited
   # to {env}'s names. Cognito, API Gateway and CloudFront ids are random, so those rights can't be
@@ -341,7 +353,7 @@ def env_block(E, env):
                 Effect: Allow
                 Action: cloudwatch:DescribeAlarms
                 Resource: "*"
-              # The daily retention job's schedule (R4).
+              # The daily retention job's schedule (R4) and the email events rule (Messaging M1).
               - Sid: Schedules
                 Effect: Allow
                 Action: [events:PutRule, events:DeleteRule, events:DescribeRule, events:EnableRule, events:DisableRule, events:PutTargets, events:RemoveTargets, events:ListTargetsByRule, events:TagResource, events:UntagResource, events:ListTagsForResource]

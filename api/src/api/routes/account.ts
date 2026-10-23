@@ -2,6 +2,8 @@ import { z } from "zod";
 import { deleteSignIn } from "../../lib/cognito.js";
 import { keys, normEmail } from "../../lib/keys.js";
 import { PRIVACY_VERSION } from "../../shared/privacy.js";
+import { dispatch, queueEmail } from "../../lib/mail/outbox.js";
+import { siteUrl } from "../../lib/mail/invite-mail.js";
 import { badRequest, conflict, json, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { clean, deleteMany, getItem, now, putItem, queryAll } from "../util.js";
@@ -119,6 +121,16 @@ export function accountRoutes(r: Router) {
     await deleteMany([...memberships.map(key), ...adminOf.map(key), ...invites.map(key), keys.profile(caller.sub)]);
     await deleteSignIn(caller.username || caller.sub);
     console.log(JSON.stringify({ msg: "account deleted", sub: caller.sub, teams: memberships.length, clubs: adminOf.length }));
+    // A required notice to the address the account used, so someone who didn't do this finds out.
+    if (email) {
+      const teamNames: string[] = [];
+      for (const m of memberships.filter((x) => x.status === "active")) teamNames.push(String((await getItem(keys.settings(teamOf(m))))?.teamName ?? teamOf(m)));
+      const { id, queued } = await queueEmail({
+        msg: "accountDeleted", to: email, dedupe: `accountDeleted:${caller.sub}`,
+        data: { firstName: typeof profile?.firstName === "string" ? profile.firstName : undefined, teams: teamNames, siteUrl: siteUrl() }
+      });
+      if (queued) await dispatch([id]).catch((e) => console.error(JSON.stringify({ msg: "account deleted email failed", error: String(e) })));
+    }
     return json(204, undefined);
   });
 }
