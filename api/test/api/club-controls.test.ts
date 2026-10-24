@@ -131,17 +131,24 @@ describe("inactive clubs", () => {
     expect((await setControls({ status: "inactive" })).status).toBe(400);
   });
 
-  it("are read-only for everyone, and send no team email, until made active again", async () => {
+  it("are read-only for everyone but site owners, and send no team email, until made active again", async () => {
     expect((await setControls({ status: "inactive", reason: "Season over; club not renewed" })).body).toMatchObject({ status: "inactive", statusReason: "Season over; club not renewed" });
     // Reading still works; changing doesn't, for families, club admins or site owners.
     expect((await parent("GET", "/teams/cc-1")).body.clubControls.status).toBe("inactive");
     expect((await parent("GET", "/me")).body.teams.find((t: any) => t.teamId === "cc-1")).toMatchObject({ clubInactive: true });
-    for (const who of [boss, owner]) {
+    for (const who of [parent, boss]) {
       const r = await who("PUT", "/teams/cc-1/announcements/a1", { text: "Hello" });
       expect(r.body).toMatchObject({ error: "club_inactive", message: "This club is inactive, so its teams are read-only. A site owner can reactivate it." });
     }
     expect((await boss("PUT", "/clubs/cc", { name: "Renamed", colors: { primary: "#15294D", accent: "#C8323E" } })).body.error).toBe("club_inactive");
     expect((await newTeam("cc-9")).body.message).toMatch(/club is inactive/);
+    // Site owners are exempt: they can still change teams, the club, and add teams (within the limit).
+    expect((await owner("PUT", "/teams/cc-1/announcements/a0", { text: "From the site owner" })).status).toBe(200);
+    expect((await owner("PUT", "/clubs/cc", { name: "Control Club", colors: { primary: "#15294D", accent: "#C8323E" } })).status).toBe(200);
+    expect((await owner("GET", "/teams/cc-1")).body.you.siteOwner).toBe(true);
+    expect((await owner("POST", "/teams", { clubId: "cc", teamId: "cc-8", name: "CC 8" })).body).toMatchObject({ error: "team_limit", message: expect.stringMatching(/limit of 2/) });
+    expect((await owner("POST", "/teams/cc-2/archive")).status).toBe(200);
+    expect((await owner("POST", "/teams", { clubId: "cc", teamId: "cc-8", name: "CC 8" })).status).toBe(201);
     expect((await runPlanner(new Date("2026-11-08T23:05:00Z"))).sends).toEqual([]);
     // The club admin's page shows it.
     expect((await boss("GET", "/clubs/cc")).body.controls.status).toBe("inactive");

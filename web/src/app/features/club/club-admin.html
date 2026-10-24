@@ -10,7 +10,7 @@
 
   @if (detail(); as d) {
     @if (d.controls?.status === 'inactive') {
-      <div class="banner archived" role="status" style="margin-bottom:14px"><p><b>This club is inactive.</b> Its settings and teams are read-only, and no team emails go out. A site owner can reactivate it.</p></div>
+      <div class="banner archived" role="status" style="margin-bottom:14px"><p><b>This club is inactive.</b> Its settings and teams are read-only@if (owner()) { for everyone but site owners}, and no team emails go out. @if (owner()) { Reactivate it from <a routerLink="/admin">Site admin</a>. } @else { A site owner can reactivate it. }</p></div>
     }
     <div class="grid g-home">
       <div class="stack">
@@ -149,7 +149,7 @@
               }
             } @empty { <div class="empty">No teams yet.</div> }
             <h3 class="sub-h">Create a team</h3>
-            @if (d.controls?.status === 'inactive') {
+            @if (d.controls?.status === 'inactive' && !owner()) {
               <p class="small muted">The club is inactive, so no teams can be added.</p>
             } @else if (atLimit()) {
               <p class="small comms-warn" role="status"><b>Your club is at its limit of {{ d.controls?.teamLimit }} active teams.</b> Archive a team you're done with, or ask a site owner to raise the limit.</p>

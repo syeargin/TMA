@@ -82,6 +82,8 @@ export async function teamOwner(teamId: string): Promise<{ clubId: string | null
 export async function importTeam(opts: {
   clubId: string; plan: TeamPlan; by: string; write: boolean; problems: Problem[];
   defaults?: ClubPlan["defaults"]; teamsInFile?: Set<string>;
+  /** Site owners can add teams to an inactive club (site admin dashboard). */
+  siteOwner?: boolean;
 }): Promise<TeamSummary | null> {
   const { clubId, plan: t, by, write, problems } = opts;
   const at = now();
@@ -341,14 +343,14 @@ export async function importTeam(opts: {
       { Put: { TableName: TABLE, Item: dir } },
       ...(handbook ? [{ Put: { TableName: TABLE, Item: handbook } }] : []),
       // One of the club's team places (site admin dashboard).
-      takeTeamPlace(clubId)
+      takeTeamPlace(clubId, !!opts.siteOwner)
     ];
     try {
       await ddb.send(new TransactWriteCommand({ TransactItems: steps }));
     } catch (e) {
       const name = (e as { name?: string }).name;
       if (failedAt(e, steps.length - 1)) {
-        problems.push({ ...where, level: "error", message: (await placeRefusal(clubId)) ?? "Your club can't add a team right now. Try again." });
+        problems.push({ ...where, level: "error", message: (await placeRefusal(clubId, !!opts.siteOwner)) ?? "Your club can't add a team right now. Try again." });
         return null;
       }
       if (name === "TransactionCanceledException" || name === "ConditionalCheckFailedException") {

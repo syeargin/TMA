@@ -48,6 +48,14 @@ describe('optional team features', () => {
     expect(s.can('announce')).toBe(false);
   });
 
+  it('site owners can still make changes in an inactive club', () => {
+    const s = store(['admin'], {}, { status: 'inactive', features: {}, teamLimit: null });
+    s.bundle.update((b) => (b ? { ...b, you: { ...b.you, siteOwner: true } } : b));
+    expect(s.clubInactive()).toBe(true);
+    expect(s.readOnly()).toBe(false);
+    expect(s.can('schedule')).toBe(true);
+  });
+
   it('a feature the club leaves out is off, and the club says so', () => {
     const s = store(['admin'], {}, { status: 'active', features: { travel: false, texts: false }, teamLimit: null });
     expect(s.clubAllows('travel')).toBe(false);

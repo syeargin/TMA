@@ -89,14 +89,16 @@ export async function countActiveTeams(clubId: string): Promise<number> {
  * A transaction step that takes one team place: refused when the club is inactive or at its limit.
  * Put it in the same transaction that creates or restores the team.
  */
-export function takeTeamPlace(clubId: string) {
+export function takeTeamPlace(clubId: string, siteOwner = false) {
+  // Site owners can add teams to an inactive club; the limit applies to everyone.
+  const limit = "(attribute_not_exists(teamLimit) OR activeTeams < teamLimit)";
   return {
     Update: {
       TableName: TABLE, Key: keys.clubControls(clubId),
       UpdateExpression: "SET #t = if_not_exists(#t, :type) ADD activeTeams :one",
-      ConditionExpression: "(attribute_not_exists(#s) OR #s = :active) AND (attribute_not_exists(teamLimit) OR activeTeams < teamLimit)",
-      ExpressionAttributeNames: { "#t": "type", "#s": "status" },
-      ExpressionAttributeValues: { ":type": "ClubControls", ":one": 1, ":active": "active" }
+      ConditionExpression: siteOwner ? limit : `(attribute_not_exists(#s) OR #s = :active) AND ${limit}`,
+      ExpressionAttributeNames: { "#t": "type", ...(siteOwner ? {} : { "#s": "status" }) },
+      ExpressionAttributeValues: { ":type": "ClubControls", ":one": 1, ...(siteOwner ? {} : { ":active": "active" }) }
     }
   };
 }
@@ -126,9 +128,9 @@ export async function recountTeams(clubId: string): Promise<number> {
 }
 
 /** Why a new or restored team was refused, in words for the club admin. Null if it wasn't the club. */
-export async function placeRefusal(clubId: string): Promise<string | null> {
+export async function placeRefusal(clubId: string, siteOwner = false): Promise<string | null> {
   const c = await getControls(clubId);
-  if (!isActive(c)) return "This club is inactive, so no teams can be added or restored. A site owner can reactivate it.";
+  if (!isActive(c) && !siteOwner) return "This club is inactive, so no teams can be added or restored. A site owner can reactivate it.";
   if (c.teamLimit !== null && (c.activeTeams ?? 0) >= c.teamLimit) {
     return `Your club is at its limit of ${c.teamLimit} active team${c.teamLimit === 1 ? "" : "s"}. Archive a team, or ask a site owner to raise the limit.`;
   }

@@ -193,7 +193,7 @@ export interface TeamBundle {
   /** The club's status and features (site admin dashboard). */
   clubControls?: ClubControlsView;
   teamId: string;
-  you: { sub?: string; roles: Role[]; pid?: string; person?: string; clubAdmin?: boolean };
+  you: { sub?: string; roles: Role[]; pid?: string; person?: string; clubAdmin?: boolean; siteOwner?: boolean };
   clubId?: string;
   club?: Club | null;
   /** The team's entry in its club's team list. */

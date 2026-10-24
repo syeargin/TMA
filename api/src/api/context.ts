@@ -101,21 +101,22 @@ export async function loadClubAccess(caller: Caller, clubId: string): Promise<{ 
 }
 
 /**
- * Archived teams, and every team in an inactive club, are read-only for everyone until a site owner
- * restores the team or reactivates the club.
+ * Archived teams are read-only for everyone until a site owner restores them. Every team in an
+ * inactive club is read-only too, except for site owners (with two-step sign-in), who can still
+ * make changes there. `caller` is absent for the public routes (one-tap answers): never a site owner.
  */
-export async function assertTeamWritable(teamId: string) {
+export async function assertTeamWritable(teamId: string, caller?: Caller) {
   const clubId = await clubOfTeam(teamId);
   const [dir, controls] = await Promise.all([getItem(keys.teamDir(clubId, teamId)), getControls(clubId)]);
-  if (!isActive(controls)) throw conflict(INACTIVE, "club_inactive");
+  if (!isActive(controls) && !(caller && (await isPlatformAdmin(caller)))) throw conflict(INACTIVE, "club_inactive");
   if (dir?.archived) throw conflict("This team is archived, so it's read-only. A site owner can restore it.");
 }
 
 export const INACTIVE = "This club is inactive, so its teams are read-only. A site owner can reactivate it.";
 
-/** An inactive club's settings, admins and teams can't change either. */
-export async function assertClubWritable(clubId: string) {
-  if (!isActive(await getControls(clubId))) throw conflict(INACTIVE, "club_inactive");
+/** An inactive club's settings, admins and teams can't change either, except by site owners. */
+export async function assertClubWritable(clubId: string, caller?: Caller) {
+  if (!isActive(await getControls(clubId)) && !(caller && (await isPlatformAdmin(caller)))) throw conflict(INACTIVE, "club_inactive");
 }
 
 async function hasPlatformRecord(sub: string): Promise<boolean> {

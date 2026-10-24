@@ -43,14 +43,14 @@ export function importRoutes(r: Router) {
     const parsed = parseTeamWorkbook(b.sheets, a.teamId) as Extract<Parsed, { kind: "team" }>;
     const problems = parsed.problems;
     if (b.apply && errors(problems).length) refuse(problems);
-    const team = await importTeam({ clubId: a.clubId, plan: parsed.team, by: caller.sub, write: b.apply, problems });
+    const team = await importTeam({ clubId: a.clubId, plan: parsed.team, by: caller.sub, write: b.apply, problems, siteOwner: a.platformAdmin });
     if (b.apply && !team) refuse(problems);
     return json(200, { kind: "team", applied: b.apply, teams: team ? [team] : [], order: [a.teamId], problems: sortProblems(problems) });
   });
 
   /** Club workbook (or a Team workbook plus a team id) on a club's page. */
   r.on("POST", "/clubs/{clubId}/import", async ({ caller, params, body }) => {
-    const { clubId } = await loadClubAccess(caller, checkId(params.clubId, "club"));
+    const { clubId, platformAdmin } = await loadClubAccess(caller, checkId(params.clubId, "club"));
     if (!(await getClub(clubId))) throw notFound("That club doesn't exist.");
     const b = parseBody(clubBody, body);
     const kind = workbookKind(b.sheets);
@@ -77,7 +77,7 @@ export function importRoutes(r: Router) {
       }
       const plan = plans.find((t) => t.teamId === b.apply);
       if (!plan) throw badRequest(`${b.apply} isn't in this workbook.`);
-      const team = await importTeam({ clubId, plan, by: caller.sub, write: true, problems, defaults: club?.defaults, teamsInFile });
+      const team = await importTeam({ clubId, plan, by: caller.sub, write: true, problems, defaults: club?.defaults, teamsInFile, siteOwner: platformAdmin });
       if (!team) refuse(problems);
       forgetTeamClubs();
       return json(200, { applied: plan.teamId, teams: [team], problems: sortProblems(problems) });
@@ -86,7 +86,7 @@ export function importRoutes(r: Router) {
     // ----- preview everything -----
     const teams: TeamSummary[] = [];
     for (const plan of order.map((id) => plans.find((t) => t.teamId === id)!)) {
-      const s = await importTeam({ clubId, plan, by: caller.sub, write: false, problems, defaults: club?.defaults, teamsInFile });
+      const s = await importTeam({ clubId, plan, by: caller.sub, write: false, problems, defaults: club?.defaults, teamsInFile, siteOwner: platformAdmin });
       if (s) teams.push(s);
     }
     // New teams have to fit in the club's team places (site admin dashboard).
@@ -94,7 +94,7 @@ export function importRoutes(r: Router) {
     if (added) {
       const c = await getControls(clubId);
       const left = c.teamLimit === null ? Infinity : c.teamLimit - (c.activeTeams ?? 0);
-      if (c.status !== "active") problems.push({ sheet: "Teams", level: "error", message: "This club is inactive, so no teams can be added. A site owner can reactivate it." });
+      if (c.status !== "active" && !platformAdmin) problems.push({ sheet: "Teams", level: "error", message: "This club is inactive, so no teams can be added. A site owner can reactivate it." });
       else if (added > left) problems.push({ sheet: "Teams", level: "error", message: `This file adds ${added} new teams, but your club has room for ${Math.max(0, left)} more (its limit is ${c.teamLimit} active teams). Archive a team, or ask a site owner to raise the limit.` });
     }
     const clubSummary = club ? await importClub({ clubId, plan: club, by: caller.sub, write: false }) : null;

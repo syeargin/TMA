@@ -191,7 +191,7 @@ Teem Hub sends its own email through SES, from the same `noreply@` address as si
 ### Site admin dashboard: club status, team limits and features
 
 Site owners open **Site admin** (`/admin`, linked from Your teams) to manage every club:
-- **Active or inactive.** Making a club inactive needs a reason. Every team in it becomes read-only for everyone, site owners included, like an archived team. The club's settings, admins and invites can't change, and no team emails go out. Families can still open and read everything. Making it active again undoes all of that.
+- **Active or inactive.** Making a club inactive needs a reason. Every team in it becomes read-only, like an archived team, and the club's settings, admins and invites can't change, for everyone except site owners. Site owners can still edit, and create or restore teams (the team limit still applies). No team emails go out. Families can still open and read everything. Making it active again undoes all of that.
 - **Team limit:** the most teams that may be active at once. Archived teams don't count. Creating a team, restoring one, and new teams in a club workbook are all refused at the limit ("Your club is at its limit of N active teams"). Lowering the limit below the current count archives nothing; the club just can't add or restore teams until it's under.
 - **Features:** one switch per feature, for the 7 team features plus **Team emails** and **Text alerts**. Invites, sign-in codes and account notices always go. A feature that's off for the club is off for every team in it, and shows as "Not included for your club" in Team settings.
 - **History:** every change is kept with who made it, when and why (`CLUB#<c>` / `AUDIT#…`).

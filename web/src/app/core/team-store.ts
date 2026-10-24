@@ -86,9 +86,9 @@ export class TeamStore implements OnDestroy {
 
   /** Archived teams are read-only: everyone keeps what they could see, nobody can change anything. */
   readonly archived = computed(() => !!this.bundle()?.team?.archived);
-  /** Every team in an inactive club is read-only too (site admin dashboard). */
+  /** Every team in an inactive club is read-only too, except for site owners (site admin dashboard). */
   readonly clubInactive = computed(() => this.bundle()?.clubControls?.status === 'inactive');
-  readonly readOnly = computed(() => this.archived() || this.clubInactive());
+  readonly readOnly = computed(() => this.archived() || (this.clubInactive() && !this.bundle()?.you?.siteOwner));
   /** Optional features: on unless the team or its club switched them off. */
   has(f: Feature): boolean { return isOn(this.settings()?.features, f); }
   /** Whether the club includes a feature at all (site admin dashboard). */

@@ -58,13 +58,14 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
     if (m === "method") throw new HttpError(405, "Method not allowed.", "method_not_allowed");
     // Nothing on an archived team changes, except archiving itself.
     const team = method !== "GET" ? /^\/teams\/[^/]+\/([^/]+)/.exec(path) : null;
-    if (team && team[1] !== "archive" && team[1] !== "restore" && ID.test(m.params.teamId ?? "")) await assertTeamWritable(m.params.teamId);
-    // An inactive club's settings, admins and invites don't change either (site admin dashboard).
-    if (method !== "GET" && /^\/clubs\/[^/]+/.test(path) && ID.test(m.params.clubId ?? "")) await assertClubWritable(m.params.clubId);
+    const caller = { sub, username: String(claims.username ?? claims["cognito:username"] ?? "") };
+    if (team && team[1] !== "archive" && team[1] !== "restore" && ID.test(m.params.teamId ?? "")) await assertTeamWritable(m.params.teamId, caller);
+    // An inactive club's settings, admins and invites don't change either, except by site owners (site admin dashboard).
+    if (method !== "GET" && /^\/clubs\/[^/]+/.test(path) && ID.test(m.params.clubId ?? "")) await assertClubWritable(m.params.clubId, caller);
     const res = await m.handler({
       method, path, params: m.params,
       body: event.isBase64Encoded && event.body ? Buffer.from(event.body, "base64").toString("utf8") : event.body ?? null,
-      caller: { sub, username: String(claims.username ?? claims["cognito:username"] ?? "") },
+      caller,
       event
     });
     status = res.statusCode ?? 200;

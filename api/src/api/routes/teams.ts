@@ -73,7 +73,7 @@ const DEFAULT_CHECKLIST = ["Court shoes", "Extra pair of socks", "Knee and elbow
 export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnType<typeof loadAccess>>) {
   const out = {
     teamId: access.teamId,
-    you: { sub: access.caller.sub, roles: [...access.roles], pid: access.member?.pid ?? "", person: access.member?.person ?? "", clubAdmin: access.clubAdmin },
+    you: { sub: access.caller.sub, roles: [...access.roles], pid: access.member?.pid ?? "", person: access.member?.person ?? "", clubAdmin: access.clubAdmin, siteOwner: access.platformAdmin },
     clubId: access.clubId,
     settings: null as unknown, handbook: null as unknown,
     players: [] as Record<string, unknown>[], events: [] as unknown[], meals: [] as unknown[],
@@ -202,9 +202,9 @@ export function teamRoutes(r: Router) {
   r.on("POST", "/teams", async ({ caller, body }) => {
     const b = parseBody(createTeamSchema, body);
     const clubId = b.clubId ?? DEFAULT_CLUB();
-    await loadClubAccess(caller, clubId).catch((e) => { throw e?.code === "mfa_required" ? e : forbidden("Only club admins can create teams."); });
+    const { platformAdmin: owner } = await loadClubAccess(caller, clubId).catch((e) => { throw e?.code === "mfa_required" ? e : forbidden("Only club admins can create teams."); });
     if (!(await getClub(clubId))) throw notFound("That club doesn't exist.");
-    const refusal = await placeRefusal(clubId);
+    const refusal = await placeRefusal(clubId, owner);
     if (refusal) throw conflict(refusal, "team_limit");
     if (b.copyFrom) {
       // Only copy from a team in a club you run.
@@ -241,11 +241,11 @@ export function teamRoutes(r: Router) {
           { Put: { TableName: TABLE, ConditionExpression: "attribute_not_exists(PK)", Item: settings } },
           { Put: { TableName: TABLE, Item: { ...keys.handbook(b.teamId), type: "Handbook", sections: copy.has("handbook") ? (hb.sections ?? []) : [], updatedAt: at } } },
           // One of the club's team places (site admin dashboard): refused when inactive or at the limit.
-          takeTeamPlace(clubId)
+          takeTeamPlace(clubId, owner)
         ]
       }));
     } catch (e) {
-      if (failedAt(e, 4)) throw conflict((await placeRefusal(clubId)) ?? "Your club can't add a team right now. Try again.", "team_limit");
+      if (failedAt(e, 4)) throw conflict((await placeRefusal(clubId, owner)) ?? "Your club can't add a team right now. Try again.", "team_limit");
       mapDbError(e, "A team with that id already exists. Team ids have to be unique across all clubs.");
     }
     return json(201, { teamId: b.teamId, clubId });
@@ -389,7 +389,8 @@ export function teamRoutes(r: Router) {
       const { archivedAt: _a, archivedBy: _b, purgeAt: _p, deleteRequestedAt: _r, deleteRequestedBy: _q, ...rest } = base as Record<string, unknown>;
       // Restoring takes one of the club's team places again; archiving gives one back.
       const restoring = !archived && !!dir?.archived;
-      if (restoring) { const refusal = await placeRefusal(clubId); if (refusal) throw conflict(refusal, "team_limit"); }
+      // Only site owners restore teams, so an inactive club doesn't stop it; the limit does.
+      if (restoring) { const refusal = await placeRefusal(clubId, true); if (refusal) throw conflict(refusal, "team_limit"); }
       try {
         await ddb.send(new TransactWriteCommand({
           TransactItems: [
@@ -397,11 +398,11 @@ export function teamRoutes(r: Router) {
             { Put: { TableName: TABLE, Item: archived ? { ...rest, archived, archivedAt: at, archivedBy: caller.sub, purgeAt: daysFrom(at, ARCHIVE_DAYS) } : { ...rest, archived } } },
             // Touching the settings tells anyone with the team open to reload it.
             ...(settings ? [{ Update: { TableName: TABLE, Key: keys.settings(teamId), UpdateExpression: "SET archived = :a, updatedAt = :at", ExpressionAttributeValues: { ":a": archived, ":at": at } } }] : []),
-            ...(restoring ? [takeTeamPlace(clubId)] : [])
+            ...(restoring ? [takeTeamPlace(clubId, true)] : [])
           ]
         }));
       } catch (e) {
-        if (restoring && failedAt(e, settings ? 2 : 1)) throw conflict((await placeRefusal(clubId)) ?? "Your club can't restore a team right now. Try again.", "team_limit");
+        if (restoring && failedAt(e, settings ? 2 : 1)) throw conflict((await placeRefusal(clubId, true)) ?? "Your club can't restore a team right now. Try again.", "team_limit");
         throw e;
       }
       if (archived && !dir?.archived) await releaseTeamPlace(clubId);

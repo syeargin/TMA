@@ -59,7 +59,7 @@ type Draft = { status: 'active' | 'inactive'; reason: string; limited: boolean; 
                         <fieldset class="comms-set">
                           <legend>Status</legend>
                           <label class="check-row"><input type="radio" name="status" [checked]="d.status === 'active'" (change)="set({ status: 'active' })"> Active</label>
-                          <label class="check-row"><input type="radio" name="status" [checked]="d.status === 'inactive'" (change)="set({ status: 'inactive' })"> Inactive: every team is read-only and no team emails or texts go out</label>
+                          <label class="check-row"><input type="radio" name="status" [checked]="d.status === 'inactive'" (change)="set({ status: 'inactive' })"> Inactive: every team is read-only (site owners can still make changes) and no team emails or texts go out</label>
                           @if (d.status === 'inactive' && c.status === 'active') {
                             <label for="why">Why (kept in the club's history)<input id="why" [value]="d.reason" (input)="set({ reason: $any($event.target).value })" maxlength="300" placeholder="Season over; club didn't renew"></label>
                           }
