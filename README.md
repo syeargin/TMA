@@ -183,6 +183,11 @@ Teem Hub sends its own email through SES, from the same `noreply@` address as si
 2. **Update the bootstrap stack** (`bootstrap/github-oidc.yaml`): app roles may now send through SES and start their own functions.
 3. **Merge:** dev deploys and starts sending. Send yourself a test from Your teams → Emails Teem Hub sends, then invite a test address and watch it change to "Delivered".
 
+**Text alerts groundwork (Messaging M4),** ahead of the toll-free number's approval:
+- **Terms of use** at `/terms` (no sign-in) name Teem Hub Inc. and support@teemhub.net and spell out the text program the way carriers check it. Sign-up and the privacy re-consent page now ask people to agree to the terms.
+- **Opt-in** on the Account page (`GET/PUT/DELETE /me/sms`): a US mobile number and an unticked consent box. The profile keeps the number and a consent record (time, exact words, version, IP, browser). Until `SMS_ORIGINATION` is set on the stack, only site owners can save a number and nothing is texted.
+- **The wording** for the consent box, the frequency, and the HELP, STOP, START and confirmation replies lives in `api/src/shared/privacy.ts` (`SMS`), so the screen, the terms and the registration answers can't drift apart.
+
 ### Two-step sign-in (R2)
 
 - Anyone can turn on an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy) under **Your teams › Two-step sign-in** (`/security`). The user pool's MFA is `OPTIONAL` with authenticator apps only: no text messages, no remembered devices. Once it's on, Cognito asks for a 6-digit code at every sign-in.

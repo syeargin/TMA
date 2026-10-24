@@ -39,6 +39,7 @@ export const routes: Routes = [
       { path: 'answer', title: T('Availability'), loadComponent: () => import('./features/account/answer').then((m) => m.Answer) },
       { path: 'unsubscribe', title: T('Unsubscribe'), loadComponent: () => import('./features/account/unsubscribe').then((m) => m.Unsubscribe) },
       { path: 'privacy', title: T('Privacy notice'), loadComponent: () => import('./features/privacy/privacy').then((m) => m.Privacy) },
+      { path: 'terms', title: T('Terms of use'), loadComponent: () => import('./features/privacy/terms').then((m) => m.Terms) },
       { path: 'consent', canActivate: [signedInGuard], title: T('Privacy notice'), loadComponent: () => import('./features/account/consent').then((m) => m.Consent) },
       { path: 'account', canActivate: [signedInGuard], title: T('Your account'), loadComponent: () => import('./features/account/account').then((m) => m.Account) },
       { path: 'signin', component: SignIn, canActivate: [signedOutGuard], title: T('Sign in') },
