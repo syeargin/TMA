@@ -24,7 +24,8 @@ export const routes: Routes = [
       { path: 'roster/:section', loadComponent: () => import('./features/roster/roster').then((m) => m.Roster), title: T('Uniform order') },
       { path: 'info', loadComponent: () => import('./features/info/info').then((m) => m.Info), title: T('Team info') },
       { path: 'info/:section', loadComponent: () => import('./features/info/info').then((m) => m.Info), title: T('Coordinator tasks') },
-      { path: 'members', loadComponent: () => import('./features/team/members').then((m) => m.Members), title: T('Members') }
+      { path: 'members', loadComponent: () => import('./features/team/members').then((m) => m.Members), title: T('Members') },
+      { path: 'communications', loadComponent: () => import('./features/team/communications').then((m) => m.Communications), title: T('Communications') }
     ]
   },
   {
@@ -35,6 +36,7 @@ export const routes: Routes = [
     path: '', component: Narrow,
     children: [
       { path: 'teams', pathMatch: 'full', component: Home, canActivate: [signedInGuard, privacyGuard], title: T('Your teams') },
+      { path: 'unsubscribe', title: T('Unsubscribe'), loadComponent: () => import('./features/account/unsubscribe').then((m) => m.Unsubscribe) },
       { path: 'privacy', title: T('Privacy notice'), loadComponent: () => import('./features/privacy/privacy').then((m) => m.Privacy) },
       { path: 'consent', canActivate: [signedInGuard], title: T('Privacy notice'), loadComponent: () => import('./features/account/consent').then((m) => m.Consent) },
       { path: 'account', canActivate: [signedInGuard], title: T('Your account'), loadComponent: () => import('./features/account/account').then((m) => m.Account) },

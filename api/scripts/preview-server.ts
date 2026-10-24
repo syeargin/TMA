@@ -83,6 +83,11 @@ await api("POST", "/teams/test-13/invites", OWNER, { email: "sam.ruiz@example.co
   await applySesEvent({ eventType: "Bounce", bounce: { bounceType: "Permanent" }, mail: { tags: { delivery: [await delivery("d.torres@gmial.com")] } } });
 }
 
+// Messaging M2: the weekly email and staff digest on for test-13; a coach who isn't a parent.
+await api("PUT", "/teams/test-13/comms", OWNER, { messages: { weekly: { on: true }, staffDigest: { on: true, time: "17:30" } } });
+await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("test-13", "u-kim"), ...keys.memberGsi("test-13", "u-kim"), type: "Membership", status: "active", sub: "u-kim", roles: ["coach", "coordinator"], email: "kim@example.com", firstName: "Kim", at: new Date().toISOString() } }));
+await api("PUT", "/teams/test-13/announcements/a2", OWNER, { text: "Warm-ups are in: pick them up after Wednesday's practice.", pinned: true });
+
 // Everyone but Gloria (u-gran) has accepted the privacy notice, so she shows the consent page.
 const { PRIVACY_VERSION } = await import("../src/shared/privacy.js");
 for (const sub of [OWNER, MOM, "u-dad"]) await api("PUT", "/me/privacy", sub, { version: PRIVACY_VERSION });

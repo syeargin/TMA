@@ -29,6 +29,8 @@ export type QueueInput<K extends LiveMessage> = {
   /** Same key, same delivery: queuing twice sends once. */
   dedupe: string;
   teamId?: string; clubId?: string; link?: Link; by?: string;
+  /** Extra mail headers, like List-Unsubscribe for optional messages. */
+  headers?: Record<string, string>;
 };
 
 const deliveryId = (dedupe: string) => createHash("sha256").update(dedupe).digest("hex").slice(0, 32);
@@ -43,7 +45,7 @@ export async function queueEmail<K extends LiveMessage>(q: QueueInput<K>): Promi
       TableName: TABLE, ConditionExpression: "attribute_not_exists(PK)",
       Item: {
         ...deliveryKey(id), type: "Delivery", id, msg: q.msg, channel: "email", to: normEmail(q.to), data: q.data,
-        status: "queued", link: q.link, teamId: q.teamId, clubId: q.clubId, by: q.by,
+        status: "queued", link: q.link, teamId: q.teamId, clubId: q.clubId, by: q.by, headers: q.headers,
         createdAt: at, ttl: Math.floor(Date.now() / 1000) + DELIVERY_DAYS * 86400
       }
     }));
@@ -99,7 +101,7 @@ export async function dispatch(ids: string[]): Promise<void> {
 
 // ---------- the sender ----------
 
-export type Mail = { to: string; fromName: string; subject: string; html: string; text: string; tags: Record<string, string> };
+export type Mail = { to: string; fromName: string; subject: string; html: string; text: string; tags: Record<string, string>; headers?: Record<string, string> };
 export interface Transport { send(m: Mail): Promise<string> }
 
 /** Tests and the local preview (MAIL_TRANSPORT=memory) collect mail here instead of sending it. */
@@ -123,7 +125,8 @@ const sesTransport = (from: string): Transport => ({
       Destination: { ToAddresses: [m.to] },
       Content: { Simple: {
         Subject: { Data: m.subject, Charset: "UTF-8" },
-        Body: { Html: { Data: m.html, Charset: "UTF-8" }, Text: { Data: m.text, Charset: "UTF-8" } }
+        Body: { Html: { Data: m.html, Charset: "UTF-8" }, Text: { Data: m.text, Charset: "UTF-8" } },
+        Headers: m.headers ? Object.entries(m.headers).map(([Name, Value]) => ({ Name, Value })) : undefined
       } },
       ConfigurationSetName: process.env.MAIL_CONFIG_SET || undefined,
       EmailTags: Object.entries(m.tags).map(([Name, Value]) => ({ Name, Value }))
@@ -181,7 +184,8 @@ export async function sendDeliveries(ids: string[]): Promise<{ sent: number; fai
       const suffix = env() && env() !== "prod" ? ` (${env()})` : "";
       const messageId = await t.send({
         to: String(item.to), fromName: r.fromName + suffix, subject: r.subject, html: r.html, text: r.text,
-        tags: { env: env() || "local", delivery: id, msg: String(item.msg) }
+        tags: { env: env() || "local", delivery: id, msg: String(item.msg) },
+        headers: (item.headers as Record<string, string> | undefined) ?? undefined
       });
       await setStatus(id, "sent", "", { sesId: messageId, sentAt: new Date().toISOString() });
       out.sent++;

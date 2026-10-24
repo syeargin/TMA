@@ -50,6 +50,17 @@ export interface ImportResult {
 export interface ClubAdmin { sub: string; email: string; firstName?: string; lastName?: string; /** Two-step sign-in on: their admin tools work. */ mfa?: boolean }
 export interface ClubDetail { club: Club; teams: ClubTeam[]; admins: ClubAdmin[]; invites: { email: string; firstName?: string; lastName?: string; expires?: string; expired?: boolean; emailStatus?: EmailStatus; emailAt?: string; emailDetail?: string }[] }
 export interface Member { sub?: string; email?: string; firstName?: string; lastName?: string; person?: string; roles: Role[]; pid?: string; status?: string }
+/** The Communications page (Messaging M2). */
+export interface CommsMessage {
+  id: string; label: string; help: string; schedule: string; reach: number;
+  config: { timing: { day: number; time: string }; audience: { key: string; label: string; on: boolean }[]; rules: { key: string; label: string; on: boolean }[] };
+  settings: { on: boolean; day: number; time: string; audience: Record<string, boolean>; rules: Record<string, boolean> };
+}
+export interface UpcomingSend { key: string; msg: string; label: string; date: string; sendAt: string; skipped: boolean; paused: boolean; reach: number }
+export interface CommsPage { timeZone: string; pauseUntil: string | null; messages: CommsMessage[]; upcoming: UpcomingSend[]; catalog: EmailTemplate[] }
+export interface MessageSettings { on?: boolean; day?: number; time?: string; audience?: Record<string, boolean>; rules?: Record<string, boolean> }
+export interface MyNotifications { teamId: string; teamName: string; roles: string[]; off: string[]; options: { id: string; label: string; help: string; teamSends: boolean; schedule: string }[] }
+
 export interface EmailTemplate { id: string; channel: 'email' | 'text'; label: string; help: string; required: boolean; live: boolean }
 
 export interface Invite {

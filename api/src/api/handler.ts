@@ -12,6 +12,7 @@ import { clubRoutes } from "./routes/clubs.js";
 import { exportRoutes } from "./routes/exports.js";
 import { importRoutes } from "./routes/imports.js";
 import { mailRoutes } from "./routes/mail.js";
+import { commsRoutes, publicRoutes } from "./routes/comms.js";
 import { assertTeamWritable } from "./context.js";
 import { ID } from "./util.js";
 
@@ -27,6 +28,11 @@ clubRoutes(router);
 importRoutes(router);
 exportRoutes(router);
 mailRoutes(router);
+commsRoutes(router);
+
+/** Routes that need no sign-in (template.yaml gives them no authorizer). */
+export const publicRouter = new Router();
+publicRoutes(publicRouter);
 
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyStructuredResultV2> {
   const method = event.requestContext.http.method;
@@ -36,6 +42,12 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
   const started = Date.now();
   let status = 500;
   try {
+    const pub = path.startsWith("/public/") ? publicRouter.match(method, path) : null;
+    if (pub && pub !== "method") {
+      const res = await pub.handler({ method, path, params: pub.params, body: event.isBase64Encoded && event.body ? Buffer.from(event.body, "base64").toString("utf8") : event.body ?? null, caller: { sub: "", username: "" }, event });
+      status = res.statusCode ?? 200;
+      return res;
+    }
     if (!sub) throw new HttpError(401, "Sign in to continue.", "unauthorized");
     const m = router.match(method, path);
     if (m === null) throw new HttpError(404, "Not found.", "not_found");

@@ -1,0 +1,115 @@
+<div class="sec-h">
+  <div>
+    <h2>Communications</h2>
+    <p class="muted" style="margin-top:6px">Which emails Teem Hub sends for this team, when they go out and who gets them. Each person can still turn any of them off for themselves.</p>
+  </div>
+  <span class="spacer"></span>
+  <nav class="chips" aria-label="Communications views">
+    <button class="chip" type="button" [attr.aria-pressed]="tab() === 'messages'" (click)="tab.set('messages')">Messages</button>
+    <button class="chip" type="button" [attr.aria-pressed]="tab() === 'upcoming'" (click)="tab.set('upcoming')">Upcoming · {{ upcomingCount() }}</button>
+  </nav>
+</div>
+<th-messages [error]="error()" [notice]="notice()" />
+
+@if (page(); as p) {
+  @if (pauseUntil()) {
+    <div class="comms-banner" role="status"><b>Paused until {{ pauseUntil() }}.</b> Scheduled emails don’t go out until then; invites and account notices still do.</div>
+  }
+
+  @if (tab() === 'messages') {
+    <div class="comms-grid">
+      @for (m of p.messages; track m.id) {
+        @if (draft(m.id); as d) {
+        <section class="card comms-msg" [class.off]="!d.on">
+          <div class="card-h">
+            <h3>{{ m.label }}</h3><span class="spacer"></span>
+            <label class="switch-row"><input type="checkbox" role="switch" [checked]="d.on" (change)="setOn(m.id, $any($event.target).checked)"> {{ d.on ? 'On' : 'Off' }}</label>
+          </div>
+          <div class="card-b">
+            <p class="muted small">{{ m.help }}</p>
+            <div class="two">
+              <label [for]="m.id + '-day'">Every
+                <select [id]="m.id + '-day'" [value]="d.day" (change)="setDay(m.id, $any($event.target).value)">
+                  @for (o of days; track o.value) { <option [value]="o.value" [selected]="o.value === d.day">{{ o.label }}</option> }
+                </select>
+              </label>
+              <label [for]="m.id + '-time'">At
+                <select [id]="m.id + '-time'" (change)="setTime(m.id, $any($event.target).value)">
+                  @for (o of timesFor(m.id); track o.value) { <option [value]="o.value" [selected]="o.value === d.time">{{ o.label }}</option> }
+                </select>
+              </label>
+            </div>
+            <fieldset class="comms-set">
+              <legend>Who gets it</legend>
+              @for (a of m.config.audience; track a.key) {
+                <label class="check-row"><input type="checkbox" [checked]="d.audience[a.key]" (change)="setAudience(m.id, a.key, $any($event.target).checked)"> {{ a.label }}</label>
+              }
+              <div class="small muted">Reaches {{ m.reach }} {{ m.reach === 1 ? 'person' : 'people' }} as saved, leaving out anyone who turned it off.</div>
+            </fieldset>
+            <fieldset class="comms-set">
+              <legend>Keep it relevant</legend>
+              @for (r of m.config.rules; track r.key) {
+                <label class="check-row"><input type="checkbox" [checked]="d.rules[r.key]" (change)="setRule(m.id, r.key, $any($event.target).checked)"> {{ r.label }}</label>
+              }
+            </fieldset>
+            <div class="comms-actions">
+              <button class="link-btn small" type="button" (click)="showPreview(m)" [attr.aria-expanded]="preview()?.msg === m.id">{{ preview()?.msg === m.id ? 'Hide preview' : 'Preview this week’s' }}</button>
+              <button class="link-btn small" type="button" (click)="test(m)" [disabled]="busy()">Send me a test</button>
+            </div>
+            @if (preview(); as pv) { @if (pv.msg === m.id) {
+              <p class="small muted"><b>{{ pv.subject }}</b><br>{{ pv.note }}</p>
+              <iframe class="email-preview" sandbox="" [srcdoc]="pv.html" [title]="'Preview of the ' + m.label"></iframe>
+            } }
+          </div>
+        </section>
+        }
+      }
+    </div>
+
+    <section class="card" style="margin-top:14px">
+      <div class="card-h"><h3>For every message</h3></div>
+      <div class="card-b">
+        <div class="two">
+          <label for="tz">Time zone
+            <select id="tz" (change)="setZone($any($event.target).value)">
+              @for (z of zones(); track z.value) { <option [value]="z.value" [selected]="z.value === timeZone()">{{ z.label }}</option> }
+            </select>
+          </label>
+          <label for="pause">Pause all scheduled emails until
+            <input id="pause" type="date" [value]="pauseUntil()" (change)="setPause($any($event.target).value)">
+            <span class="hint">For the off-season or a holiday break. Leave empty to keep sending.</span>
+          </label>
+        </div>
+        <p class="small muted">Always sent, whatever is set here: {{ always().join(', ') }}.</p>
+        @if (later().length) { <p class="small muted">Coming next: {{ later().map(l => l.label).join(', ') }}.</p> }
+      </div>
+    </section>
+
+    <div class="comms-save" [class.show]="dirty()">
+      <button class="btn primary" type="button" (click)="save()" [disabled]="busy() || !dirty()">{{ busy() ? 'Saving…' : 'Save changes' }}</button>
+      @if (dirty()) { <button class="btn" type="button" (click)="cancel()">Cancel</button> }
+    </div>
+  } @else {
+    <section class="card">
+      <div class="card-h"><h3>The next two weeks</h3></div>
+      <div class="card-b">
+        @for (u of p.upcoming; track u.key) {
+          <div class="li" [class.dim]="u.skipped || u.paused">
+            <div class="grow">
+              <b>{{ sendDay(u) }} · {{ sendTime(u) }}</b> <span class="pill p-mute" style="margin-left:6px">Email</span>
+              <div>{{ u.label }}</div>
+              <div class="small muted">Up to {{ u.reach }} {{ u.reach === 1 ? 'person' : 'people' }}@if (u.skipped) { · skipped: won’t be sent }@if (u.paused) { · paused }</div>
+            </div>
+            @if (!u.paused) { <button class="link-btn small" type="button" (click)="skip(u)" [disabled]="busy()">{{ u.skipped ? 'Undo skip' : 'Skip this one' }}</button> }
+          </div>
+        } @empty {
+          <div class="empty">Nothing scheduled. Turn on the weekly email or the staff digest under Messages.</div>
+        }
+        <p class="small muted" style="margin-top:10px">People with nothing that week don’t get an email when “Skip the week” is on, so fewer may go out than shown.</p>
+      </div>
+    </section>
+  }
+} @else if (!error()) {
+  <p class="muted">Loading…</p>
+}
+<p class="small muted" style="margin-top:16px"><a [routerLink]="['/teams', store.teamId(), 'info']">Back to Team info</a></p>

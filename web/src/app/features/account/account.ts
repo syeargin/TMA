@@ -5,11 +5,12 @@ import { AuthService } from '../../core/auth.service';
 import { MeService } from '../../core/me.service';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
+import { NotificationSettings } from './notification-settings';
 
 /** /account — two-step sign-in, privacy, download my data, delete my account (R2, R4). */
 @Component({
   selector: 'th-account',
-  imports: [RouterLink, Messages],
+  imports: [RouterLink, Messages, NotificationSettings],
   template: `
     <h2>Your account</h2>
     <th-messages [error]="error()" [notice]="notice()" />
@@ -20,6 +21,8 @@ import { Page } from '../../shared/page';
       <p class="small">A code from an authenticator app at each sign-in, as well as your password.@if (me()?.mfa?.required) { Needed for your club admin tools. }</p>
       <a class="btn sm" routerLink="/security">Two-step sign-in settings</a>
     </section>
+
+    <th-notification-settings />
 
     <section class="acct">
       <h3>Your data</h3>

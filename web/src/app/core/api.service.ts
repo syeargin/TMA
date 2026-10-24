@@ -9,7 +9,7 @@ import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
 import type { Repeat } from './series';
 import type { Sheets } from './xlsx';
-import type { Agenda, Club, EmailTemplate, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
+import type { Agenda, Club, CommsPage, EmailTemplate, MessageSettings, MyNotifications, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
   constructor(readonly status: number, body?: { message?: string; error?: string } | null) {
@@ -24,6 +24,8 @@ export class ApiError extends Error {
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const base = inject(APP_CONFIG).apiUrl;
   if (!base || !req.url.startsWith(base)) return next(req);
+  // The unsubscribe link in an email works without signing in.
+  if (req.url.slice(String(base).replace(/\/$/, '').length).startsWith('/public/')) return next(req);
   const auth = inject(AuthService);
   return from(auth.accessToken()).pipe(
     switchMap((token) => token
@@ -91,6 +93,16 @@ export class ApiService {
   emailTemplates() { return this.call<{ messages: EmailTemplate[]; sending: boolean }>('GET', '/admin/emails'); }
   previewEmail(msg: string) { return this.call<{ subject: string; fromName: string; html: string; text: string }>('GET', `/admin/emails/${enc(msg)}/preview`); }
   testEmail(msg: string) { return this.call<{ to: string }>('POST', `/admin/emails/${enc(msg)}/test`); }
+
+  // Communications (Messaging M2)
+  comms(teamId: string) { return this.call<CommsPage>('GET', `/teams/${enc(teamId)}/comms`); }
+  saveComms(teamId: string, v: { messages?: Record<string, MessageSettings>; timeZone?: string; pauseUntil?: string | null }) { return this.call('PUT', `/teams/${enc(teamId)}/comms`, v); }
+  skipSend(teamId: string, key: string, skip: boolean) { return this.call('PUT', `/teams/${enc(teamId)}/comms/skip`, { key, skip }); }
+  previewComms(teamId: string, msg: string) { return this.call<{ subject: string; fromName: string; html: string; text: string; empty: boolean; sendDate: string; family: string }>('GET', `/teams/${enc(teamId)}/comms/${enc(msg)}/preview`); }
+  testComms(teamId: string, msg: string) { return this.call<{ to: string }>('POST', `/teams/${enc(teamId)}/comms/${enc(msg)}/test`); }
+  myNotifications() { return this.call<{ teams: MyNotifications[] }>('GET', '/me/notifications'); }
+  saveMyNotifications(teamId: string, off: string[]) { return this.call('PUT', `/me/notifications/${enc(teamId)}`, { off }); }
+  unsubscribe(t: string, undo = false) { return this.call<{ teamName: string; message: string; off: boolean }>('POST', '/public/unsubscribe', { t, undo }); }
   team(teamId: string) { return this.call<TeamBundle>('GET', `/teams/${enc(teamId)}`); }
   invites(teamId: string) { return this.call<{ invites: Invite[] }>('GET', `/teams/${enc(teamId)}/invites`); }
   invite(teamId: string, v: { email: string; firstName?: string; lastName?: string; roles: Role[]; pid?: string; sendEmail?: boolean }) { return this.call('POST', `/teams/${enc(teamId)}/invites`, v); }
