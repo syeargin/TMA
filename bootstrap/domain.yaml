@@ -30,11 +30,20 @@ Parameters:
     Type: String
     Default: ""
     Description: Optional. An address that receives daily DMARC reports (who sent mail as this domain).
+  GoogleSiteVerification:
+    Type: String
+    Default: ""
+    AllowedPattern: "^(google-site-verification=[A-Za-z0-9_-]+)?$"
+    Description: >
+      Optional. Google Workspace's domain verification value, like google-site-verification=abc123
+      (Admin console → Domains). When set, mail to @teemhub.net goes to Google Workspace, and Google
+      may send as the domain alongside SES.
 
 Conditions:
   WantCertificate: !Equals [!Ref CreateCertificate, "true"]
   CreateZone: !Equals [!Ref ExistingHostedZoneId, ""]
   HasDmarcReports: !Not [!Equals [!Ref DmarcReportEmail, ""]]
+  UseGoogleMail: !Not [!Equals [!Ref GoogleSiteVerification, ""]]
 
 Resources:
   Zone:
@@ -73,8 +82,20 @@ Resources:
         # Custom MAIL FROM (bounce) domain.
         - { Name: !Sub "mail.${DomainName}", Type: MX, TTL: "1800", ResourceRecords: [!Sub "10 feedback-smtp.${AWS::Region}.amazonses.com"] }
         - { Name: !Sub "mail.${DomainName}", Type: TXT, TTL: "1800", ResourceRecords: ['"v=spf1 include:amazonses.com ~all"'] }
-        # Only SES sends mail as this domain.
-        - { Name: !Ref DomainName, Type: TXT, TTL: "1800", ResourceRecords: ['"v=spf1 include:amazonses.com -all"'] }
+        # Who may send as this domain: SES, plus Google Workspace when it's set up. One TXT record holds
+        # both the sender rule and Google's verification value (Route 53 allows one TXT set per name).
+        - Name: !Ref DomainName
+          Type: TXT
+          TTL: "1800"
+          ResourceRecords: !If
+            - UseGoogleMail
+            - ['"v=spf1 include:_spf.google.com include:amazonses.com -all"', !Sub '"${GoogleSiteVerification}"']
+            - ['"v=spf1 include:amazonses.com -all"']
+        # Mailboxes like support@ are in Google Workspace. SES's bounce domain (mail.) keeps its own MX.
+        - !If
+          - UseGoogleMail
+          - { Name: !Ref DomainName, Type: MX, TTL: "3600", ResourceRecords: ["1 smtp.google.com"] }
+          - !Ref AWS::NoValue
         - Name: !Sub "_dmarc.${DomainName}"
           Type: TXT
           TTL: "1800"

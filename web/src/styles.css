@@ -565,3 +565,7 @@ label.agree input{width:18px;height:18px;margin-top:1px;flex:none}
 .health-item .pill{margin-top:2px}
 .health-list{margin:6px 0 0;padding-left:18px}
 .health-table td{white-space:nowrap}
+.sms-form{display:grid;gap:10px;max-width:520px;margin-top:6px}
+.sms-form input[type=tel]{max-width:240px}
+.sms-agree span{font-size:13.5px;line-height:1.45}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}

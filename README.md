@@ -175,12 +175,18 @@ Teem Hub sends its own email through SES, from the same `noreply@` address as si
 - **By message:** sent, delivered, opened, and what happened next: families who answered after an availability reminder, added travel plans after a packet, or paid after a dues reminder, within two weeks.
 - **How it's counted** (`lib/mail/stats.ts`): each status change on a team email also updates small counters in `MAILSTATS#<team>` (per day and message, per address, and open follow-ups), outside `TEAM#` so they don't wake live updates. They expire after 90 days and go when the team is deleted. Opens come from SES's tracking image (the `OPEN` event on the configuration set), so mail apps that block images don't count, and some open everything; the page says so.
 - **Alarms:** `tma-<env>-mail-complaint` on any spam complaint, `tma-<env>-mail-bounces` when over 2% of an hour's email bounces (once at least 20 went out), from the sender's and SES events function's logs. The domain stack adds `tma-domain-mail-bounce-rate` (2%) and `-complaint-rate` (0.05%) on SES's own reputation numbers for both environments.
-- **Deploying it:** update the domain stack with the new `bootstrap/domain.yaml` (adds open events and the two reputation alarms), then merge. Opens are counted from then on. To check it end to end, invite `bounce@simulator.amazonses.com` to a test team: it shows under Needs attention within a minute or two.
+- **Deploying it:** update the domain stack with the new `bootstrap/domain.yaml` (adds open events and the two reputation alarms), then merge.
+- **Mailboxes (support@teemhub.net)** are in Google Workspace. Set the domain stack's `GoogleSiteVerification` parameter to the value from Google's Admin console (Domains → verify), and the stack adds the MX record and lets Google send as the domain. Add Google's DKIM key (`google._domainkey`) in the Route 53 console; it isn't in the stack because Google generates it after setup and it's longer than one DNS string. Opens are counted from then on. To check it end to end, invite `bounce@simulator.amazonses.com` to a test team: it shows under Needs attention within a minute or two.
 
 **Setting it up (once, before merging the PR that added it):**
 1. **Update the domain stack** (`tma-domain`) with the new `bootstrap/domain.yaml`, keeping the parameters. It adds the configuration set and its EventBridge destination, and exports `tma-domain-MailConfigSet`.
 2. **Update the bootstrap stack** (`bootstrap/github-oidc.yaml`): app roles may now send through SES and start their own functions.
 3. **Merge:** dev deploys and starts sending. Send yourself a test from Your teams → Emails Teem Hub sends, then invite a test address and watch it change to "Delivered".
+
+**Text alerts groundwork (Messaging M4),** ahead of the toll-free number's approval:
+- **Terms of use** at `/terms` (no sign-in) name Teem Hub Inc. and support@teemhub.net and spell out the text program the way carriers check it. Sign-up and the privacy re-consent page now ask people to agree to the terms.
+- **Opt-in** on the Account page (`GET/PUT/DELETE /me/sms`): a US mobile number and an unticked consent box. The profile keeps the number and a consent record (time, exact words, version, IP, browser). Until `SMS_ORIGINATION` is set on the stack, only site owners can save a number and nothing is texted.
+- **The wording** for the consent box, the frequency, and the HELP, STOP, START and confirmation replies lives in `api/src/shared/privacy.ts` (`SMS`), so the screen, the terms and the registration answers can't drift apart.
 
 ### Two-step sign-in (R2)
 
