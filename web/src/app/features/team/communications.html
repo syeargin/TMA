@@ -7,6 +7,7 @@
   <nav class="chips" aria-label="Communications views">
     <button class="chip" type="button" [attr.aria-pressed]="tab() === 'messages'" (click)="tab.set('messages')">Messages</button>
     <button class="chip" type="button" [attr.aria-pressed]="tab() === 'upcoming'" (click)="tab.set('upcoming')">Upcoming · {{ upcomingCount() }}</button>
+    <button class="chip" type="button" [attr.aria-pressed]="tab() === 'health'" (click)="tab.set('health')">Delivery health@if (health()?.count) { · {{ health()!.count }} }</button>
   </nav>
 </div>
 <th-messages [error]="error()" [notice]="notice()" />
@@ -113,6 +114,107 @@
       <button class="btn primary" type="button" (click)="save()" [disabled]="busy() || !dirty()">{{ busy() ? 'Saving…' : 'Save changes' }}</button>
       @if (dirty()) { <button class="btn" type="button" (click)="cancel()">Cancel</button> }
     </div>
+  } @else if (tab() === 'health') {
+    @if (health(); as h) {
+      <div class="health-tiles">
+        <div class="card health-tile">
+          <div class="small muted">Emails delivered</div>
+          <div class="health-big">{{ h.delivered }} <span>of {{ h.sent }}</span></div>
+          <div class="small muted">last 30 days@if (h.bounced) { · {{ h.bounced }} bounced }@if (h.complained) { · {{ h.complained }} marked as spam }</div>
+        </div>
+        <div class="card health-tile">
+          <div class="small muted">Families opening email</div>
+          @if (h.opensSince) {
+            <div class="health-big">{{ h.familiesOpening }} <span>of {{ h.families }}</span></div>
+            <div class="small muted">opened at least one in 30 days</div>
+          } @else {
+            <div class="health-big">–</div>
+            <div class="small muted">Counting starts with the next email</div>
+          }
+        </div>
+        <div class="card health-tile">
+          <div class="small muted">Turned some off</div>
+          <div class="health-big">{{ h.turnedOff }}</div>
+          <div class="small muted">{{ h.turnedOff === 1 ? 'person chose' : 'people chose' }} not to get some team emails</div>
+        </div>
+      </div>
+
+      <section class="card" style="margin-top:14px">
+        <div class="card-h"><h3>Needs attention</h3></div>
+        <div class="card-b">
+          @for (a of h.attention; track $index) {
+            <div class="li health-item">
+              @if (bounced(a); as b) {
+                <span class="pill p-bad">Bounced</span>
+                <div class="grow">
+                  <b>{{ b.who }}</b> · {{ b.email }}
+                  <div class="small">{{ b.bounces }} {{ b.bounces === 1 ? 'email' : 'emails' }} bounced since {{ day(b.since) }}.@if (b.suggest) {<b> Did you mean {{ b.suggest }}?</b>}</div>
+                  @if (b.invite) {
+                    <div class="small muted">An invite that hasn’t been accepted. Cancel it on <a [routerLink]="['/teams', store.teamId(), 'members']">Members</a> and invite the right address.</div>
+                  } @else {
+                    <div class="small muted">This is the address they sign in with. Check with them that the mailbox still works; until then they only see changes in Teem Hub.</div>
+                  }
+                </div>
+              } @else if (complained(a); as c) {
+                <span class="pill p-bad">Spam</span>
+                <div class="grow">
+                  <b>{{ c.who }}</b> · {{ c.email }}
+                  <div class="small">Marked a team email as spam on {{ day(c.at) }}, so Teem Hub can’t email this address any more, not even invites.</div>
+                  <div class="small muted">Ask them to turn off just the emails they don’t want on their Account page instead.</div>
+                </div>
+              } @else if (unreachable(a); as u) {
+                <span class="pill p-warn">Unreachable</span>
+                <div class="grow"><b>{{ u.family }}</b><div class="small">{{ u.why }}</div></div>
+              } @else if (quiet(a); as q) {
+                <span class="pill p-mute">Not opening</span>
+                <div class="grow">
+                  <b>{{ q.families.length }} {{ q.families.length === 1 ? 'family hasn’t' : 'families haven’t' }} opened team email in 4 weeks</b>
+                  <div class="small muted">Worth checking in person that the address is the one they read. Some mail apps never report opens, so this can be wrong.</div>
+                  <button class="link-btn small" type="button" (click)="showQuiet.set(!showQuiet())" [attr.aria-expanded]="showQuiet()">{{ showQuiet() ? 'Hide them' : 'Show them' }}</button>
+                  @if (showQuiet()) {
+                    <ul class="small health-list">
+                      @for (f of q.families; track f.pid) { <li>{{ f.family }}: {{ f.emails }} emails since {{ f.lastOpen ? 'the last open on ' + day(f.lastOpen) : 'the start' }}</li> }
+                    </ul>
+                  }
+                </div>
+              }
+            </div>
+          } @empty {
+            <div class="empty">Nothing needs attention. Every family is getting team email.</div>
+          }
+        </div>
+      </section>
+
+      <section class="card" style="margin-top:14px">
+        <div class="card-h"><h3>By message</h3><span class="spacer"></span><span class="small muted">Since {{ day(h.since) }}</span></div>
+        <div class="card-b">
+          @if (h.messages.length) {
+            <div class="table-wrap">
+              <table class="imp-table health-table">
+                <thead><tr><th scope="col">Message</th><th scope="col">Sent</th><th scope="col">Delivered</th><th scope="col">Opened</th><th scope="col">What happened next</th><th scope="col">Turned off</th></tr></thead>
+                <tbody>
+                  @for (m of h.messages; track m.id) {
+                    <tr>
+                      <th scope="row">{{ m.label }}</th>
+                      <td>{{ m.sent }}</td>
+                      <td>{{ m.delivered }}@if (m.bounced) { <span class="small" style="color:var(--bad)"> · {{ m.bounced }} bounced</span> }</td>
+                      <td>{{ openRate(m) }}</td>
+                      <td>{{ nextOf(m) }}</td>
+                      <td>{{ m.off === null ? 'Always sent' : m.off }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <div class="empty">No team email in the last 30 days.</div>
+          }
+          <p class="small muted">Opens are estimates: some mail apps hide them, and some open every email automatically. “What happened next” counts families who answered, added travel plans or paid within two weeks of the reminder.</p>
+        </div>
+      </section>
+    } @else {
+      <p class="muted">Loading…</p>
+    }
   } @else {
     <section class="card">
       <div class="card-h"><h3>The next two weeks</h3></div>

@@ -23,7 +23,7 @@ import { PRIVACY_VERSION, RETENTION } from '@shared/privacy';
         <li><b>About your family, entered by you or your team coordinator:</b> your player's name, jersey and shirt numbers, hometown, food allergies, uniform sizes, availability for practices and events, travel plans for tournaments, meal sign-ups, and parents' names, phone numbers and emails.</li>
         <li><b>Money:</b> dues and reimbursements recorded in the team fund. Teem Hub never takes payments or card numbers; families pay the way the coordinator asks.</li>
         <li><b>Records kept automatically:</b> which account did what and when, and server logs of requests (including your internet address) for {{ r.logDays }} days.</li>
-        <li><b>Emails we send you:</b> which email went to which address, when, and whether it arrived or bounced, for {{ r.deliveryDays }} days. Team admins see whether their invites arrived.</li>
+        <li><b>Emails we send you:</b> which email went to which address, when, whether it arrived or bounced, and whether it was opened, for {{ r.deliveryDays }} days. Team emails carry a small image that tells us when the email is first opened; mail apps that block images don't send it. Team admins and coordinators see whether their invites arrived, and on the team's Delivery health page, which addresses bounce and which families haven't opened team email for a month. They don't see who opened which email.</li>
       </ul>
       <p>Children don't have accounts. Information about players is entered by their parents or the team's coordinators and coaches.</p>
 

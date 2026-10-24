@@ -7,9 +7,12 @@ import { conflict, forbidden, json, mapDbError, notFound, parseBody } from "../h
 import type { Router } from "../router.js";
 import { cents, checkId, date, deleteItem, getItem, newId, now, optStr, putItem, str } from "../util.js";
 import { notifyPayment, type LedgerEntry } from "../../lib/comms/events.js";
+import { completeFollow } from "../../lib/mail/stats.js";
 
 /** "Payment recorded" emails (Messaging M2b) never stop finance's change from saving. */
 async function tellFamily(teamId: string, clubId: string, l: LedgerEntry, by: string) {
+  // A dues payment after a dues reminder counts toward its "What happened next" (Messaging M3).
+  if (l.kind === "in" && l.cat === "Dues" && l.pid) await completeFollow(teamId, "dues", l.pid);
   try { await notifyPayment(teamId, clubId, l, by); }
   catch (e) { console.error(JSON.stringify({ msg: "payment email failed", teamId, lid: l.lid, error: String(e) })); }
 }

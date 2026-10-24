@@ -9,7 +9,7 @@ import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
 import type { Repeat } from './series';
 import type { Sheets } from './xlsx';
-import type { Agenda, Club, CommsPage, EmailTemplate, MessageSettings, MyNotifications, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
+import type { Agenda, Club, CommsHealth, CommsPage, EmailTemplate, MessageSettings, MyNotifications, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
   constructor(readonly status: number, body?: { message?: string; error?: string } | null) {
@@ -96,6 +96,7 @@ export class ApiService {
 
   // Communications (Messaging M2)
   comms(teamId: string) { return this.call<CommsPage>('GET', `/teams/${enc(teamId)}/comms`); }
+  commsHealth(teamId: string) { return this.call<CommsHealth>('GET', `/teams/${enc(teamId)}/comms/health`); }
   saveComms(teamId: string, v: { messages?: Record<string, MessageSettings>; timeZone?: string; pauseUntil?: string | null }) { return this.call('PUT', `/teams/${enc(teamId)}/comms`, v); }
   skipSend(teamId: string, key: string, skip: boolean) { return this.call('PUT', `/teams/${enc(teamId)}/comms/skip`, { key, skip }); }
   previewComms(teamId: string, msg: string) { return this.call<{ subject: string; fromName: string; html: string; text: string; empty: boolean; sendDate: string; family: string }>('GET', `/teams/${enc(teamId)}/comms/${enc(msg)}/preview`); }

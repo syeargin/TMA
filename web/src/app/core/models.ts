@@ -63,6 +63,17 @@ export interface CommsMessage {
 }
 export interface UpcomingSend { key: string; msg: string; label: string; date: string; sendAt: string; skipped: boolean; paused: boolean; reach: number }
 export interface CommsPage { timeZone: string; pauseUntil: string | null; messages: CommsMessage[]; upcoming: UpcomingSend[]; catalog: EmailTemplate[] }
+export type HealthAttention =
+  | { kind: 'bounced'; email: string; who: string; invite: boolean; bounces: number; since: string; suggest?: string; detail: string }
+  | { kind: 'complained'; email: string; who: string; at: string }
+  | { kind: 'unreachable'; family: string; pid: string; why: string }
+  | { kind: 'notOpening'; families: { family: string; pid: string; emails: number; lastOpen: string }[] };
+export interface MessageHealth { id: string; label: string; sent: number; delivered: number; opened: number; bounced: number; complained: number; next: number; nextLabel: string; off: number | null }
+export interface CommsHealth {
+  since: string; sent: number; delivered: number; bounced: number; complained: number;
+  families: number; familiesOpening: number; turnedOff: number; opensSince: string | null;
+  attention: HealthAttention[]; messages: MessageHealth[]; count: number;
+}
 export interface MessageSettings { on?: boolean; day?: number; time?: string; days?: number; audience?: Record<string, boolean>; rules?: Record<string, boolean> }
 export interface MyNotifications { teamId: string; teamName: string; roles: string[]; off: string[]; options: { id: string; label: string; help: string; teamSends: boolean; schedule: string }[] }
 

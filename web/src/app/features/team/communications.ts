@@ -4,7 +4,7 @@ import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { DAY_NAMES, timeLabel } from '@shared/messages';
 import { ApiService } from '../../core/api.service';
-import type { CommsMessage, CommsPage, UpcomingSend } from '../../core/models';
+import type { CommsHealth, CommsMessage, CommsPage, HealthAttention, MessageHealth, UpcomingSend } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
@@ -34,7 +34,9 @@ export class Communications extends Page {
   private readonly sanitizer = inject(DomSanitizer);
 
   readonly page = signal<CommsPage | null>(null);
-  readonly tab = signal<'messages' | 'upcoming'>('messages');
+  readonly tab = signal<'messages' | 'upcoming' | 'health'>('messages');
+  readonly health = signal<CommsHealth | null>(null);
+  readonly showQuiet = signal(false);
   readonly drafts = signal<Record<string, Draft>>({});
   readonly timeZone = signal('America/New_York');
   readonly pauseUntil = signal('');
@@ -68,6 +70,7 @@ export class Communications extends Page {
   }
 
   async load() {
+    void this.loadHealth();
     try {
       const p = await this.api.comms(this.store.teamId());
       this.page.set(p);
@@ -77,6 +80,23 @@ export class Communications extends Page {
       this.dirty.set(false);
     } catch (err) { this.error.set((err as Error).message); }
   }
+
+  /** Delivery health loads on its own, so a slow or failed load never holds up the settings. */
+  async loadHealth() {
+    try { this.health.set(await this.api.commsHealth(this.store.teamId())); }
+    catch (err) { console.warn('delivery health', err); }
+  }
+
+  /** "Mar 4" for the dates on the Delivery health tab. */
+  day(iso: string) {
+    return iso ? new Date(iso.length === 10 ? `${iso}T12:00:00Z` : iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  }
+  openRate(m: MessageHealth) { return m.delivered ? `${Math.round((100 * m.opened) / m.delivered)}%` : '–'; }
+  nextOf(m: MessageHealth) { return m.nextLabel ? `${m.next} ${m.nextLabel}` : '–'; }
+  bounced(a: HealthAttention) { return a.kind === 'bounced' ? a : null; }
+  complained(a: HealthAttention) { return a.kind === 'complained' ? a : null; }
+  unreachable(a: HealthAttention) { return a.kind === 'unreachable' ? a : null; }
+  quiet(a: HealthAttention) { return a.kind === 'notOpening' ? a : null; }
 
   draft(id: string): Draft { return this.drafts()[id]; }
   private change(id: string, fn: (d: Draft) => void) {

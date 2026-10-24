@@ -88,6 +88,24 @@ await api("PUT", "/teams/test-13/comms", OWNER, { messages: { weekly: { on: true
 await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("test-13", "u-kim"), ...keys.memberGsi("test-13", "u-kim"), type: "Membership", status: "active", sub: "u-kim", roles: ["coach", "coordinator"], email: "kim@example.com", firstName: "Kim", at: new Date().toISOString() } }));
 await api("PUT", "/teams/test-13/announcements/a2", OWNER, { text: "Warm-ups are in: pick them up after Wednesday's practice.", pinned: true });
 
+// Messaging M3: a month of delivery numbers for the Delivery health tab. Dan (dad) stopped opening;
+// Gloria turned team email off, and the invite for the Ruiz family bounced, so they're unreachable.
+{
+  const pk = "MAILSTATS#test-13";
+  const day = (n: number) => new Date(Date.now() - n * 86400_000).toISOString().slice(0, 10);
+  const put = (Item: Record<string, unknown>) => ddb.send(new PutCommand({ TableName: TABLE, Item: { PK: pk, ...Item } }));
+  for (const [i, n] of [3, 10, 17, 24].entries()) {
+    await put({ SK: `DAY#${day(n)}#weekly`, type: "MailStats", day: day(n), msg: "weekly", sent: 18, delivered: 18 - (i === 0 ? 1 : 0), opened: 14 + i % 2, bounced: i === 0 ? 1 : 0 });
+    await put({ SK: `DAY#${day(n + 2)}#availability`, type: "MailStats", day: day(n + 2), msg: "availability", sent: 5, delivered: 5, opened: 4, next: 4 });
+  }
+  await put({ SK: `DAY#${day(8)}#packet`, type: "MailStats", day: day(8), msg: "packet", sent: 18, delivered: 18, opened: 17, next: 6 });
+  await put({ SK: `DAY#${day(5)}#announcement`, type: "MailStats", day: day(5), msg: "announcement", sent: 21, delivered: 21, opened: 16 });
+  const at = (n: number) => new Date(Date.now() - n * 86400_000).toISOString();
+  await put({ SK: "ADDR#mom@example.com", type: "MailAddress", email: "mom@example.com", delivered: 9, sinceOpen: 0, lastDeliveredAt: at(3), lastOpenAt: at(3) });
+  await put({ SK: "ADDR#dad@example.com", type: "MailAddress", email: "dad@example.com", delivered: 9, sinceOpen: 6, lastDeliveredAt: at(3), lastOpenAt: at(40) });
+  await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("test-13", GRAN), ...keys.memberGsi("test-13", GRAN), type: "Membership", status: "active", sub: GRAN, roles: ["parent"], pid: "p3", email: "gran@example.com", notifyOff: ["all"], at: new Date().toISOString() } }));
+}
+
 // Everyone but Gloria (u-gran) has accepted the privacy notice, so she shows the consent page.
 const { PRIVACY_VERSION } = await import("../src/shared/privacy.js");
 for (const sub of [OWNER, MOM, "u-dad"]) await api("PUT", "/me/privacy", sub, { version: PRIVACY_VERSION });

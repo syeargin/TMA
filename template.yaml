@@ -1033,6 +1033,16 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${MailSenderFunction}"
       RetentionInDays: 30
 
+  # Delivery health alarms for this environment (Messaging M3), from the sender's and the SES
+  # events function's log lines: any complaint, or more than 2% of an hour's email bouncing.
+  MailSentMetric:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref MailSenderFunctionLogs
+      FilterPattern: '{ $.msg = "mail sent" }'
+      MetricTransformations:
+        - { MetricNamespace: !Sub "TeamHub/${Env}", MetricName: MailSent, MetricValue: "1", DefaultValue: 0 }
+
   # SES events for this environment's emails only (they carry an env tag); Cognito's sign-in codes
   # and the other environment's mail are filtered out by the rule.
   MailEventsFunction:
@@ -1079,6 +1089,61 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${MailEventsFunction}"
       RetentionInDays: 30
+
+  MailBouncedMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: SendsMail
+    Properties:
+      LogGroupName: !Ref MailEventsFunctionLogs
+      FilterPattern: '{ $.msg = "mail event" && $.status = "bounced" }'
+      MetricTransformations:
+        - { MetricNamespace: !Sub "TeamHub/${Env}", MetricName: MailBounced, MetricValue: "1", DefaultValue: 0 }
+
+  MailComplainedMetric:
+    Type: AWS::Logs::MetricFilter
+    Condition: SendsMail
+    Properties:
+      LogGroupName: !Ref MailEventsFunctionLogs
+      FilterPattern: '{ $.msg = "mail event" && $.status = "complained" }'
+      MetricTransformations:
+        - { MetricNamespace: !Sub "TeamHub/${Env}", MetricName: MailComplaints, MetricValue: "1", DefaultValue: 0 }
+
+  MailComplaintAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: SendsMail
+    Properties:
+      AlarmName: !Sub "${AppPrefix}-${Env}-mail-complaint"
+      AlarmDescription: Someone marked a team email as spam. The team's Delivery health tab shows who and which message.
+      Namespace: !Sub "TeamHub/${Env}"
+      MetricName: MailComplaints
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  MailBounceAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: SendsMail
+    Properties:
+      AlarmName: !Sub "${AppPrefix}-${Env}-mail-bounces"
+      AlarmDescription: More than 2% of an hour's team email bounced (counted once at least 20 went out). Check the teams' Delivery health tabs.
+      Metrics:
+        - Id: sent
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: !Sub "TeamHub/${Env}", MetricName: MailSent }, Period: 3600, Stat: Sum }
+        - Id: bounced
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: !Sub "TeamHub/${Env}", MetricName: MailBounced }, Period: 3600, Stat: Sum }
+        - Id: rate
+          Label: Bounce rate
+          ReturnData: true
+          Expression: "IF(sent >= 20, bounced / sent, 0)"
+      EvaluationPeriods: 1
+      Threshold: 0.02
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
 
   MailFailuresAlarm:
     Type: AWS::CloudWatch::Alarm

@@ -6,6 +6,7 @@ import { loadAccess } from "../context.js";
 import { badRequest, forbidden, json, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { checkId, getItem, ID, now, optStr, putItem } from "../util.js";
+import { familyChanged } from "../../lib/mail/stats.js";
 
 const travel = z.object({
   mode: optStr(40), flight: optStr(200), hotel: optStr(200), conf: optStr(80),
@@ -76,6 +77,11 @@ export function familyRoutes(r: Router) {
       ExpressionAttributeNames: Object.keys(names).length ? names : undefined,
       ExpressionAttributeValues: values
     }));
+    // Answers and travel plans after a reminder count toward its "What happened next" (Messaging M3).
+    await familyChanged(a.teamId, pid, {
+      rsvp: Object.entries(b.rsvp ?? {}).filter(([, v]) => v !== "").map(([k]) => k),
+      travel: Object.entries(b.travel ?? {}).filter(([, v]) => v !== null).map(([k]) => k)
+    });
     return json(200, { pid });
   });
 }
