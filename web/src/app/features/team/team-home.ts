@@ -43,7 +43,7 @@ export class TeamHome {
   daysUntil = daysUntil;
   whenOf(it: ScheduleItem) { return it.kind === 'tournament' ? fmtRange(it.date, it.end) : it.time; }
 
-  readonly needsLink = computed(() => !this.store.archived() && this.store.you().roles.includes('parent') && !this.store.you().pid);
+  readonly needsLink = computed(() => !this.store.readOnly() && this.store.you().roles.includes('parent') && !this.store.you().pid);
 
   readonly todos = computed<Todo[]>(() => {
     const out: Todo[] = [];

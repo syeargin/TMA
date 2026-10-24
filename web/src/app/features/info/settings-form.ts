@@ -27,10 +27,17 @@ const dollars = (cents?: number) => (cents ? String(cents / 100) : '');
           <legend>Features</legend>
           <p class="hint" style="margin:0 0 6px">Turn off what your team doesn’t use. It disappears for everyone and changes save right away. Nothing is deleted: turn it back on and it’s all still there.</p>
           @for (f of featureKeys; track f) {
-            <label class="check">
-              <input type="checkbox" [checked]="store.has(f)" [disabled]="switching() === f" (change)="setFeature(f, $any($event.target).checked)">
-              <span><b>{{ features[f].label }}</b> <span class="small muted">{{ features[f].help }}</span></span>
-            </label>
+            @if (store.clubAllows(f)) {
+              <label class="check">
+                <input type="checkbox" [checked]="store.has(f)" [disabled]="switching() === f" (change)="setFeature(f, $any($event.target).checked)">
+                <span><b>{{ features[f].label }}</b> <span class="small muted">{{ features[f].help }}</span></span>
+              </label>
+            } @else {
+              <label class="check locked">
+                <input type="checkbox" [checked]="false" disabled>
+                <span><b>{{ features[f].label }}</b><span class="small muted">Not included for your club. A site owner can turn it on.</span></span>
+              </label>
+            }
           }
         </fieldset>
         <div class="two">

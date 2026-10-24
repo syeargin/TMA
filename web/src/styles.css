@@ -569,3 +569,13 @@ label.agree input{width:18px;height:18px;margin-top:1px;flex:none}
 .sms-form input[type=tel]{max-width:240px}
 .sms-agree span{font-size:13.5px;line-height:1.45}
 .row-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.admin-table th[scope=row]{min-width:200px}
+.admin-table th[scope=row] .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:2px solid;margin-right:8px;vertical-align:-1px}
+.admin-table tr.dim>*{opacity:.75}
+.limit-bar{height:6px;border-radius:999px;background:var(--sunken);margin-top:6px;max-width:140px;overflow:hidden}
+.limit-bar span{display:block;height:100%;background:var(--ok)}
+.limit-bar.full span{background:var(--warn)}
+.admin-panel-row>td{background:var(--sunken)}
+.admin-panel{display:grid;gap:4px;padding:6px 4px 10px}
+.admin-panel .comms-set label:not(.check-row){display:grid;gap:4px;max-width:420px;margin-top:6px}
+.admin-history{padding:4px 0;border-top:1px solid var(--line-2)}

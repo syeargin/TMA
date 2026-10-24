@@ -9,6 +9,7 @@
  * Each send happens once: a run marker (RUN#<team>/<msg>#<what>) is written before anything is queued,
  * and every delivery's dedupe key names the team, the send and the person.
  */
+import { clubSendsEmail } from "../club-controls.js";
 import { DeleteCommand, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE } from "../db.js";
 import { keys } from "../keys.js";
@@ -219,6 +220,8 @@ export async function runPlanner(now = new Date()): Promise<{ teams: number; sen
   const out: { teamId: string; key: string; queued: number; empty: number }[] = [];
   let teams = 0;
   for (const clubId of clubs) {
+    // Inactive clubs, and clubs without Team emails, send none (site admin dashboard).
+    if (!(await clubSendsEmail(clubId))) continue;
     const dirs = await queryAll({ KeyConditionExpression: "PK = :c AND begins_with(SK, :t)", ExpressionAttributeValues: { ":c": `CLUB#${clubId}`, ":t": "TEAM#" } });
     for (const d of dirs.filter((x) => !x.archived)) {
       const teamId = String(d.SK).slice(5);

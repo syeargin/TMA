@@ -7,7 +7,7 @@ import type { TeamBundle } from './models';
 import { TeamStore } from './team-store';
 
 describe('optional team features', () => {
-  function store(roles: string[], features: Record<string, boolean> = {}) {
+  function store(roles: string[], features: Record<string, boolean> = {}, clubControls?: Record<string, unknown>) {
     TestBed.configureTestingModule({
       providers: [
         TeamStore,
@@ -16,7 +16,7 @@ describe('optional team features', () => {
       ]
     });
     const s = TestBed.inject(TeamStore);
-    s.bundle.set({ teamId: 't1', you: { sub: 'u1', roles, pid: 'p1' }, settings: { teamName: 'T', features }, players: [], events: [], meals: [], refjobs: {}, agenda: {}, family: {}, ledger: [], payments: [], announcements: [], tasks: [], members: [] } as unknown as TeamBundle);
+    s.bundle.set({ teamId: 't1', you: { sub: 'u1', roles, pid: 'p1' }, settings: { teamName: 'T', features }, players: [], events: [], meals: [], refjobs: {}, agenda: {}, family: {}, ledger: [], payments: [], announcements: [], tasks: [], members: [], clubControls } as unknown as TeamBundle);
     return s;
   }
 
@@ -39,5 +39,28 @@ describe('optional team features', () => {
     for (const p of ['finance', 'ledger', 'fundView', 'reimb', 'meals', 'tasks', 'handbook', 'refjobs'] as const) expect(off.can(p)).toBe(false);
     for (const p of ['schedule', 'roster', 'settings', 'accounts', 'announce', 'allergies'] as const) expect(off.can(p)).toBe(true);
     expect(off.has('travel')).toBe(true);
+  });
+
+  it('an inactive club makes the team read-only, like an archived one', () => {
+    const s = store(['admin'], {}, { status: 'inactive', features: {}, teamLimit: null });
+    expect(s.readOnly()).toBe(true);
+    expect(s.can('schedule')).toBe(false);
+    expect(s.can('announce')).toBe(false);
+  });
+
+  it('site owners can still make changes in an inactive club', () => {
+    const s = store(['admin'], {}, { status: 'inactive', features: {}, teamLimit: null });
+    s.bundle.update((b) => (b ? { ...b, you: { ...b.you, siteOwner: true } } : b));
+    expect(s.clubInactive()).toBe(true);
+    expect(s.readOnly()).toBe(false);
+    expect(s.can('schedule')).toBe(true);
+  });
+
+  it('a feature the club leaves out is off, and the club says so', () => {
+    const s = store(['admin'], {}, { status: 'active', features: { travel: false, texts: false }, teamLimit: null });
+    expect(s.clubAllows('travel')).toBe(false);
+    expect(s.clubAllows('texts')).toBe(false);
+    expect(s.clubAllows('fund')).toBe(true);
+    expect(s.readOnly()).toBe(false);
   });
 });

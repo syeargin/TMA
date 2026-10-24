@@ -1,6 +1,7 @@
 import { TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
 import { DEFAULT_COLORS, getClub, getClubs, toClub } from "../../lib/clubs.js";
+import { getControls, getControlsMany, publicControls } from "../../lib/club-controls.js";
 import { ddb, TABLE } from "../../lib/db.js";
 import { keys, normEmail } from "../../lib/keys.js";
 import { isPlatformAdmin, loadClubAccess, requirePlatformAdmin } from "../context.js";
@@ -60,8 +61,9 @@ export function clubRoutes(r: Router) {
       ? (await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": "CLUBS" } })).map((c) => String(c.SK).slice(5))
       : (await queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :u AND begins_with(GSI1SK, :c)", ExpressionAttributeValues: { ":u": `USER#${caller.sub}`, ":c": "CLUB#" } }))
         .map((a) => String(a.GSI1SK).slice(5));
-    const clubs = await getClubs(ids);
-    return json(200, { platformAdmin: owner, clubs: [...clubs.values()].sort((a, b) => a.name.localeCompare(b.name)) });
+    const [clubs, controls] = await Promise.all([getClubs(ids), getControlsMany(ids)]);
+    const list = [...clubs.values()].map((c) => ({ ...c, ...(controls.get(c.clubId)?.status === "inactive" ? { inactive: true } : {}) }));
+    return json(200, { platformAdmin: owner, clubs: list.sort((a, b) => a.name.localeCompare(b.name)) });
   });
 
   /** Site owners add a club, optionally inviting its first admins. */
@@ -94,13 +96,16 @@ export function clubRoutes(r: Router) {
     const { clubId } = await loadClubAccess(caller, checkId(params.clubId, "club"));
     const club = await getClub(clubId);
     if (!club) throw notFound("That club doesn't exist.");
-    const [teams, adminList, invites] = await Promise.all([
+    const [teams, adminList, invites, controls] = await Promise.all([
       queryAll({ KeyConditionExpression: "PK = :c AND begins_with(SK, :t)", ExpressionAttributeValues: { ":c": `CLUB#${clubId}`, ":t": "TEAM#" } }),
       admins(clubId),
-      queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :c AND begins_with(GSI1SK, :i)", ExpressionAttributeValues: { ":c": `CLUB#${clubId}`, ":i": "INVITE#" } })
+      queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :c AND begins_with(GSI1SK, :i)", ExpressionAttributeValues: { ":c": `CLUB#${clubId}`, ":i": "INVITE#" } }),
+      getControls(clubId)
     ]);
     return json(200, {
       club,
+      // Set by site owners (site admin dashboard): active or not, the team limit and the club's features.
+      controls: { ...publicControls(controls), activeTeams: teams.filter((t) => !t.archived).length },
       teams: teams.map((t) => ({ teamId: String(t.SK).slice(5), ...clean(t) })),
       // Whether each admin has two-step sign-in on: their admin tools work only when it is.
       admins: await Promise.all(adminList.map(async (a) => ({ ...a, mfa: await hasMfa(a.sub) }))),

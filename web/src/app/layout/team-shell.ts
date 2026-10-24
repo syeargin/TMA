@@ -32,7 +32,9 @@ import { AvailabilitySheet } from '../features/schedule/availability-sheet';
     </nav>
     <main (focusout)="store.applyHeldIfIdle()">
       @if (store.bundle()) {
-        @if (store.archived()) {
+        @if (store.clubInactive()) {
+          <div class="banner archived" role="status"><p><b>This club is inactive.</b> @if (store.you().siteOwner) { Everyone else can only look; as a site owner you can still make changes. Reactivate it from <a routerLink="/admin">Site admin</a>. } @else { Its teams are read-only: everything is still here to look at, but nothing can be changed. A site owner can reactivate it. }</p></div>
+        } @else if (store.archived()) {
           <div class="banner archived" role="status"><p><b>This team is archived.</b> Everything is still here to look back on, but nothing can be changed.@if (store.you().clubAdmin) { A site owner can restore it from the <a [routerLink]="['/clubs', store.bundle()?.clubId]">club page</a>.}</p></div>
         }
         <router-outlet />

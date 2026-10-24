@@ -6,7 +6,8 @@ import { clubOfTeam, DEFAULT_CLUB, forgetTeamClubs, getClub, getClubs } from "..
 import { keys } from "../../lib/keys.js";
 import { convertPractices } from "../../lib/practices.js";
 import { fundSummary, type FundSummary } from "../../lib/fund.js";
-import { FEATURE_KEYS, type Feature } from "../../shared/features.js";
+import { CLUB_FEATURES, clubAllows, FEATURE_KEYS, type Feature } from "../../shared/features.js";
+import { failedAt, placeRefusal, publicControls, releaseTeamPlace, takeTeamPlace } from "../../lib/club-controls.js";
 import { ARCHIVE_DAYS, DELETE_GRACE_DAYS, daysFrom, purgeDate } from "../../lib/retention.js";
 import { isPlatformAdmin, loadAccess, loadClubAccess, requirePlatformAdmin, type Caller } from "../context.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
@@ -72,7 +73,7 @@ const DEFAULT_CHECKLIST = ["Court shoes", "Extra pair of socks", "Knee and elbow
 export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnType<typeof loadAccess>>) {
   const out = {
     teamId: access.teamId,
-    you: { sub: access.caller.sub, roles: [...access.roles], pid: access.member?.pid ?? "", person: access.member?.person ?? "", clubAdmin: access.clubAdmin },
+    you: { sub: access.caller.sub, roles: [...access.roles], pid: access.member?.pid ?? "", person: access.member?.person ?? "", clubAdmin: access.clubAdmin, siteOwner: access.platformAdmin },
     clubId: access.clubId,
     settings: null as unknown, handbook: null as unknown,
     players: [] as Record<string, unknown>[], events: [] as unknown[], meals: [] as unknown[],
@@ -201,8 +202,10 @@ export function teamRoutes(r: Router) {
   r.on("POST", "/teams", async ({ caller, body }) => {
     const b = parseBody(createTeamSchema, body);
     const clubId = b.clubId ?? DEFAULT_CLUB();
-    await loadClubAccess(caller, clubId).catch((e) => { throw e?.code === "mfa_required" ? e : forbidden("Only club admins can create teams."); });
+    const { platformAdmin: owner } = await loadClubAccess(caller, clubId).catch((e) => { throw e?.code === "mfa_required" ? e : forbidden("Only club admins can create teams."); });
     if (!(await getClub(clubId))) throw notFound("That club doesn't exist.");
+    const refusal = await placeRefusal(clubId, owner);
+    if (refusal) throw conflict(refusal, "team_limit");
     if (b.copyFrom) {
       // Only copy from a team in a club you run.
       const from = await loadAccess(caller, b.copyFrom).catch(() => null);
@@ -236,10 +239,15 @@ export function teamRoutes(r: Router) {
             ...keys.teamDir(clubId, b.teamId), type: "Team", name: b.name, season: b.season ?? "", age: b.age ?? "",
             coaches: b.coaches.map((c) => c.name), archived: false, createdAt: at, createdBy: caller.sub } } },
           { Put: { TableName: TABLE, ConditionExpression: "attribute_not_exists(PK)", Item: settings } },
-          { Put: { TableName: TABLE, Item: { ...keys.handbook(b.teamId), type: "Handbook", sections: copy.has("handbook") ? (hb.sections ?? []) : [], updatedAt: at } } }
+          { Put: { TableName: TABLE, Item: { ...keys.handbook(b.teamId), type: "Handbook", sections: copy.has("handbook") ? (hb.sections ?? []) : [], updatedAt: at } } },
+          // One of the club's team places (site admin dashboard): refused when inactive or at the limit.
+          takeTeamPlace(clubId, owner)
         ]
       }));
-    } catch (e) { mapDbError(e, "A team with that id already exists. Team ids have to be unique across all clubs."); }
+    } catch (e) {
+      if (failedAt(e, 4)) throw conflict((await placeRefusal(clubId, owner)) ?? "Your club can't add a team right now. Try again.", "team_limit");
+      mapDbError(e, "A team with that id already exists. Team ids have to be unique across all clubs.");
+    }
     return json(201, { teamId: b.teamId, clubId });
   });
 
@@ -251,8 +259,12 @@ export function teamRoutes(r: Router) {
     const [dir, clubs] = await Promise.all([getItem(keys.teamDir(access.clubId, access.teamId)), getClubs([access.clubId])]);
     // Whether "Also email the team" is offered when posting (Messaging M2b).
     const comms = items.find((i) => i.SK === "META#COMMS") as TeamComms | undefined;
-    const emailPosts = effective("announcement", comms)!.on && access.can("announce");
-    return json(200, { ...bundle(items, access), team: clean(dir) ?? null, club: clubs.get(access.clubId) ?? null, emailPosts });
+    const emailPosts = effective("announcement", comms)!.on && access.can("announce") && access.club.status === "active" && clubAllows(access.club.features, "email");
+    const out = bundle(items, access) as Record<string, unknown> & { settings: Record<string, unknown> | null };
+    // Features the team can use (its own switches and its club's), the team's own switches for
+    // Team settings, and what the club allows (site admin dashboard).
+    if (out.settings) out.settings = { ...out.settings, features: access.features, teamFeatures: access.teamFeatures };
+    return json(200, { ...out, team: clean(dir) ?? null, club: clubs.get(access.clubId) ?? null, clubControls: publicControls(access.club), emailPosts });
   });
 
   r.on("PUT", "/teams/{teamId}/settings", async ({ caller, params, body }) => {
@@ -280,8 +292,9 @@ export function teamRoutes(r: Router) {
     const access = await loadAccess(caller, checkId(params.teamId, "team"));
     access.require("settings");
     const { features } = parseBody(featuresSchema, body);
-    const next: Record<string, boolean> = { ...access.features };
+    const next: Record<string, boolean> = { ...access.teamFeatures };
     for (const [f, on] of Object.entries(features)) {
+      if (on && !clubAllows(access.club.features, f as Feature)) throw conflict(`${CLUB_FEATURES[f as Feature].label} isn't included for your club. A site owner can turn it on.`, "feature_off");
       if (on) delete next[f]; else next[f] = false;
     }
     try {
@@ -374,14 +387,25 @@ export function teamRoutes(r: Router) {
       // Teams made before the club team list existed get an entry now.
       const base = dir ?? { ...keys.teamDir(clubId, teamId), type: "Team", name: settings?.teamName ?? teamId, season: settings?.season ?? "", age: settings?.age ?? "", createdAt: at };
       const { archivedAt: _a, archivedBy: _b, purgeAt: _p, deleteRequestedAt: _r, deleteRequestedBy: _q, ...rest } = base as Record<string, unknown>;
-      await ddb.send(new TransactWriteCommand({
-        TransactItems: [
-          // Archived teams are deleted after 90 days (R4); restoring cancels that and any pending delete.
-          { Put: { TableName: TABLE, Item: archived ? { ...rest, archived, archivedAt: at, archivedBy: caller.sub, purgeAt: daysFrom(at, ARCHIVE_DAYS) } : { ...rest, archived } } },
-          // Touching the settings tells anyone with the team open to reload it.
-          ...(settings ? [{ Update: { TableName: TABLE, Key: keys.settings(teamId), UpdateExpression: "SET archived = :a, updatedAt = :at", ExpressionAttributeValues: { ":a": archived, ":at": at } } }] : [])
-        ]
-      }));
+      // Restoring takes one of the club's team places again; archiving gives one back.
+      const restoring = !archived && !!dir?.archived;
+      // Only site owners restore teams, so an inactive club doesn't stop it; the limit does.
+      if (restoring) { const refusal = await placeRefusal(clubId, true); if (refusal) throw conflict(refusal, "team_limit"); }
+      try {
+        await ddb.send(new TransactWriteCommand({
+          TransactItems: [
+            // Archived teams are deleted after 90 days (R4); restoring cancels that and any pending delete.
+            { Put: { TableName: TABLE, Item: archived ? { ...rest, archived, archivedAt: at, archivedBy: caller.sub, purgeAt: daysFrom(at, ARCHIVE_DAYS) } : { ...rest, archived } } },
+            // Touching the settings tells anyone with the team open to reload it.
+            ...(settings ? [{ Update: { TableName: TABLE, Key: keys.settings(teamId), UpdateExpression: "SET archived = :a, updatedAt = :at", ExpressionAttributeValues: { ":a": archived, ":at": at } } }] : []),
+            ...(restoring ? [takeTeamPlace(clubId, true)] : [])
+          ]
+        }));
+      } catch (e) {
+        if (restoring && failedAt(e, settings ? 2 : 1)) throw conflict((await placeRefusal(clubId, true)) ?? "Your club can't restore a team right now. Try again.", "team_limit");
+        throw e;
+      }
+      if (archived && !dir?.archived) await releaseTeamPlace(clubId);
       return json(200, { teamId, clubId, archived, ...(archived ? { purgeAt: daysFrom(at, ARCHIVE_DAYS) } : {}) });
     });
   }
@@ -404,6 +428,7 @@ export function teamRoutes(r: Router) {
         ...(settings ? [{ Update: { TableName: TABLE, Key: keys.settings(teamId), UpdateExpression: "SET archived = :a, updatedAt = :at", ExpressionAttributeValues: { ":a": true, ":at": at } } }] : [])
       ]
     }));
+    if (!dir?.archived) await releaseTeamPlace(clubId);
     console.log(JSON.stringify({ msg: "team delete requested", teamId, clubId, by: caller.sub, purgeAt }));
     return json(200, { teamId, clubId, archived: true, purgeAt });
   });

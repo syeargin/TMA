@@ -29,6 +29,10 @@ export const routes: Routes = [
     ]
   },
   {
+    path: 'admin', canActivate: [signedInGuard, privacyGuard], title: T('Site admin'),
+    loadComponent: () => import('./features/admin/site-admin').then((m) => m.SiteAdmin)
+  },
+  {
     path: 'clubs/:clubId', canActivate: [signedInGuard, privacyGuard], title: T('Club'),
     loadComponent: () => import('./features/club/club-admin').then((m) => m.ClubAdminPage)
   },

@@ -20,6 +20,7 @@ import { clubOfTeam } from "../../lib/clubs.js";
 import { validTimeZone } from "../../lib/comms/zoned.js";
 import { dispatch, queueEmail } from "../../lib/mail/outbox.js";
 import { completeFollow } from "../../lib/mail/stats.js";
+import { allows } from "../../lib/club-controls.js";
 import { attentionCount, teamHealth } from "../../lib/mail/health.js";
 import { render } from "../../lib/mail/templates.js";
 import { CONFIG, effective, MESSAGES, type MessageId, type TeamComms } from "../../shared/messages.js";
@@ -102,6 +103,8 @@ export function commsRoutes(r: Router) {
       reach: reachOf(t, o.msg, effective(o.msg, c)!)
     })).filter((o) => new Date(o.sendAt).getTime() > Date.now());
     return json(200, {
+      // False when the club is inactive or doesn't include Team emails: nothing on this page is sent.
+      clubEmail: a.club.status === "active" && allows(a.club, "email"),
       timeZone: zoneOf(c), pauseUntil: c?.pauseUntil ?? null, messages, upcoming,
       catalog: (Object.keys(MESSAGES) as MessageId[]).map((id) => ({ id, ...MESSAGES[id] }))
     });

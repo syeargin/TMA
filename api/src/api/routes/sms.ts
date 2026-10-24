@@ -15,7 +15,9 @@ import { keys } from "../../lib/keys.js";
 import { SMS } from "../../shared/privacy.js";
 import { badRequest, forbidden, json, parseBody } from "../http.js";
 import type { Router } from "../router.js";
-import { getItem, now } from "../util.js";
+import { getItem, now, queryAll } from "../util.js";
+import { clubsOfTeams } from "../../lib/clubs.js";
+import { allows, getControlsMany, isActive } from "../../lib/club-controls.js";
 
 export const smsLive = () => !!process.env.SMS_ORIGINATION;
 
@@ -35,6 +37,22 @@ const saveSchema = z.object({
   consentVersion: z.string().max(20)
 });
 
+/** Whether any of this person's teams is in an active club that includes text alerts (site admin dashboard). */
+async function clubsAllowTexts(sub: string): Promise<boolean> {
+  const teams = (await queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :u AND begins_with(GSI1SK, :t)", ExpressionAttributeValues: { ":u": `USER#${sub}`, ":t": "TEAM#" } }))
+    .filter((m) => m.status === "active").map((m) => String(m.GSI1SK).slice(5));
+  if (!teams.length) return false;
+  const clubs = [...new Set((await clubsOfTeams(teams)).values())];
+  const controls = await getControlsMany(clubs);
+  return [...controls.values()].some((c) => isActive(c) && allows(c, "texts"));
+}
+
+/** Who may turn text alerts on: site owners always (to try it before launch); others once texting is live and a club of theirs includes it. */
+async function mayOptIn(sub: string, live: boolean): Promise<boolean> {
+  if (await isSiteOwner(sub)) return true;
+  return live && (await clubsAllowTexts(sub));
+}
+
 async function isSiteOwner(sub: string): Promise<boolean> {
   const res = await ddb.send(new BatchGetCommand({ RequestItems: { [TABLE]: { Keys: [keys.platformAdmin(sub)] } } }));
   return !!res.Responses?.[TABLE]?.length;
@@ -50,14 +68,14 @@ export function smsRoutes(r: Router) {
     const live = smsLive();
     const profile = await getItem(keys.profile(caller.sub));
     return json(200, {
-      live, allowed: live || (await isSiteOwner(caller.sub)),
+      live, allowed: await mayOptIn(caller.sub, live),
       consent: { text: SMS.consent, version: SMS.consentVersion }, ...view(profile?.sms as Record<string, unknown> | undefined)
     });
   });
 
   r.on("PUT", "/me/sms", async ({ caller, body, event }) => {
     const live = smsLive();
-    if (!live && !(await isSiteOwner(caller.sub))) throw forbidden("Text alerts aren't available yet.");
+    if (!(await mayOptIn(caller.sub, live))) throw forbidden(live ? "Text alerts aren't included for your teams' club." : "Text alerts aren't available yet.");
     const b = parseBody(saveSchema, body);
     const phone = usPhone(b.phone);
     if (!phone) throw badRequest("Enter a US mobile number, like (555) 555-0123.");

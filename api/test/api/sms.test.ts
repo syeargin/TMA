@@ -7,7 +7,7 @@ const { ddb, TABLE } = await import("../../src/lib/db.js");
 const { keys } = await import("../../src/lib/keys.js");
 const { usPhone } = await import("../../src/api/routes/sms.js");
 const { SMS } = await import("../../src/shared/privacy.js");
-const { GetCommand } = await import("@aws-sdk/lib-dynamodb");
+const { GetCommand, PutCommand } = await import("@aws-sdk/lib-dynamodb");
 
 type Res = { status: number; body: any };
 async function call(method: string, path: string, sub: string, body?: unknown, email?: string): Promise<Res> {
@@ -55,8 +55,13 @@ describe("text alerts opt-in", () => {
     expect((await owner("GET", "/me/sms")).body.status).toBe("off");
   });
 
-  it("is open to everyone once the stack has a number to send from", async () => {
+  it("is open to anyone on a team once the stack has a number to send from", async () => {
     process.env.SMS_ORIGINATION = "+18885550100";
+    // Not on any team yet: nothing to text about.
+    expect((await parent("GET", "/me/sms")).body).toMatchObject({ live: true, allowed: false });
+    expect((await owner("POST", "/clubs", { clubId: "sc", name: "SMS Club" })).status).toBe(201);
+    expect((await owner("POST", "/teams", { clubId: "sc", teamId: "sc-1", name: "SC 1" })).status).toBe(201);
+    await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("sc-1", "u-par"), ...keys.memberGsi("sc-1", "u-par"), type: "Membership", status: "active", sub: "u-par", roles: ["parent"] } }));
     expect((await parent("GET", "/me/sms")).body).toMatchObject({ live: true, allowed: true });
     expect((await parent("PUT", "/me/sms", agree("614.555.0199"))).body).toMatchObject({ live: true, status: "pending", phone: "(614) 555-0199" });
   });

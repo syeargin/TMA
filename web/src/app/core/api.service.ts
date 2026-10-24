@@ -78,7 +78,7 @@ export class ApiService {
   deleteTeam(teamId: string, confirm: string) { return this.call<{ teamId: string; purgeAt?: string }>('DELETE', `/teams/${enc(teamId)}`, { confirm }); }
 
   // ---------- clubs ----------
-  clubs() { return this.call<{ platformAdmin: boolean; clubs: Club[] }>('GET', '/clubs'); }
+  clubs() { return this.call<{ platformAdmin: boolean; clubs: (Club & { inactive?: boolean })[] }>('GET', '/clubs'); }
   createClub(c: { clubId: string; name: string; short?: string; colors?: Club['colors']; adminEmails?: string[] }) { return this.call<Club>('POST', '/clubs', c); }
   club(clubId: string) { return this.call<ClubDetail>('GET', `/clubs/${enc(clubId)}`); }
   saveClub(clubId: string, c: Omit<Club, 'clubId'>) { return this.call<Club>('PUT', `/clubs/${enc(clubId)}`, c); }

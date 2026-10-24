@@ -188,6 +188,16 @@ Teem Hub sends its own email through SES, from the same `noreply@` address as si
 - **Opt-in** on the Account page (`GET/PUT/DELETE /me/sms`): a US mobile number and an unticked consent box. The profile keeps the number and a consent record (time, exact words, version, IP, browser). Until `SMS_ORIGINATION` is set on the stack, only site owners can save a number and nothing is texted.
 - **The wording** for the consent box, the frequency, and the HELP, STOP, START and confirmation replies lives in `api/src/shared/privacy.ts` (`SMS`), so the screen, the terms and the registration answers can't drift apart.
 
+### Site admin dashboard: club status, team limits and features
+
+Site owners open **Site admin** (`/admin`, linked from Your teams) to manage every club:
+- **Active or inactive.** Making a club inactive needs a reason. Every team in it becomes read-only, like an archived team, and the club's settings, admins and invites can't change, for everyone except site owners. Site owners can still edit, and create or restore teams (the team limit still applies). No team emails go out. Families can still open and read everything. Making it active again undoes all of that.
+- **Team limit:** the most teams that may be active at once. Archived teams don't count. Creating a team, restoring one, and new teams in a club workbook are all refused at the limit ("Your club is at its limit of N active teams"). Lowering the limit below the current count archives nothing; the club just can't add or restore teams until it's under.
+- **Features:** one switch per feature, for the 7 team features plus **Team emails** and **Text alerts**. Invites, sign-in codes and account notices always go. A feature that's off for the club is off for every team in it, and shows as "Not included for your club" in Team settings.
+- **History:** every change is kept with who made it, when and why (`CLUB#<c>` / `AUDIT#…`).
+
+How it's stored: each club's controls live in `CLUB#<c>` / `CONTROLS`, which only site owners change (`lib/club-controls.ts`). A club without the record is active, with every feature and no limit, so existing clubs are unchanged until a site owner sets something. The count of active teams goes up in the same transaction that creates or restores a team, with a condition that refuses it at the limit, so two admins creating teams at once can't go over. The daily retention job recounts every club.
+
 ### Two-step sign-in (R2)
 
 - Anyone can turn on an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy) under **Your teams › Two-step sign-in** (`/security`). The user pool's MFA is `OPTIONAL` with authenticator apps only: no text messages, no remembered devices. Once it's on, Cognito asks for a 6-digit code at every sign-in.
