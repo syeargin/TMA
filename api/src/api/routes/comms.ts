@@ -19,6 +19,8 @@ import { assertTeamWritable } from "../context.js";
 import { clubOfTeam } from "../../lib/clubs.js";
 import { validTimeZone } from "../../lib/comms/zoned.js";
 import { dispatch, queueEmail } from "../../lib/mail/outbox.js";
+import { completeFollow } from "../../lib/mail/stats.js";
+import { attentionCount, teamHealth } from "../../lib/mail/health.js";
 import { render } from "../../lib/mail/templates.js";
 import { CONFIG, effective, MESSAGES, type MessageId, type TeamComms } from "../../shared/messages.js";
 import { isOn } from "../../shared/features.js";
@@ -103,6 +105,15 @@ export function commsRoutes(r: Router) {
       timeZone: zoneOf(c), pauseUntil: c?.pauseUntil ?? null, messages, upcoming,
       catalog: (Object.keys(MESSAGES) as MessageId[]).map((id) => ({ id, ...MESSAGES[id] }))
     });
+  });
+
+  /** Delivery health (Messaging M3): the last 30 days of this team's email, and who it isn't reaching. */
+  r.on("GET", "/teams/{teamId}/comms/health", async ({ caller, params }) => {
+    const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.require("settings");
+    const [c, t] = await Promise.all([getComms(a.teamId), loadTeam(a.teamId, a.clubId)]);
+    const h = await teamHealth(t, c);
+    return json(200, { ...h, count: attentionCount(h) });
   });
 
   r.on("PUT", "/teams/{teamId}/comms", async ({ caller, params, body }) => {
@@ -259,6 +270,7 @@ export function publicRoutes(r: Router) {
       ExpressionAttributeNames: { "#k": a.key }, ExpressionAttributeValues: { ":v": { v: a.v, at, by: a.sub, via: "email" }, ":at": at, ":by": a.sub }
     }));
     console.log(JSON.stringify({ msg: "answered from email", teamId: a.teamId, sub: a.sub, key: a.key }));
+    await completeFollow(a.teamId, "availability", a.pid, [a.key]);
     return json(200, { ...about, current: a.v, recorded: true });
   });
 

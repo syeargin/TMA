@@ -22,17 +22,19 @@ export function purgeDate(dir: Record<string, unknown>): string | undefined {
 
 /**
  * Delete a team and everything stored for it: its whole partition, its line in the club's team list and
- * invites still waiting for it. People's accounts stay (they can be on other teams).
+ * invites still waiting for it, and its email delivery stats. People's accounts stay (they can be on other teams).
  */
 export async function purgeTeam(teamId: string, clubId: string, by: string): Promise<number> {
-  const [records, invites] = await Promise.all([
+  const [records, invites, stats] = await Promise.all([
     queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `TEAM#${teamId}` }, ProjectionExpression: "PK, SK" }),
-    queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :t AND begins_with(GSI1SK, :i)", ExpressionAttributeValues: { ":t": `TEAM#${teamId}`, ":i": "INVITE#" }, ProjectionExpression: "PK, SK" })
+    queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :t AND begins_with(GSI1SK, :i)", ExpressionAttributeValues: { ":t": `TEAM#${teamId}`, ":i": "INVITE#" }, ProjectionExpression: "PK, SK" }),
+    // Email delivery counters and addresses (Messaging M3).
+    queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `MAILSTATS#${teamId}` }, ProjectionExpression: "PK, SK" }),
   ]);
   const key = (i: Record<string, unknown>) => ({ PK: String(i.PK), SK: String(i.SK) });
   // The club link goes last, so a run that stops partway can be repeated and still finds the club.
   const clubLink = records.filter((i) => i.SK === "META#CLUB").map(key);
-  const rest = [keys.teamDir(clubId, teamId), ...invites.map(key), ...records.filter((i) => i.SK !== "META#CLUB").map(key)];
+  const rest = [keys.teamDir(clubId, teamId), ...invites.map(key), ...stats.map(key), ...records.filter((i) => i.SK !== "META#CLUB").map(key)];
   await deleteMany(rest);
   await deleteMany(clubLink);
   forgetTeamClubs();

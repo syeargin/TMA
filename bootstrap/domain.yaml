@@ -103,9 +103,42 @@ Resources:
       EventDestination:
         Name: eventbridge
         Enabled: true
-        MatchingEventTypes: [DELIVERY, BOUNCE, COMPLAINT, REJECT]
+        # OPEN adds SES's tracking image to HTML emails, for the Delivery health tab's open counts (Messaging M3).
+        MatchingEventTypes: [DELIVERY, BOUNCE, COMPLAINT, REJECT, OPEN]
         EventBridgeDestination:
           EventBusArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default"
+
+  # SES's own reputation numbers for everything sent through the configuration set (dev and prod).
+  # SES starts reviewing an account at 5% bounces or 0.1% complaints; these warn well before.
+  MailBounceRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-mail-bounce-rate"
+      AlarmDescription: Over 2% of team email is bouncing. Check each team's Delivery health tab for bad addresses.
+      Namespace: AWS/SES
+      MetricName: Reputation.BounceRate
+      Dimensions: [{ Name: "ses:configuration-set", Value: !Ref MailConfigSet }]
+      Statistic: Maximum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 0.02
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  MailComplaintRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-mail-complaint-rate"
+      AlarmDescription: People are marking team email as spam (over 0.05%). Check which message on the Delivery health tabs.
+      Namespace: AWS/SES
+      MetricName: Reputation.ComplaintRate
+      Dimensions: [{ Name: "ses:configuration-set", Value: !Ref MailConfigSet }]
+      Statistic: Maximum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 0.0005
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
 
   # ---------- TLS: one certificate for <domain> and *.<domain> (dev., api., api-dev., ws., ws-dev.) ----------
   Certificate:

@@ -17,6 +17,7 @@ import { normEmail } from "../keys.js";
 import type { EmailStatus } from "../../shared/messages.js";
 import { RETENTION } from "../../shared/privacy.js";
 import { render, type LiveMessage, type MailData } from "./templates.js";
+import { countOpen, countStatus, dayOf } from "./stats.js";
 
 export const DELIVERY_DAYS = RETENTION.deliveryDays;
 export const deliveryKey = (id: string) => ({ PK: `DELIV#${id}`, SK: "META" });
@@ -46,7 +47,7 @@ export async function queueEmail<K extends LiveMessage>(q: QueueInput<K>): Promi
       Item: {
         ...deliveryKey(id), type: "Delivery", id, msg: q.msg, channel: "email", to: normEmail(q.to), data: q.data,
         status: "queued", link: q.link, teamId: q.teamId, clubId: q.clubId, by: q.by, headers: q.headers,
-        createdAt: at, ttl: Math.floor(Date.now() / 1000) + DELIVERY_DAYS * 86400
+        createdAt: at, day: dayOf(at), ttl: Math.floor(Date.now() / 1000) + DELIVERY_DAYS * 86400
       }
     }));
   } catch (e) {
@@ -154,6 +155,7 @@ async function setStatus(id: string, status: EmailStatus, detail = "", extra: Re
   }));
   const link = res.Attributes?.link as Link | undefined;
   if (link) await markLink(link, status, at, { id, detail });
+  if (res.Attributes) await countStatus(res.Attributes, status, detail);
 }
 
 /** Sends each queued delivery once. Safe to run twice: only "queued" records are claimed. */
@@ -188,6 +190,8 @@ export async function sendDeliveries(ids: string[]): Promise<{ sent: number; fai
         headers: (item.headers as Record<string, string> | undefined) ?? undefined
       });
       await setStatus(id, "sent", "", { sesId: messageId, sentAt: new Date().toISOString() });
+      // The bounce-rate alarm divides bounces by this (template.yaml MailSentMetric).
+      console.log(JSON.stringify({ msg: "mail sent", id, mailMsg: item.msg }));
       out.sent++;
     } catch (e) {
       const name = (e as { name?: string })?.name ?? "";
@@ -215,10 +219,25 @@ export type SesEvent = {
   reject?: { reason?: string };
 };
 
-/** One SES event (delivered, bounced, complaint, rejected) for a message we sent. */
+/** The first time someone opens an email (SES's tracking image loaded). Later opens are ignored. */
+async function applyOpen(id: string) {
+  try {
+    const res = await ddb.send(new UpdateCommand({
+      TableName: TABLE, Key: deliveryKey(id), ReturnValues: "ALL_NEW",
+      ConditionExpression: "attribute_exists(PK) AND attribute_not_exists(openedAt)",
+      UpdateExpression: "SET openedAt = :a", ExpressionAttributeValues: { ":a": new Date().toISOString() }
+    }));
+    if (res.Attributes) await countOpen(res.Attributes);
+  } catch (e) {
+    if (!isConditional(e)) throw e;
+  }
+}
+
+/** One SES event (delivered, opened, bounced, complaint, rejected) for a message we sent. */
 export async function applySesEvent(e: SesEvent): Promise<EmailStatus | null> {
   const id = e.mail?.tags?.delivery?.[0];
   if (!id) return null;
+  if (e.eventType === "Open") { await applyOpen(id); return null; }
   let status: EmailStatus | null = null;
   let detail = "";
   switch (e.eventType) {

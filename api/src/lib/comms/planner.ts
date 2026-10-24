@@ -14,6 +14,7 @@ import { ddb, TABLE } from "../db.js";
 import { keys } from "../keys.js";
 import { queryAll } from "../../api/util.js";
 import { CONFIG, DAY_NAMES, DEFAULT_TIME_ZONE, effective, NEEDS_FEATURE, timeLabel, type MessageId, type TeamComms } from "../../shared/messages.js";
+import { startFollow } from "../mail/stats.js";
 import { dispatch, queueEmail } from "../mail/outbox.js";
 import { siteUrl } from "../mail/invite-mail.js";
 import type { MailData } from "../mail/templates.js";
@@ -178,10 +179,24 @@ export async function send(teamId: string, clubId: string, o: Pick<Occurrence, "
       dedupe: `${o.key}:${teamId}:${p.member.sub}`,
       headers: await unsubHeaders(p.member, teamId, o.msg)
     });
-    if (queued) ids.push(id);
+    if (queued) {
+      ids.push(id);
+      await follow(t, o, p.member);
+    }
   }
   await dispatch(ids);
   return { queued: ids.length, empty };
+}
+
+/** Starts the "what happened next" count for a reminder: did the family answer, add travel, pay? */
+async function follow(t: Team, o: Pick<Occurrence, "msg" | "target">, m: Member) {
+  if (!m.pid) return;
+  if (o.msg === "availability") await startFollow(t.teamId, "availability", m.pid, o.target?.itemKeys ?? []);
+  else if (o.msg === "dues") await startFollow(t.teamId, "dues", m.pid, []);
+  else if (o.msg === "packet" && o.target?.eid) {
+    const has = (t.family[m.pid]?.travel as Record<string, unknown> | undefined)?.[o.target.eid];
+    if (!has) await startFollow(t.teamId, "packet", m.pid, [o.target.eid]);
+  }
 }
 
 /** Claims a send so it runs once, however many planner runs see it. */

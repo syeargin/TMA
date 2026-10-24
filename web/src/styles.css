@@ -557,3 +557,11 @@ label.agree input{width:18px;height:18px;margin-top:1px;flex:none}
 .acct{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
 .acct h3{font-size:16px;margin-bottom:4px}
 .acct p{margin-bottom:8px}
+.health-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:14px;margin-top:14px}
+.health-tile{padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.health-big{font-family:var(--f-cond);font-size:30px;font-weight:700;line-height:1.1}
+.health-big span{font-size:16px;font-weight:600;color:var(--ink-3)}
+.health-item{align-items:flex-start;gap:10px}
+.health-item .pill{margin-top:2px}
+.health-list{margin:6px 0 0;padding-left:18px}
+.health-table td{white-space:nowrap}
