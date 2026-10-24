@@ -1,5 +1,6 @@
 import { TransactWriteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
+import { effective, type TeamComms } from "../../shared/messages.js";
 import { ddb, TABLE } from "../../lib/db.js";
 import { clubOfTeam, DEFAULT_CLUB, forgetTeamClubs, getClub, getClubs } from "../../lib/clubs.js";
 import { keys } from "../../lib/keys.js";
@@ -248,7 +249,10 @@ export function teamRoutes(r: Router) {
     // Club admins and site owners pass the access check for any id; there has to be a team to open.
     if (!items.length) throw notFound("There's no team with that id. It may have been deleted.");
     const [dir, clubs] = await Promise.all([getItem(keys.teamDir(access.clubId, access.teamId)), getClubs([access.clubId])]);
-    return json(200, { ...bundle(items, access), team: clean(dir) ?? null, club: clubs.get(access.clubId) ?? null });
+    // Whether "Also email the team" is offered when posting (Messaging M2b).
+    const comms = items.find((i) => i.SK === "META#COMMS") as TeamComms | undefined;
+    const emailPosts = effective("announcement", comms)!.on && access.can("announce");
+    return json(200, { ...bundle(items, access), team: clean(dir) ?? null, club: clubs.get(access.clubId) ?? null, emailPosts });
   });
 
   r.on("PUT", "/teams/{teamId}/settings", async ({ caller, params, body }) => {

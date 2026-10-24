@@ -6,6 +6,13 @@ import { loadAccess } from "../context.js";
 import { conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { cents, checkId, date, deleteItem, getItem, newId, now, optStr, putItem, str } from "../util.js";
+import { notifyPayment, type LedgerEntry } from "../../lib/comms/events.js";
+
+/** "Payment recorded" emails (Messaging M2b) never stop finance's change from saving. */
+async function tellFamily(teamId: string, clubId: string, l: LedgerEntry, by: string) {
+  try { await notifyPayment(teamId, clubId, l, by); }
+  catch (e) { console.error(JSON.stringify({ msg: "payment email failed", teamId, lid: l.lid, error: String(e) })); }
+}
 
 const CATS = ["Dues", "Team meals", "Coach care", "Reimbursement", "Tournament costs", "Other"] as const;
 
@@ -82,6 +89,9 @@ export function moneyRoutes(r: Router) {
       try {
         await ddb.send(new TransactWriteCommand({ TransactItems: items }));
       } catch (e) { mapDbError(e, "This payment was already settled."); }
+      if (action === "confirm") {
+        await tellFamily(a.teamId, a.clubId, { lid, kind: String(pay.kind), cat: String(pay.cat), pid: String(pay.pid ?? ""), payee: pay.kind === "out" ? String(pay.submittedBy ?? "") : "", amountCents: Number(pay.amountCents), date: String(pay.date), desc: String(pay.desc ?? "") }, caller.sub);
+      }
       return json(200, { payId, status: action === "confirm" ? "confirmed" : "declined", lid: action === "confirm" ? lid : undefined });
     });
   }
@@ -96,6 +106,8 @@ export function moneyRoutes(r: Router) {
     await putItem({ ...(existing ?? {}), ...keys.ledger(a.teamId, lid), type: "Ledger", ...l,
       status: existing?.status ?? "confirmed", by: existing?.by ?? caller.sub, at: existing?.at ?? now(),
       updatedAt: now(), updatedBy: caller.sub, GSI2PK: `TEAM#${a.teamId}#LEDGER`, GSI2SK: `${l.date}#${lid}` });
+    // A new payment finance enters for a family (not an edit of an old one).
+    if (!existing && l.kind === "in" && l.pid) await tellFamily(a.teamId, a.clubId, { lid, ...l, pid: l.pid }, caller.sub);
     return json(200, { lid });
   });
 

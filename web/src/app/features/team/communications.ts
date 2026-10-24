@@ -47,6 +47,15 @@ export class Communications extends Page {
     const z = this.timeZone();
     return [...new Set([...ZONES, z])].map((value) => ({ value, label: ZONE_LABELS[value] ? `${ZONE_LABELS[value]} (${value})` : value }));
   });
+  readonly groups = computed(() => {
+    const all = this.page()?.messages ?? [];
+    const pick = (ids: string[]) => all.filter((m) => ids.includes(m.id));
+    return [
+      { title: 'Every week', sub: 'A summary on the day and time you choose.', messages: pick(['weekly', 'staffDigest']) },
+      { title: 'Reminders', sub: 'A set number of days before a tournament, an event or a due date.', messages: pick(['packet', 'availability', 'dues']) },
+      { title: 'When something happens', sub: 'Sent right away.', messages: pick(['payment', 'announcement']) }
+    ].filter((g) => g.messages.length);
+  });
   readonly later = computed(() => (this.page()?.catalog ?? []).filter((m) => !m.live && !m.required));
   readonly always = computed(() => (this.page()?.catalog ?? []).filter((m) => m.required).map((m) => m.label));
   readonly upcomingCount = computed(() => (this.page()?.upcoming ?? []).filter((u) => !u.skipped && !u.paused).length);
@@ -79,6 +88,9 @@ export class Communications extends Page {
   setOn(id: string, on: boolean) { this.change(id, (d) => (d.on = on)); }
   setDay(id: string, v: string) { this.change(id, (d) => (d.day = Number(v))); }
   setTime(id: string, v: string) { this.change(id, (d) => (d.time = v)); }
+  setDays(id: string, v: string) { this.change(id, (d) => (d.days = Math.min(14, Math.max(1, Math.round(Number(v) || 1))))); }
+  whatOf(m: CommsMessage) { return m.config.timing.kind === 'before' ? m.config.timing.what : ''; }
+  whenOf(m: CommsMessage) { return m.config.timing.kind === 'event' ? m.config.timing.when : ''; }
   setAudience(id: string, key: string, on: boolean) { this.change(id, (d) => (d.audience[key] = on)); }
   setRule(id: string, key: string, on: boolean) { this.change(id, (d) => (d.rules[key] = on)); }
   setZone(v: string) { this.timeZone.set(v); this.dirty.set(true); }
@@ -91,7 +103,13 @@ export class Communications extends Page {
 
   save() {
     return this.run(async () => {
-      await this.api.saveComms(this.store.teamId(), { messages: this.drafts(), timeZone: this.timeZone(), pauseUntil: this.pauseUntil() || null });
+      // Only what each message uses: event messages have no day or time.
+      const messages = Object.fromEntries(Object.entries(this.drafts()).map(([id, d]) => {
+        const kind = this.page()?.messages.find((m) => m.id === id)?.config.timing.kind;
+        const base = { on: d.on, audience: d.audience, rules: d.rules };
+        return [id, kind === 'weekly' ? { ...base, day: d.day, time: d.time } : kind === 'before' ? { ...base, days: d.days, time: d.time } : base];
+      }));
+      await this.api.saveComms(this.store.teamId(), { messages, timeZone: this.timeZone(), pauseUntil: this.pauseUntil() || null });
       await this.load();
       this.notice.set('Saved. The Upcoming tab shows what goes out next.');
     });
@@ -112,8 +130,11 @@ export class Communications extends Page {
     this.error.set('');
     try {
       const r = await this.api.previewComms(this.store.teamId(), m.id);
-      const who = m.id === 'weekly' ? `as ${r.family || 'the first'}'s family would get it` : 'as a staff member with every included role would get it';
-      const note = `The next ${m.label.toLowerCase()} ${who}.${r.empty ? ' Nothing is scheduled that week, so with "Skip the week" on it wouldn’t be sent.' : ''}`;
+      const who = m.id === 'staffDigest' ? 'as a staff member with every included role would get it'
+        : m.id === 'payment' || m.id === 'announcement' ? 'with made-up details, in your team’s name'
+        : `as ${r.family || 'the first'}'s family would get it`;
+      const emptyNote = m.id === 'availability' ? ` ${r.family || 'This family'} has already answered, so they wouldn’t get one.` : ' Nothing is scheduled that week, so with "Skip the week" on it wouldn’t be sent.';
+      const note = `The next ${m.label.toLowerCase()} ${who}.${r.empty ? emptyNote : ''}`;
       this.preview.set({ msg: m.id, html: this.sanitizer.bypassSecurityTrustHtml(r.html), subject: r.subject, note });
     } catch (err) { this.error.set((err as Error).message); }
   }

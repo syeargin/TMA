@@ -53,12 +53,17 @@ export interface Member { sub?: string; email?: string; firstName?: string; last
 /** The Communications page (Messaging M2). */
 export interface CommsMessage {
   id: string; label: string; help: string; schedule: string; reach: number;
-  config: { timing: { day: number; time: string }; audience: { key: string; label: string; on: boolean }[]; rules: { key: string; label: string; on: boolean }[] };
-  settings: { on: boolean; day: number; time: string; audience: Record<string, boolean>; rules: Record<string, boolean> };
+  config: {
+    timing: { kind: 'weekly'; day: number; time: string } | { kind: 'before'; days: number; time: string; what: string } | { kind: 'event'; when: string };
+    audience: { key: string; label: string; on: boolean }[]; rules: { key: string; label: string; on: boolean }[];
+  };
+  settings: { on: boolean; kind: string; day: number; time: string; days: number; audience: Record<string, boolean>; rules: Record<string, boolean> };
+  /** The feature it needs is off for this team (the team fund for dues emails). */
+  featureOff?: string;
 }
 export interface UpcomingSend { key: string; msg: string; label: string; date: string; sendAt: string; skipped: boolean; paused: boolean; reach: number }
 export interface CommsPage { timeZone: string; pauseUntil: string | null; messages: CommsMessage[]; upcoming: UpcomingSend[]; catalog: EmailTemplate[] }
-export interface MessageSettings { on?: boolean; day?: number; time?: string; audience?: Record<string, boolean>; rules?: Record<string, boolean> }
+export interface MessageSettings { on?: boolean; day?: number; time?: string; days?: number; audience?: Record<string, boolean>; rules?: Record<string, boolean> }
 export interface MyNotifications { teamId: string; teamName: string; roles: string[]; off: string[]; options: { id: string; label: string; help: string; teamSends: boolean; schedule: string }[] }
 
 export interface EmailTemplate { id: string; channel: 'email' | 'text'; label: string; help: string; required: boolean; live: boolean }
@@ -160,6 +165,8 @@ export interface Announcement { aid: string; text: string; pinned?: boolean; by?
 
 /** GET /teams/:id — everything the caller may see about one team. */
 export interface TeamBundle {
+  /** "Also email the team" is offered when posting (Messaging M2b). */
+  emailPosts?: boolean;
   teamId: string;
   you: { sub?: string; roles: Role[]; pid?: string; person?: string; clubAdmin?: boolean };
   clubId?: string;

@@ -11,11 +11,11 @@ export const MESSAGES = {
   mfaReset:        { channel: "email", label: "Two-step sign-in reset", help: "Tells a club admin a site owner turned off their authenticator app.", required: true, live: true },
   weekly:          { channel: "email", label: "Weekly at-a-glance", help: "Each family's week: events, what needs an answer, sign-ups, dues and pinned posts.", required: false, live: true },
   staffDigest:     { channel: "email", label: "Staff digest", help: "Who hasn't answered, open meals, missing travel plans, dues and tasks. Each person sees only what their role can see.", required: false, live: true },
-  packet:          { channel: "email", label: "Tournament packet", help: "Game-day details a week before a tournament.", required: false, live: false },
-  availability:    { channel: "email", label: "Availability reminder", help: "For families who haven't answered.", required: false, live: false },
-  dues:            { channel: "email", label: "Dues reminder", help: "Before an installment is due.", required: false, live: false },
-  payment:         { channel: "email", label: "Payment recorded", help: "Confirms what the treasurer logged.", required: false, live: false },
-  announcement:    { channel: "email", label: "Announcement emails", help: "Posts a coach chooses to email.", required: false, live: false },
+  packet:          { channel: "email", label: "Tournament packet", help: "Before each tournament: the game-day sheet, the hotel, and each family's own jobs.", required: false, live: true },
+  availability:    { channel: "email", label: "Availability reminder", help: "Asks families who haven't answered In, Maybe or Out, with one-tap answers.", required: false, live: true },
+  dues:            { channel: "email", label: "Dues reminder", help: "Before dues are due, to families who still owe.", required: false, live: true },
+  payment:         { channel: "email", label: "Payment recorded", help: "Confirms a payment or a reimbursement when finance records it.", required: false, live: true },
+  announcement:    { channel: "email", label: "Announcement emails", help: "Posts a coach or coordinator chooses to email, with \"Also email the team\".", required: false, live: true },
   changeText:      { channel: "text", label: "Cancelled or moved", help: "Last-minute changes.", required: false, live: false },
   gameDayText:     { channel: "text", label: "Game-day morning", help: "Arrival time and where to meet.", required: false, live: false },
   waveText:        { channel: "text", label: "Wave or court posted", help: "Tournament schedule posted.", required: false, live: false },
@@ -42,8 +42,14 @@ export const EMAIL_STATUS_LABELS: Record<EmailStatus, string> = {
 
 // ---------- What a team can change (Messaging M2, the Communications page) ----------
 
-/** When a scheduled message goes out. day: 0 = Sunday; time: "18:00" in the team's time zone. */
-export type Timing = { kind: "weekly"; day: number; time: string };
+/**
+ * When a message goes out, in the team's time zone: every week (day 0 = Sunday, time "18:00"),
+ * a number of days before something (a tournament, an event, a due date), or when something happens.
+ */
+export type Timing =
+  | { kind: "weekly"; day: number; time: string }
+  | { kind: "before"; days: number; time: string; what: string }
+  | { kind: "event"; when: string };
 
 export type Choice = { key: string; label: string; on: boolean };
 
@@ -78,13 +84,53 @@ export const CONFIG: Partial<Record<MessageId, MessageConfig>> = {
       { key: "finance", label: "Finance (dues only)", on: true }
     ],
     rules: [{ key: "skipEmpty", label: "Skip the week if nothing is open", on: true }]
+  },
+  packet: {
+    timing: { kind: "before", days: 7, time: "09:00", what: "the tournament" },
+    audience: [
+      { key: "parent", label: "Parents and guardians", on: true },
+      { key: "staff", label: "Staff who aren't parents", on: false }
+    ],
+    rules: [{ key: "travelOnly", label: "Only for travel tournaments", on: false }]
+  },
+  availability: {
+    timing: { kind: "before", days: 2, time: "18:00", what: "the practice or event" },
+    audience: [{ key: "parent", label: "Parents who haven't answered", on: true }],
+    rules: [
+      { key: "tournamentsOnly", label: "Only for tournaments, not practices", on: false },
+      { key: "skipIfWeekly", label: "Skip it when the weekly email asked them in the last two days", on: true }
+    ]
+  },
+  dues: {
+    timing: { kind: "before", days: 5, time: "09:00", what: "dues are due" },
+    audience: [{ key: "parent", label: "Families who still owe", on: true }],
+    rules: [{ key: "late", label: "Send one more the day after they're due", on: false }]
+  },
+  payment: {
+    timing: { kind: "event", when: "When finance records a payment or approves a reimbursement." },
+    audience: [
+      { key: "parent", label: "The family who paid", on: true },
+      { key: "reimb", label: "Whoever asked to be paid back", on: true }
+    ],
+    rules: []
+  },
+  announcement: {
+    timing: { kind: "event", when: "When someone posting ticks \"Also email the team\"." },
+    audience: [
+      { key: "parent", label: "Parents and guardians", on: true },
+      { key: "staff", label: "Staff", on: true }
+    ],
+    rules: [{ key: "cap", label: "At most 2 announcement emails a week", on: true }]
   }
 };
+
+/** Messages that only make sense with a team feature on. */
+export const NEEDS_FEATURE: Partial<Record<MessageId, "fund">> = { dues: "fund", payment: "fund" };
 
 export const CONFIGURABLE = Object.keys(CONFIG) as MessageId[];
 
 /** A team's saved choices (META#COMMS). Only what the team changed is stored. */
-export type MessageSettings = { on?: boolean; day?: number; time?: string; audience?: Record<string, boolean>; rules?: Record<string, boolean> };
+export type MessageSettings = { on?: boolean; day?: number; time?: string; days?: number; audience?: Record<string, boolean>; rules?: Record<string, boolean> };
 export type TeamComms = {
   messages?: Partial<Record<MessageId, MessageSettings>>;
   /** IANA time zone the times are in. */
@@ -102,11 +148,14 @@ export function effective(msg: MessageId, comms: TeamComms | null | undefined) {
   const c = CONFIG[msg];
   const mine = comms?.messages?.[msg] ?? {};
   if (!c) return null;
+  const t = c.timing;
   return {
     // Off until a team turns it on, so nothing new reaches families the day this ships.
     on: mine.on ?? false,
-    day: mine.day ?? c.timing.day,
-    time: mine.time ?? c.timing.time,
+    kind: t.kind,
+    day: mine.day ?? (t.kind === "weekly" ? t.day : 0),
+    time: mine.time ?? (t.kind === "event" ? "" : t.time),
+    days: mine.days ?? (t.kind === "before" ? t.days : 0),
     audience: Object.fromEntries(c.audience.map((a) => [a.key, mine.audience?.[a.key] ?? a.on])) as Record<string, boolean>,
     rules: Object.fromEntries(c.rules.map((r) => [r.key, mine.rules?.[r.key] ?? r.on])) as Record<string, boolean>
   };

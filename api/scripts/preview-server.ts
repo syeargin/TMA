@@ -84,7 +84,7 @@ await api("POST", "/teams/test-13/invites", OWNER, { email: "sam.ruiz@example.co
 }
 
 // Messaging M2: the weekly email and staff digest on for test-13; a coach who isn't a parent.
-await api("PUT", "/teams/test-13/comms", OWNER, { messages: { weekly: { on: true }, staffDigest: { on: true, time: "17:30" } } });
+await api("PUT", "/teams/test-13/comms", OWNER, { messages: { weekly: { on: true }, staffDigest: { on: true, time: "17:30" }, packet: { on: true }, availability: { on: true }, announcement: { on: true } } });
 await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("test-13", "u-kim"), ...keys.memberGsi("test-13", "u-kim"), type: "Membership", status: "active", sub: "u-kim", roles: ["coach", "coordinator"], email: "kim@example.com", firstName: "Kim", at: new Date().toISOString() } }));
 await api("PUT", "/teams/test-13/announcements/a2", OWNER, { text: "Warm-ups are in: pick them up after Wednesday's practice.", pinned: true });
 

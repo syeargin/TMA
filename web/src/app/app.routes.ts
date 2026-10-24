@@ -36,6 +36,7 @@ export const routes: Routes = [
     path: '', component: Narrow,
     children: [
       { path: 'teams', pathMatch: 'full', component: Home, canActivate: [signedInGuard, privacyGuard], title: T('Your teams') },
+      { path: 'answer', title: T('Availability'), loadComponent: () => import('./features/account/answer').then((m) => m.Answer) },
       { path: 'unsubscribe', title: T('Unsubscribe'), loadComponent: () => import('./features/account/unsubscribe').then((m) => m.Unsubscribe) },
       { path: 'privacy', title: T('Privacy notice'), loadComponent: () => import('./features/privacy/privacy').then((m) => m.Privacy) },
       { path: 'consent', canActivate: [signedInGuard], title: T('Privacy notice'), loadComponent: () => import('./features/account/consent').then((m) => m.Consent) },

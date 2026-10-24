@@ -234,9 +234,19 @@ export class TeamStore implements OnDestroy {
   setPracticeCancelled(key: string, cancelled: boolean) {
     return this.save(cancelled ? 'Practice cancelled' : 'Practice restored', (t) => this.api.setPracticeCancelled(t, key, cancelled));
   }
-  saveAnnouncement(aid: string, a: { text: string; pinned: boolean }, done = 'Posted') {
-    return this.save(done, (t) => this.api.saveAnnouncement(t, aid, a));
+  saveAnnouncement(aid: string, a: { text: string; pinned: boolean; email?: boolean }, done = 'Posted') {
+    if (!a.email) return this.save(done, (t) => this.api.saveAnnouncement(t, aid, a));
+    // "Also email the team": the toast says how many it went to, or why it didn't go.
+    let msg = done;
+    return this.save('', async (t) => {
+      const r = await this.api.saveAnnouncement(t, aid, a);
+      msg = r.reason === 'cap' ? 'Posted. Not emailed: the team already sent two announcement emails this week.'
+        : r.reason === 'off' ? 'Posted. Announcement emails are turned off for this team.'
+        : `Posted and emailed to ${r.emailed ?? 0} ${r.emailed === 1 ? 'person' : 'people'}.`;
+    }).then((ok) => { if (ok) this.toast.show(msg); return ok; });
   }
+  /** Whether "Also email the team" is offered when posting. */
+  readonly emailPosts = computed(() => !!this.bundle()?.emailPosts);
   deleteAnnouncement(aid: string) { return this.save('Announcement deleted', (t) => this.api.deleteAnnouncement(t, aid)); }
 
   event(eid: string) { return this.events().find((e) => e.eid === eid) ?? null; }

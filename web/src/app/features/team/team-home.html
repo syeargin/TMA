@@ -139,6 +139,7 @@
   <form [formGroup]="annForm" (ngSubmit)="submitAnnouncement()" novalidate>
     <label>Message<textarea formControlName="text" rows="5" placeholder="Practice moves to Court 3 this week."></textarea></label>
     <label class="checks" style="flex-direction:row"><input type="checkbox" formControlName="pinned"> Pin to the top</label>
+    @if (store.emailPosts()) { <label class="checks" style="flex-direction:row"><input type="checkbox" formControlName="email"> Also email the team</label> }
     <div class="form-actions">
       <button class="btn primary" type="submit" [disabled]="annBusy() || !annForm.controls.text.value.trim()">{{ annBusy() ? 'Posting…' : 'Post' }}</button>
       <button class="btn ghost" type="button" (click)="annOpen.set(false)">Cancel</button>

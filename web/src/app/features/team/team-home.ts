@@ -130,17 +130,17 @@ export class TeamHome {
   readonly annOpen = signal(false);
   readonly annBusy = signal(false);
   readonly confirmDelete = signal<string | null>(null);
-  readonly annForm = this.fb.group({ text: '', pinned: false });
+  readonly annForm = this.fb.group({ text: '', pinned: false, email: false });
 
   postAnnouncement() {
-    this.annForm.reset({ text: '', pinned: false });
+    this.annForm.reset({ text: '', pinned: false, email: false });
     this.annOpen.set(true);
   }
   async submitAnnouncement() {
     const v = this.annForm.getRawValue();
     if (!v.text.trim()) return;
     this.annBusy.set(true);
-    const ok = await this.store.saveAnnouncement(newId('a'), { text: v.text.trim(), pinned: v.pinned });
+    const ok = await this.store.saveAnnouncement(newId('a'), { text: v.text.trim(), pinned: v.pinned, email: this.store.emailPosts() && v.email });
     this.annBusy.set(false);
     if (ok) this.annOpen.set(false);
   }

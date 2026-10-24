@@ -1,6 +1,7 @@
 import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
 import { ddb, TABLE } from "../../lib/db.js";
+import { notifyAnnouncement } from "../../lib/comms/events.js";
 import { keys } from "../../lib/keys.js";
 import { loadAccess } from "../context.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
@@ -80,7 +81,7 @@ const mealSchema = z.object({
   claimedBy: z.string().max(64).nullable().optional()
 });
 const claimSchema = z.object({ pid: str(64).min(1) });
-const announcementSchema = z.object({ text: str(4000).min(1), pinned: z.boolean().default(false) });
+const announcementSchema = z.object({ text: str(4000).min(1), pinned: z.boolean().default(false), /** "Also email the team" (Messaging M2b). */ email: z.boolean().default(false) });
 const taskSchema = z.object({ title: str(200).min(1), desc: optStr(1000), owner: optStr(120), status: z.enum(["To do", "In progress", "Done", "N/A"]).default("To do"), order: z.number().int().min(0).max(9999).optional() });
 
 export function contentRoutes(r: Router) {
@@ -321,12 +322,15 @@ export function contentRoutes(r: Router) {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
     a.require("announce");
     const aid = checkId(params.aid, "announcement");
-    const b = parseBody(announcementSchema, body);
+    const { email, ...b } = parseBody(announcementSchema, body);
     const existing = await getItem(keys.announcement(a.teamId, aid));
     const at = String(existing?.at ?? now());
-    await putItem({ ...keys.announcement(a.teamId, aid), type: "Announcement", ...b, by: existing?.by ?? caller.sub, at,
+    const keep = existing?.emailedAt ? { emailedAt: existing.emailedAt, emailedBy: existing.emailedBy } : {};
+    await putItem({ ...keys.announcement(a.teamId, aid), type: "Announcement", ...b, ...keep, by: existing?.by ?? caller.sub, at,
       GSI2PK: `TEAM#${a.teamId}#ANN`, GSI2SK: `${at}#${aid}`, updatedAt: now() });
-    return json(200, { aid });
+    if (!email) return json(200, { aid });
+    const sent = await notifyAnnouncement(a.teamId, a.clubId, aid, caller.sub);
+    return json(200, { aid, ...sent });
   });
 
   r.on("DELETE", "/teams/{teamId}/announcements/{aid}", async ({ caller, params }) => {

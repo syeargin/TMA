@@ -50,3 +50,28 @@ export async function readUnsub(token: string): Promise<Unsub | null> {
     return { sub: p.s, teamId: p.t, msg: p.m };
   } catch { return null; }
 }
+
+// ---------- one-tap answers (availability reminder) ----------
+
+/** One answer for one player on one date: In, Maybe or Out. Expires the day after the event. */
+export type Answer = { sub: string; teamId: string; pid: string; key: string; v: "yes" | "maybe" | "no"; exp: number };
+
+export async function signAnswer(a: Answer): Promise<string> {
+  const body = b64(Buffer.from(JSON.stringify({ s: a.sub, t: a.teamId, p: a.pid, k: a.key, v: a.v, e: a.exp })));
+  const sig = b64(createHmac("sha256", await key()).update(`answer.${body}`).digest());
+  return `${body}.${sig}`;
+}
+
+export async function readAnswer(token: string, nowSec = Date.now() / 1000): Promise<Answer | "expired" | null> {
+  const [body, sig] = String(token ?? "").split(".");
+  if (!body || !sig || body.length > 600) return null;
+  const want = createHmac("sha256", await key()).update(`answer.${body}`).digest();
+  const got = Buffer.from(sig, "base64url");
+  if (got.length !== want.length || !timingSafeEqual(got, want)) return null;
+  try {
+    const p = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    if (![p.s, p.t, p.p, p.k].every((x) => typeof x === "string") || !["yes", "maybe", "no"].includes(p.v) || typeof p.e !== "number") return null;
+    if (p.e < nowSec) return "expired";
+    return { sub: p.s, teamId: p.t, pid: p.p, key: p.k, v: p.v, exp: p.e };
+  } catch { return null; }
+}

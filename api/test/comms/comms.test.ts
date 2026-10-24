@@ -90,7 +90,7 @@ describe("the Communications page", () => {
   it("starts with everything off, and is for admins and coordinators", async () => {
     const r = await owner("GET", `/teams/${T}/comms`);
     expect(r.status).toBe(200);
-    expect(r.body.messages.map((m: any) => [m.id, m.settings.on])).toEqual([["weekly", false], ["staffDigest", false]]);
+    expect(r.body.messages.map((m: any) => [m.id, m.settings.on])).toEqual(["weekly", "staffDigest", "packet", "availability", "dues", "payment", "announcement"].map((m) => [m, false]));
     expect(r.body.upcoming).toEqual([]);
     expect(r.body.timeZone).toBe("America/New_York");
     expect((await call("GET", `/teams/${T}/comms`, "u-jo")).status).toBe(403);
@@ -115,7 +115,7 @@ describe("the Communications page", () => {
     expect(r.status).toBe(200);
     expect(r.body.family).toBe("Maya");
     expect(r.body.html).toContain("Comms 13");
-    expect((await owner("GET", `/teams/${T}/comms/packet/preview`)).status).toBe(404);
+    expect((await owner("GET", `/teams/${T}/comms/bogus/preview`)).status).toBe(404);
     expect((await owner("POST", `/teams/${T}/comms/staffDigest/test`)).body).toEqual({ to: "owner@example.com" });
     expect(memoryOutbox[0].subject).toContain("staff digest");
   });
@@ -179,8 +179,9 @@ describe("the planner", () => {
     expect((await call("POST", "/public/unsubscribe", null, { t: t.replace(/^./, "x") })).status).toBe(400);
 
     const mine = await call("GET", "/me/notifications", "u-jo");
-    expect(mine.body.teams[0]).toMatchObject({ teamId: T, off: ["weekly"], options: [{ id: "weekly", teamSends: true }] });
-    expect((await call("GET", "/me/notifications", "u-coach")).body.teams[0].options.map((o: any) => o.id)).toEqual(["weekly", "staffDigest"]);
+    expect(mine.body.teams[0]).toMatchObject({ teamId: T, off: ["weekly"] });
+    expect(mine.body.teams[0].options.map((o: any) => [o.id, o.teamSends])).toEqual([["weekly", true], ["packet", false], ["availability", false], ["dues", false], ["payment", false], ["announcement", false]]);
+    expect((await call("GET", "/me/notifications", "u-coach")).body.teams[0].options.map((o: any) => o.id)).toEqual(["weekly", "staffDigest", "packet", "payment", "announcement"]);
     expect((await call("PUT", `/me/notifications/${T}`, "u-el", { off: ["weekly", "weekly"] })).body).toEqual({ teamId: T, off: ["weekly"] });
     expect((await call("PUT", `/me/notifications/${T}`, "u-el", { off: ["invite"] })).status).toBe(400);
     expect((await call("PUT", `/me/notifications/other`, "u-el", { off: [] })).status).toBe(404);
