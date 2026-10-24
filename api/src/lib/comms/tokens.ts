@@ -32,6 +32,16 @@ export type Unsub = { sub: string; teamId: string; msg: string };
 
 const b64 = (b: Buffer) => b.toString("base64url");
 
+/**
+ * The signature exactly as we'd write it. Comparing decoded bytes alone would also accept other
+ * spellings of the same bytes (base64's last character carries spare bits), so the text is compared,
+ * in constant time.
+ */
+function sameSignature(sig: string, want: Buffer): boolean {
+  const a = Buffer.from(sig, "utf8"), b = Buffer.from(b64(want), "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export async function signUnsub(u: Unsub): Promise<string> {
   const body = b64(Buffer.from(JSON.stringify({ s: u.sub, t: u.teamId, m: u.msg, v: 1 })));
   const sig = b64(createHmac("sha256", await key()).update(`unsub.${body}`).digest());
@@ -42,8 +52,7 @@ export async function readUnsub(token: string): Promise<Unsub | null> {
   const [body, sig] = String(token ?? "").split(".");
   if (!body || !sig || body.length > 400) return null;
   const want = createHmac("sha256", await key()).update(`unsub.${body}`).digest();
-  const got = Buffer.from(sig, "base64url");
-  if (got.length !== want.length || !timingSafeEqual(got, want)) return null;
+  if (!sameSignature(sig, want)) return null;
   try {
     const p = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
     if (typeof p.s !== "string" || typeof p.t !== "string" || typeof p.m !== "string") return null;
@@ -66,8 +75,7 @@ export async function readAnswer(token: string, nowSec = Date.now() / 1000): Pro
   const [body, sig] = String(token ?? "").split(".");
   if (!body || !sig || body.length > 600) return null;
   const want = createHmac("sha256", await key()).update(`answer.${body}`).digest();
-  const got = Buffer.from(sig, "base64url");
-  if (got.length !== want.length || !timingSafeEqual(got, want)) return null;
+  if (!sameSignature(sig, want)) return null;
   try {
     const p = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
     if (![p.s, p.t, p.p, p.k].every((x) => typeof x === "string") || !["yes", "maybe", "no"].includes(p.v) || typeof p.e !== "number") return null;

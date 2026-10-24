@@ -10,7 +10,7 @@ const { ddb, TABLE } = await import("../../src/lib/db.js");
 const { keys } = await import("../../src/lib/keys.js");
 const { memoryOutbox } = await import("../../src/lib/mail/outbox.js");
 const { runPlanner } = await import("../../src/lib/comms/planner.js");
-const { forgetKey, readAnswer } = await import("../../src/lib/comms/tokens.js");
+const { forgetKey, readAnswer, readUnsub, signUnsub } = await import("../../src/lib/comms/tokens.js");
 const { PutCommand, GetCommand } = await import("@aws-sdk/lib-dynamodb");
 
 type Res = { status: number; body: any };
@@ -95,7 +95,10 @@ describe("availability reminder", () => {
     expect(done.body).toMatchObject({ recorded: true, current: "yes" });
     expect((await get(keys.family(T, "p2")))!.rsvp["pr1-2026-11-03"]).toMatchObject({ v: "yes", by: "u-el", via: "email" });
 
-    expect((await call("POST", "/public/answer", null, { t: yes.replace(/.$/, "x") })).status).toBe(400);
+    // Any change to the signature is refused, including its last character, which carries spare bits.
+    const flip = (t: string, i: number) => t.slice(0, i) + (t[i] === "A" ? "B" : "A") + t.slice(i + 1);
+    expect((await call("POST", "/public/answer", null, { t: flip(yes, yes.length - 10) })).status).toBe(400);
+    for (const c of "wxyz") expect((await call("POST", "/public/answer", null, { t: yes.slice(0, -1) + c })).status).toBe(yes.endsWith(c) ? 200 : 400);
     expect(await readAnswer(yes, Date.parse("2026-11-06T00:00:00Z") / 1000)).toBe("expired");
     // Someone who's left the team can't use their old link.
     await put({ ...keys.member(T, "u-el"), ...keys.memberGsi(T, "u-el"), type: "Membership", status: "removed", sub: "u-el", roles: ["parent"], pid: "p2" });
@@ -109,6 +112,18 @@ describe("availability reminder", () => {
     expect(r.sends.map((s) => [s.key, s.queued])).toEqual([["weekly:2026-11-08", 2], ["availability:2026-11-08", 0]]);
     expect(memoryOutbox.every((m) => m.subject.includes("your week"))).toBe(true);
     expect((await turnOn({ weekly: { on: false } })).status).toBe(200);
+  });
+});
+
+describe("signed links", () => {
+  it("accept only the exact signature, however the last character is spelled", async () => {
+    const t = await signUnsub({ sub: "u-jo", teamId: T, msg: "weekly" });
+    expect(await readUnsub(t)).toMatchObject({ sub: "u-jo", msg: "weekly" });
+    const last = t.slice(-1);
+    // Base64's last character of a 32-byte signature has 2 spare bits: these spell the same bytes.
+    const group = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const i = group.indexOf(last) & ~3;
+    for (const c of group.slice(i, i + 4)) if (c !== last) expect(await readUnsub(t.slice(0, -1) + c)).toBeNull();
   });
 });
 
