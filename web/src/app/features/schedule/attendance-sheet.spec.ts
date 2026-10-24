@@ -35,6 +35,12 @@ function fakeStore(records: AttendanceRecord[], opts: { rsvp?: Record<string, st
   TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: TeamStore, useValue: store }] });
   return store;
 }
+// The test DOM (jsdom) may not have <dialog>'s modal methods; browsers all do.
+beforeAll(() => {
+  const proto = HTMLDialogElement.prototype as unknown as { showModal?: () => void; close?: () => void };
+  if (typeof proto.showModal !== 'function') proto.showModal = function (this: HTMLDialogElement) { this.setAttribute('open', ''); };
+  if (typeof proto.close !== 'function') proto.close = function (this: HTMLDialogElement) { this.removeAttribute('open'); this.dispatchEvent(new Event('close')); };
+});
 const settle = async () => { await new Promise((r) => setTimeout(r, 0)); TestBed.tick(); };
 const text = (el: HTMLElement) => el.textContent!.replace(/\s+/g, ' ');
 
