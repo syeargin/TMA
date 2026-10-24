@@ -5,6 +5,10 @@ export const keys = {
   // Clubs. CLUBS/CLUB#<c> lists every club; CLUB#<c>/META holds its name, colors and links.
   clubDir: (clubId: string) => ({ PK: "CLUBS", SK: `CLUB#${clubId}` }),
   club: (clubId: string) => ({ PK: `CLUB#${clubId}`, SK: "META" }),
+  /** Site-owner settings for a club: active or not, its team limit, which features it may use. */
+  clubControls: (clubId: string) => ({ PK: `CLUB#${clubId}`, SK: "CONTROLS" }),
+  /** Who changed a club's controls, and how (site admin dashboard). */
+  clubAudit: (clubId: string, at: string) => ({ PK: `CLUB#${clubId}`, SK: `AUDIT#${at}` }),
   teamDir: (clubId: string, teamId: string) => ({ PK: `CLUB#${clubId}`, SK: `TEAM#${teamId}` }),
   clubAdmin: (clubId: string, sub: string) => ({ PK: `CLUB#${clubId}`, SK: `ADMIN#${sub}` }),
   clubAdminGsi: (clubId: string, sub: string) => ({ GSI1PK: `USER#${sub}`, GSI1SK: `CLUB#${clubId}` }),

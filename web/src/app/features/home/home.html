@@ -3,7 +3,7 @@
 @if (me(); as me) {
   <p class="muted small">
     Signed in as <b>{{ me.firstName ? me.firstName + ' ' + (me.lastName ?? '') : user()?.email }}</b>@if (me.firstName) { <span> ({{ user()?.email }})</span> · <button class="link" type="button" (click)="editingName.set(true)">Change name</button> }
-    @if (me.platformAdmin) { · <span class="pill">Site owner</span> } @else if (me.clubAdmin) { · <span class="pill">Club admin</span> }
+    @if (me.platformAdmin) { · <span class="pill">Site owner</span> · <a routerLink="/admin">Site admin</a> } @else if (me.clubAdmin) { · <span class="pill">Club admin</span> }
   </p>
   @if (me.mfa?.required && !me.mfa.enabled) { <th-two-step-prompt [what]="me.platformAdmin ? 'site owner' : 'club admin'" /> }
   @if (!me.firstName || editingName()) {
@@ -32,7 +32,7 @@
         @for (t of g.teams; track t.teamId) {
           <li>
             <a class="rowbtn" [routerLink]="['/teams', t.teamId]">
-              <b>{{ t.name || t.teamId }}</b>
+              <b>{{ t.name || t.teamId }}@if (t.clubInactive) { <span class="pill p-mute" style="margin-left:6px">Club inactive · read-only</span> }</b>
               <span>@for (r of t.roles; track r; let last = $last) {{{ roleLabel(r) }}@if (!last) { · }}</span>
             </a>
           </li>
@@ -82,7 +82,7 @@
         @for (c of clubs; track c.clubId) {
           <li>
             <a class="rowbtn" [routerLink]="['/clubs', c.clubId]">
-              <b><span class="swatch" aria-hidden="true" [style.background]="c.colors.primary" [style.border-color]="c.colors.accent"></span>{{ c.name }}</b>
+              <b><span class="swatch" aria-hidden="true" [style.background]="c.colors.primary" [style.border-color]="c.colors.accent"></span>{{ c.name }}@if (c.inactive) { <span class="pill p-mute" style="margin-left:6px">Inactive</span> }</b>
               <span>{{ c.clubId }}</span>
             </a>
           </li>

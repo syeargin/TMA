@@ -104,6 +104,6 @@
   <div class="card-h"><h2>Export to a spreadsheet</h2></div>
   <div class="card-b"><th-export-button [teamId]="store.teamId()" /></div>
 </section>
-@if (store.you().clubAdmin && !store.archived()) {
+@if (store.you().clubAdmin && !store.readOnly()) {
   <div class="import-row"><th-import-panel [teamId]="store.teamId()" (imported)="afterImport($event)" /></div>
 }

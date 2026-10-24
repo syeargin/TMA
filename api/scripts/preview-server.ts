@@ -106,6 +106,16 @@ await api("PUT", "/teams/test-13/announcements/a2", OWNER, { text: "Warm-ups are
   await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("test-13", GRAN), ...keys.memberGsi("test-13", GRAN), type: "Membership", status: "active", sub: GRAN, roles: ["parent"], pid: "p3", email: "gran@example.com", notifyOff: ["all"], at: new Date().toISOString() } }));
 }
 
+// Site admin dashboard: the test club has a limit of 2 active teams (it's full) and no text alerts;
+// two more clubs, one of them inactive.
+await api("PUT", "/admin/clubs/test", OWNER, { teamLimit: 2, features: { texts: false } });
+await api("POST", "/clubs", OWNER, { clubId: "eastside", name: "Eastside VBC", short: "EVBC", colors: { primary: "#1F3A8A", accent: "#F59E0B" } });
+for (const [id, name] of [["ev-14", "Eastside 14 Black"], ["ev-15", "Eastside 15 Gold"], ["ev-16", "Eastside 16 Black"]]) await api("POST", "/teams", OWNER, { clubId: "eastside", teamId: id, name, season: "2026-27" });
+await api("PUT", "/admin/clubs/eastside", OWNER, { teamLimit: 6, features: { uniforms: false } });
+await api("POST", "/clubs", OWNER, { clubId: "riverside", name: "Riverside Juniors", short: "RJ", colors: { primary: "#7F1D1D", accent: "#FCA5A5" } });
+await api("POST", "/teams", OWNER, { clubId: "riverside", teamId: "rj-13", name: "Riverside 13", season: "2025-26" });
+await api("PUT", "/admin/clubs/riverside", OWNER, { status: "inactive", reason: "Didn't renew for 2026-27" });
+
 // Everyone but Gloria (u-gran) has accepted the privacy notice, so she shows the consent page.
 const { PRIVACY_VERSION } = await import("../src/shared/privacy.js");
 for (const sub of [OWNER, MOM, "u-dad"]) await api("PUT", "/me/privacy", sub, { version: PRIVACY_VERSION });

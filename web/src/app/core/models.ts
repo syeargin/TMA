@@ -1,12 +1,22 @@
 import type { EmailStatus } from '@shared/messages';
-import type { FeatureMap } from '@shared/features';
+import type { ClubFeature, FeatureMap } from '@shared/features';
 import type { Role } from '@shared/permissions';
 
-export interface MyTeam { teamId: string; name?: string; roles: Role[]; pid?: string; clubId?: string; archived?: boolean }
+export interface MyTeam { teamId: string; name?: string; roles: Role[]; pid?: string; clubId?: string; archived?: boolean; clubInactive?: boolean }
 export interface ClubLink { label: string; url: string }
 export interface Club { clubId: string; name: string; short: string; colors: { primary: string; accent: string }; links: ClubLink[]; notes: string }
 /** A club you're in through a team (admin: false) or run (admin: true). */
-export interface MyClub extends Club { admin: boolean }
+export interface MyClub extends Club { admin: boolean; inactive?: boolean }
+/** What a site owner set for a club (site admin dashboard), as team members see it. */
+export interface ClubControlsView { status: 'active' | 'inactive'; features: Partial<Record<ClubFeature, boolean>>; teamLimit: number | null; activeTeams?: number }
+/** One club on the site admin dashboard. */
+export interface AdminClub {
+  clubId: string; name: string; short: string; colors?: { primary: string; accent: string };
+  status: 'active' | 'inactive'; statusReason: string; statusAt: string;
+  teamLimit: number | null; activeTeams: number; archivedTeams: number; admins: number;
+  features: Partial<Record<ClubFeature, boolean>>; teams: { teamId: string; name: string }[];
+}
+export interface ClubHistory { at: string; by: string; changes: string[]; reason: string }
 export interface Me {
   sub?: string; email?: string; firstName?: string; lastName?: string; teams: MyTeam[];
   /** Runs at least one club. */
@@ -48,7 +58,7 @@ export interface ImportResult {
   problems: ImportProblem[];
 }
 export interface ClubAdmin { sub: string; email: string; firstName?: string; lastName?: string; /** Two-step sign-in on: their admin tools work. */ mfa?: boolean }
-export interface ClubDetail { club: Club; teams: ClubTeam[]; admins: ClubAdmin[]; invites: { email: string; firstName?: string; lastName?: string; expires?: string; expired?: boolean; emailStatus?: EmailStatus; emailAt?: string; emailDetail?: string }[] }
+export interface ClubDetail { club: Club; controls?: ClubControlsView; teams: ClubTeam[]; admins: ClubAdmin[]; invites: { email: string; firstName?: string; lastName?: string; expires?: string; expired?: boolean; emailStatus?: EmailStatus; emailAt?: string; emailDetail?: string }[] }
 export interface Member { sub?: string; email?: string; firstName?: string; lastName?: string; person?: string; roles: Role[]; pid?: string; status?: string }
 /** The Communications page (Messaging M2). */
 export interface CommsMessage {
@@ -62,7 +72,7 @@ export interface CommsMessage {
   featureOff?: string;
 }
 export interface UpcomingSend { key: string; msg: string; label: string; date: string; sendAt: string; skipped: boolean; paused: boolean; reach: number }
-export interface CommsPage { timeZone: string; pauseUntil: string | null; messages: CommsMessage[]; upcoming: UpcomingSend[]; catalog: EmailTemplate[] }
+export interface CommsPage { clubEmail?: boolean; timeZone: string; pauseUntil: string | null; messages: CommsMessage[]; upcoming: UpcomingSend[]; catalog: EmailTemplate[] }
 export type HealthAttention =
   | { kind: 'bounced'; email: string; who: string; invite: boolean; bounces: number; since: string; suggest?: string; detail: string }
   | { kind: 'complained'; email: string; who: string; at: string }
@@ -98,8 +108,10 @@ export interface Settings {
   checklist?: string[]; uniformItems?: string[];
   /** Practice uniform colors offered when adding a practice. */
   practiceColors?: string[];
-  /** Optional features the team has switched off ({ fund: false, ... }); missing = on. */
+  /** Optional features switched off ({ fund: false, ... }) by the team or its club; missing = on. */
   features?: FeatureMap;
+  /** The team's own switches only, for Team settings → Features. */
+  teamFeatures?: FeatureMap;
   dues?: { amountCents?: number; due?: string; label?: string };
   budget?: { costPerMealCents?: number; mealsPerDay?: number; people?: number; families?: number };
   [key: string]: unknown;
@@ -178,6 +190,8 @@ export interface Announcement { aid: string; text: string; pinned?: boolean; by?
 export interface TeamBundle {
   /** "Also email the team" is offered when posting (Messaging M2b). */
   emailPosts?: boolean;
+  /** The club's status and features (site admin dashboard). */
+  clubControls?: ClubControlsView;
   teamId: string;
   you: { sub?: string; roles: Role[]; pid?: string; person?: string; clubAdmin?: boolean };
   clubId?: string;

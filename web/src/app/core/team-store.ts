@@ -1,7 +1,7 @@
 import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
 import { Permission, can as roleCan } from '@shared/permissions';
-import { FEATURES, Feature, isOn } from '@shared/features';
+import { clubAllows, FEATURES, Feature, isOn, type ClubFeature } from '@shared/features';
 import { ApiError, ApiService } from './api.service';
 import { explain } from './errors';
 import { LiveService } from './live.service';
@@ -86,10 +86,15 @@ export class TeamStore implements OnDestroy {
 
   /** Archived teams are read-only: everyone keeps what they could see, nobody can change anything. */
   readonly archived = computed(() => !!this.bundle()?.team?.archived);
-  /** Optional features (team settings): on unless the team switched them off. */
+  /** Every team in an inactive club is read-only too (site admin dashboard). */
+  readonly clubInactive = computed(() => this.bundle()?.clubControls?.status === 'inactive');
+  readonly readOnly = computed(() => this.archived() || this.clubInactive());
+  /** Optional features: on unless the team or its club switched them off. */
   has(f: Feature): boolean { return isOn(this.settings()?.features, f); }
+  /** Whether the club includes a feature at all (site admin dashboard). */
+  clubAllows(f: ClubFeature): boolean { return clubAllows(this.bundle()?.clubControls?.features, f); }
   can(perm: Permission): boolean {
-    if (this.archived() && !VIEW_ONLY.has(perm)) return false;
+    if (this.readOnly() && !VIEW_ONLY.has(perm)) return false;
     const f = PERM_FEATURE[perm];
     if (f && !this.has(f)) return false;
     return roleCan(this.you().roles, perm);
@@ -129,7 +134,7 @@ export class TeamStore implements OnDestroy {
    */
   private async convertPracticeTimes() {
     const s = this.settings();
-    if (this.converting || this.archived() || !this.can('schedule') || !(s?.practices ?? []).some((p) => p.from)) return;
+    if (this.converting || this.readOnly() || !this.can('schedule') || !(s?.practices ?? []).some((p) => p.from)) return;
     this.converting = true;
     try {
       const r = await this.api.convertPractices(this.teamId());

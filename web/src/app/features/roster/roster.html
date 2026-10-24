@@ -13,7 +13,7 @@
 </div>
 
 @if (!uniforms()) {
-  @if (myPid && !store.archived()) {
+  @if (myPid && !store.readOnly()) {
     <section class="card share-card">
       <div class="card-b">
         <label class="check">

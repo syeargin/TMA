@@ -57,6 +57,10 @@ export class ClubAdminPage extends Page {
   readonly managing = signal<string | null>(null);
   readonly deleteText = signal('');
   /** Current teams first, then archived ones. */
+  /** At the club's team limit (site admin dashboard): no new or restored teams. */
+  readonly atLimit = computed(() => { const c = this.detail()?.controls; return !!c && c.teamLimit !== null && (c.activeTeams ?? 0) >= c.teamLimit; });
+  /** Places left under the team limit; null with no limit. */
+  readonly room = computed(() => { const c = this.detail()?.controls; return c && c.teamLimit !== null ? Math.max(0, c.teamLimit - (c.activeTeams ?? 0)) : null; });
   readonly teams = computed(() => [...(this.detail()?.teams ?? [])].sort((a, b) =>
     Number(!!a.archived) - Number(!!b.archived) || a.name.localeCompare(b.name)));
 

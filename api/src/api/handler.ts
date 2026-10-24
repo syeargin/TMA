@@ -4,6 +4,7 @@ import { Router } from "./router.js";
 import { accountRoutes } from "./routes/account.js";
 import { meRoutes } from "./routes/me.js";
 import { smsRoutes } from "./routes/sms.js";
+import { adminRoutes } from "./routes/admin.js";
 import { teamRoutes } from "./routes/teams.js";
 import { contentRoutes } from "./routes/content.js";
 import { familyRoutes } from "./routes/family.js";
@@ -14,13 +15,14 @@ import { exportRoutes } from "./routes/exports.js";
 import { importRoutes } from "./routes/imports.js";
 import { mailRoutes } from "./routes/mail.js";
 import { commsRoutes, publicRoutes } from "./routes/comms.js";
-import { assertTeamWritable } from "./context.js";
+import { assertClubWritable, assertTeamWritable } from "./context.js";
 import { ID } from "./util.js";
 
 export const router = new Router();
 meRoutes(router);
 accountRoutes(router);
 smsRoutes(router);
+adminRoutes(router);
 teamRoutes(router);
 contentRoutes(router);
 familyRoutes(router);
@@ -57,6 +59,8 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
     // Nothing on an archived team changes, except archiving itself.
     const team = method !== "GET" ? /^\/teams\/[^/]+\/([^/]+)/.exec(path) : null;
     if (team && team[1] !== "archive" && team[1] !== "restore" && ID.test(m.params.teamId ?? "")) await assertTeamWritable(m.params.teamId);
+    // An inactive club's settings, admins and invites don't change either (site admin dashboard).
+    if (method !== "GET" && /^\/clubs\/[^/]+/.test(path) && ID.test(m.params.clubId ?? "")) await assertClubWritable(m.params.clubId);
     const res = await m.handler({
       method, path, params: m.params,
       body: event.isBase64Encoded && event.body ? Buffer.from(event.body, "base64").toString("utf8") : event.body ?? null,

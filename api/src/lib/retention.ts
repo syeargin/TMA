@@ -1,3 +1,4 @@
+import { recountTeams } from "./club-controls.js";
 import { forgetTeamClubs, DEFAULT_CLUB } from "./clubs.js";
 import { keys } from "./keys.js";
 import { deleteMany, queryAll } from "../api/util.js";
@@ -43,7 +44,7 @@ export async function purgeTeam(teamId: string, clubId: string, by: string): Pro
   return count;
 }
 
-/** The daily job: deletes every archived team whose date has come. */
+/** The daily job: deletes every archived team whose date has come, and recounts each club's active teams. */
 export async function purgeDue(at = new Date().toISOString()): Promise<{ teamId: string; clubId: string }[]> {
   const clubIds = new Set([DEFAULT_CLUB(), ...(await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": "CLUBS" } })).map((c) => String(c.SK).slice(5))]);
   const done: { teamId: string; clubId: string }[] = [];
@@ -56,6 +57,9 @@ export async function purgeDue(at = new Date().toISOString()): Promise<{ teamId:
       await purgeTeam(teamId, clubId, "retention");
       done.push({ teamId, clubId });
     }
+    // Keep each club's count of active teams exact (site admin dashboard's team limit).
+    try { await recountTeams(clubId); }
+    catch (e) { console.error(JSON.stringify({ msg: "team recount failed", clubId, error: String(e) })); }
   }
   return done;
 }

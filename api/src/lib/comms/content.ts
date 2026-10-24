@@ -3,9 +3,10 @@
  * gets only what their role can already see on the site (the same permission table, shared/permissions),
  * and only for features the team has on.
  */
+import { getControls } from "../club-controls.js";
 import { getClub, type Club } from "../clubs.js";
 import { queryAll } from "../../api/util.js";
-import { isOn, type Feature, type FeatureMap } from "../../shared/features.js";
+import { effectiveFeatures, isOn, type Feature, type FeatureMap } from "../../shared/features.js";
 import { can, type Permission } from "../../shared/permissions.js";
 import { addDays, between, buildItems, shortDate, takesRsvp, type Item } from "./schedule.js";
 
@@ -46,7 +47,8 @@ export async function loadTeam(teamId: string, clubId: string): Promise<Team> {
     }
   }
   t.teamName = str(t.settings.teamName) || teamId;
-  t.features = (t.settings.features as FeatureMap) ?? {};
+  // A feature works only if the team and its club both allow it (site admin dashboard).
+  t.features = effectiveFeatures(t.settings.features as FeatureMap, (await getControls(clubId)).features);
   t.items = buildItems(t.events, t.settings);
   return t;
 }

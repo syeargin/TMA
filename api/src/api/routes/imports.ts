@@ -6,6 +6,7 @@
  * errors. A club import is saved in parts (`apply: "club"`, then `apply: "<teamId>"` per team in the
  * preview's `order`), so a large club never runs into the API's time limit and the site can show progress.
  */
+import { getControls } from "../../lib/club-controls.js";
 import { z } from "zod";
 import { forgetTeamClubs, getClub } from "../../lib/clubs.js";
 import { applyOrder, importClub, importTeam, type TeamSummary } from "../../lib/import/apply.js";
@@ -87,6 +88,14 @@ export function importRoutes(r: Router) {
     for (const plan of order.map((id) => plans.find((t) => t.teamId === id)!)) {
       const s = await importTeam({ clubId, plan, by: caller.sub, write: false, problems, defaults: club?.defaults, teamsInFile });
       if (s) teams.push(s);
+    }
+    // New teams have to fit in the club's team places (site admin dashboard).
+    const added = teams.filter((t) => t.status === "new").length;
+    if (added) {
+      const c = await getControls(clubId);
+      const left = c.teamLimit === null ? Infinity : c.teamLimit - (c.activeTeams ?? 0);
+      if (c.status !== "active") problems.push({ sheet: "Teams", level: "error", message: "This club is inactive, so no teams can be added. A site owner can reactivate it." });
+      else if (added > left) problems.push({ sheet: "Teams", level: "error", message: `This file adds ${added} new teams, but your club has room for ${Math.max(0, left)} more (its limit is ${c.teamLimit} active teams). Archive a team, or ask a site owner to raise the limit.` });
     }
     const clubSummary = club ? await importClub({ clubId, plan: club, by: caller.sub, write: false }) : null;
     return json(200, { kind: parsed.kind, applied: false, club: clubSummary, teams, order, problems: sortProblems(problems) });

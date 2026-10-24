@@ -13,6 +13,9 @@
 <th-messages [error]="error()" [notice]="notice()" />
 
 @if (page(); as p) {
+  @if (p.clubEmail === false) {
+    <div class="comms-banner" role="status">@if (store.clubInactive()) { <b>This club is inactive, so no team emails go out.</b> } @else { <b>Your club doesn't include team emails.</b> A site owner can turn them on for the club. } Nothing on this page is sent; invites and account notices still go.</div>
+  }
   @if (pauseUntil()) {
     <div class="comms-banner" role="status"><b>Paused until {{ pauseUntil() }}.</b> Scheduled emails don’t go out until then; invites and account notices still do.</div>
   }

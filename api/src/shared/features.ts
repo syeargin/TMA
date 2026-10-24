@@ -26,3 +26,28 @@ export function roleFeature(role: string): Feature | null {
   for (const f of FEATURE_KEYS) if (FEATURES[f].role === role) return f;
   return null;
 }
+
+// ---------- What a club may use (site admin dashboard) ----------
+// A site owner turns features on or off for a whole club. A team can only use a feature its club
+// allows; within that, the team's own switches still apply. Email and text alerts are club-only:
+// invites, sign-in codes and account notices always go, whatever is set here.
+
+export const CLUB_ONLY = {
+  email: { label: "Team emails", help: "Weekly emails, the staff digest, reminders, payment and announcement emails. Invites and account notices always go." },
+  texts: { label: "Text alerts", help: "Text messages for last-minute changes, game days, duties and urgent posts." }
+} as const;
+
+export type ClubFeature = Feature | keyof typeof CLUB_ONLY;
+export const CLUB_FEATURES: Record<ClubFeature, { label: string; help: string }> = { ...FEATURES, ...CLUB_ONLY };
+export const CLUB_FEATURE_KEYS = Object.keys(CLUB_FEATURES) as ClubFeature[];
+
+/** Saved on the club's controls as { texts: false, ... }: only switched-off features are stored. */
+export type ClubFeatureMap = Partial<Record<ClubFeature, boolean>>;
+export const clubAllows = (club: ClubFeatureMap | null | undefined, f: ClubFeature) => club?.[f] !== false;
+
+/** The features a team can actually use: off if the team or its club switched them off. */
+export function effectiveFeatures(team: FeatureMap | null | undefined, club: ClubFeatureMap | null | undefined): FeatureMap {
+  const out: FeatureMap = { ...(team ?? {}) };
+  for (const f of FEATURE_KEYS) if (!clubAllows(club, f)) out[f] = false;
+  return out;
+}

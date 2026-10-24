@@ -29,7 +29,7 @@ export class Home extends Page {
   readonly nameForm = this.fb.group({ firstName: '', lastName: '' });
   readonly roleLabel = roleLabel;
   /** Site owners: every club. */
-  readonly allClubs = signal<Club[] | null>(null);
+  readonly allClubs = signal<(Club & { inactive?: boolean })[] | null>(null);
   readonly clubForm = this.fb.group({ clubId: '', name: '', short: '', adminEmail: '', primary: DEFAULT_COLORS.primary, accent: DEFAULT_COLORS.accent });
 
   readonly adminClubs = computed(() => (this.me()?.clubs ?? []).filter((c) => c.admin));

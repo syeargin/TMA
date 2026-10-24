@@ -8,6 +8,7 @@ import { json, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { clean, getItem, now, putItem, queryAll, str } from "../util.js";
 import { hasMfa } from "../../lib/mfa.js";
+import { getControlsMany } from "../../lib/club-controls.js";
 import { listGrants } from "../../lib/admin-lists.js";
 import { verifiedEmail } from "../../lib/identity.js";
 import type { Caller } from "../context.js";
@@ -104,7 +105,7 @@ export function meRoutes(r: Router) {
 
     const active = memberships.filter((m) => m.status === "active");
     const teamClub = await clubsOfTeams(active.map((m) => String(m.GSI1SK).slice(5)));
-    const [clubs, archived] = await Promise.all([getClubs([...adminClubs, ...teamClub.values()]), archivedTeams(teamClub)]);
+    const [clubs, archived, controls] = await Promise.all([getClubs([...adminClubs, ...teamClub.values()]), archivedTeams(teamClub), getControlsMany([...adminClubs, ...teamClub.values()])]);
 
     // No name of their own yet: use one an admin set on a team, and keep it on the profile from now on.
     if (!name.firstName) {
@@ -137,10 +138,12 @@ export function meRoutes(r: Router) {
       privacy: { version: PRIVACY_VERSION, accepted: profile.privacyVersion === PRIVACY_VERSION, acceptedAt: profile.privacyAt },
       acceptedInvites: accepted,
       /** Clubs you're in through a team or as an admin, with their colors. */
-      clubs: [...clubs.values()].map((c) => ({ ...c, admin: platformAdmin || adminClubs.has(c.clubId) })),
+      clubs: [...clubs.values()].map((c) => ({ ...c, admin: platformAdmin || adminClubs.has(c.clubId), ...(controls.get(c.clubId)?.status === "inactive" ? { inactive: true } : {}) })),
       teams: active.map((m) => {
         const teamId = String(m.GSI1SK).slice(5);
-        return { teamId, ...clean(m), clubId: teamClub.get(teamId), ...(archived.has(teamId) ? { archived: true } : {}) };
+        const clubId = teamClub.get(teamId);
+        const inactive = !!clubId && controls.get(clubId)?.status === "inactive";
+        return { teamId, ...clean(m), clubId, ...(archived.has(teamId) ? { archived: true } : {}), ...(inactive ? { clubInactive: true } : {}) };
       })
     });
   });

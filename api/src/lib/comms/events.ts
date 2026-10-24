@@ -4,6 +4,7 @@
  * emails). Each is off until the team turns it on, and each delivery's dedupe key names what it's
  * about, so recording the same payment twice sends one email.
  */
+import { clubSendsEmail } from "../club-controls.js";
 import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE } from "../db.js";
 import { keys } from "../keys.js";
@@ -50,7 +51,7 @@ export type LedgerEntry = { lid: string; kind: string; cat: string; pid?: string
 export async function notifyPayment(teamId: string, clubId: string, l: LedgerEntry, by: string): Promise<number> {
   const c = await getComms(teamId);
   const e = effective("payment", c)!;
-  if (!e.on) return 0;
+  if (!e.on || !(await clubSendsEmail(clubId))) return 0;
   const t = await loadTeam(teamId, clubId);
   if (!has(t, "fund")) return 0;
   const recordedBy = await personName(by);
@@ -70,13 +71,14 @@ export async function notifyPayment(teamId: string, clubId: string, l: LedgerEnt
   return queueAll(t, "payment", people, `payment:${l.lid}`);
 }
 
-export type AnnouncementResult = { emailed: number; reason?: "off" | "cap" | "already" };
+export type AnnouncementResult = { emailed: number; reason?: "off" | "cap" | "already" | "club" };
 
 /** Emails a post to the team. At most two a week when the team keeps the cap on. */
 export async function notifyAnnouncement(teamId: string, clubId: string, aid: string, by: string): Promise<AnnouncementResult> {
   const c = await getComms(teamId);
   const e = effective("announcement", c)!;
   if (!e.on) return { emailed: 0, reason: "off" };
+  if (!(await clubSendsEmail(clubId))) return { emailed: 0, reason: "club" };
   const ann = await getItem(keys.announcement(teamId, aid));
   if (!ann) return { emailed: 0 };
   if (ann.emailedAt) return { emailed: 0, reason: "already" };

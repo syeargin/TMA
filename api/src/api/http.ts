@@ -10,7 +10,7 @@ export const forbidden = (msg = "You don't have access to do that.") => new Http
 /** Club-admin or site-owner rights need two-step sign-in (R2). The site shows a link to set it up. */
 export const mfaRequired = () => new HttpError(403, MFA_MESSAGE, "mfa_required");
 export const notFound = (msg = "Not found.") => new HttpError(404, msg, "not_found");
-export const conflict = (msg: string) => new HttpError(409, msg, "conflict");
+export const conflict = (msg: string, code = "conflict") => new HttpError(409, msg, code);
 export const badRequest = (msg: string) => new HttpError(400, msg, "bad_request");
 
 export function json(status: number, body: unknown): APIGatewayProxyStructuredResultV2 {

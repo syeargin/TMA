@@ -9,6 +9,9 @@
   @if (needsTwoStep()) { <th-two-step-prompt [what]="owner() ? 'site owner' : 'club admin'" /> }
 
   @if (detail(); as d) {
+    @if (d.controls?.status === 'inactive') {
+      <div class="banner archived" role="status" style="margin-bottom:14px"><p><b>This club is inactive.</b> Its settings and teams are read-only, and no team emails go out. A site owner can reactivate it.</p></div>
+    }
     <div class="grid g-home">
       <div class="stack">
         <form [formGroup]="form" (ngSubmit)="save()" novalidate class="stack">
@@ -90,7 +93,7 @@
 
       <div class="stack">
         <section class="card">
-          <div class="card-h"><h2>Teams</h2><span class="muted small">{{ d.teams.length }}</span></div>
+          <div class="card-h"><h2>Teams</h2><span class="muted small">@if (d.controls; as c) { @if (c.teamLimit !== null) { {{ c.activeTeams }} of {{ c.teamLimit }} active } @else { {{ d.teams.length }} } } @else { {{ d.teams.length }} }</span></div>
           <div class="card-b">
             @for (t of teams(); track t.teamId) {
               <div class="li" [class.dim]="t.archived">
@@ -112,7 +115,8 @@
                       <p class="small">Archived{{ t.archivedAt ? ' ' + (t.archivedAt | date: 'MMM d, y') : '' }}. Its families see it under Archived teams, read-only. It will be deleted on <b>{{ purgeOf(t) | date: 'MMM d, y' }}</b>, 90 days after archiving, unless you restore it.</p>
                     }
                     <div class="row" style="margin-top:8px">
-                      <button class="btn sm" type="button" [disabled]="busy()" (click)="setArchived(t, false)">Restore team</button>
+                      <button class="btn sm" type="button" [disabled]="busy() || atLimit()" (click)="setArchived(t, false)">Restore team</button>
+                      @if (atLimit()) { <span class="small muted">The club is at its limit of {{ d.controls?.teamLimit }} active teams.</span> }
                     </div>
                   } @else {
                     <p class="small"><b>Archive</b> when a season is over. The team and its data stay for 90 days, read-only, under Archived teams for its families; then it's deleted. You can restore it any time before that.</p>
@@ -145,6 +149,12 @@
               }
             } @empty { <div class="empty">No teams yet.</div> }
             <h3 class="sub-h">Create a team</h3>
+            @if (d.controls?.status === 'inactive') {
+              <p class="small muted">The club is inactive, so no teams can be added.</p>
+            } @else if (atLimit()) {
+              <p class="small comms-warn" role="status"><b>Your club is at its limit of {{ d.controls?.teamLimit }} active teams.</b> Archive a team you're done with, or ask a site owner to raise the limit.</p>
+            } @else {
+              @if (room(); as n) { <p class="small muted">Room for {{ n }} more active {{ n === 1 ? 'team' : 'teams' }}. Archived teams don't count.</p> }
             <form [formGroup]="teamForm" (ngSubmit)="createTeam()" novalidate>
               <div class="two">
                 <label for="tName">Team name<input id="tName" formControlName="name" required placeholder="{{ d.club.short || d.club.name }} 13 Open"></label>
@@ -156,6 +166,7 @@
               </div>
               <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Create team' }}</button>
             </form>
+            }
           </div>
         </section>
 

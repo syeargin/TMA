@@ -5,6 +5,7 @@
  * name, events on type + date + title, people on email. Nothing is ever removed, and fields families or
  * coaches filled in that the workbook doesn't have (answers, travel, meals, game-day details) are kept.
  */
+import { failedAt, placeRefusal, takeTeamPlace } from "../club-controls.js";
 import { BatchWriteCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import { ddb, TABLE } from "../db.js";
 import { DEFAULT_CLUB } from "../clubs.js";
@@ -334,15 +335,22 @@ export async function importTeam(opts: {
 
   if (isNew) {
     // Claim the id first, as POST /teams does, so two uploads can't both create it.
+    const steps = [
+      { Put: { TableName: TABLE, ConditionExpression: "attribute_not_exists(PK)", Item: { ...keys.teamClub(t.teamId), type: "TeamClub", clubId, at } } },
+      { Put: { TableName: TABLE, ConditionExpression: "attribute_not_exists(PK)", Item: settings } },
+      { Put: { TableName: TABLE, Item: dir } },
+      ...(handbook ? [{ Put: { TableName: TABLE, Item: handbook } }] : []),
+      // One of the club's team places (site admin dashboard).
+      takeTeamPlace(clubId)
+    ];
     try {
-      await ddb.send(new TransactWriteCommand({ TransactItems: [
-        { Put: { TableName: TABLE, ConditionExpression: "attribute_not_exists(PK)", Item: { ...keys.teamClub(t.teamId), type: "TeamClub", clubId, at } } },
-        { Put: { TableName: TABLE, ConditionExpression: "attribute_not_exists(PK)", Item: settings } },
-        { Put: { TableName: TABLE, Item: dir } },
-        ...(handbook ? [{ Put: { TableName: TABLE, Item: handbook } }] : [])
-      ] }));
+      await ddb.send(new TransactWriteCommand({ TransactItems: steps }));
     } catch (e) {
       const name = (e as { name?: string }).name;
+      if (failedAt(e, steps.length - 1)) {
+        problems.push({ ...where, level: "error", message: (await placeRefusal(clubId)) ?? "Your club can't add a team right now. Try again." });
+        return null;
+      }
       if (name === "TransactionCanceledException" || name === "ConditionalCheckFailedException") {
         problems.push({ ...where, level: "error", message: `Team ID "${t.teamId}" was just taken. Upload again to update it instead.` });
         return null;
