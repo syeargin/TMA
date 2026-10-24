@@ -19,10 +19,10 @@ import { Page } from '../../shared/page';
       <li>Archived teams are deleted after 90 days. You can download your data or delete your account at any time.</li>
       <li>Questions and requests go to your team coordinator.</li>
     </ul>
-    <p><a routerLink="/privacy" target="_blank" rel="noopener">Read the full privacy notice</a></p>
+    <p><a routerLink="/privacy" target="_blank" rel="noopener">Read the full privacy notice</a> · <a routerLink="/terms" target="_blank" rel="noopener">Terms of use</a></p>
     <label class="agree">
       <input type="checkbox" [checked]="agreed()" (change)="agreed.set($any($event.target).checked)">
-      <span>I've read the privacy notice</span>
+      <span>I agree to the terms of use and I've read the privacy notice</span>
     </label>
     <button class="btn primary" type="button" [disabled]="!agreed() || busy()" (click)="accept()">{{ busy() ? 'Saving…' : 'Continue' }}</button>`
 })

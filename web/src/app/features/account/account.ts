@@ -6,11 +6,12 @@ import { MeService } from '../../core/me.service';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
 import { NotificationSettings } from './notification-settings';
+import { TextAlerts } from './text-alerts';
 
 /** /account — two-step sign-in, privacy, download my data, delete my account (R2, R4). */
 @Component({
   selector: 'th-account',
-  imports: [RouterLink, Messages, NotificationSettings],
+  imports: [RouterLink, Messages, NotificationSettings, TextAlerts],
   template: `
     <h2>Your account</h2>
     <th-messages [error]="error()" [notice]="notice()" />
@@ -23,6 +24,8 @@ import { NotificationSettings } from './notification-settings';
     </section>
 
     <th-notification-settings />
+
+    <th-text-alerts />
 
     <section class="acct">
       <h3>Your data</h3>

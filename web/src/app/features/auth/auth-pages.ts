@@ -58,6 +58,7 @@ abstract class AuthPage extends Page {
     <div class="links">
       <a class="link" routerLink="/forgot">Forgot password?</a>
       <a class="link" routerLink="/privacy">Privacy</a>
+      <a class="link" routerLink="/terms">Terms</a>
       <span>New here? <a class="link" routerLink="/signup">Create your account</a></span>
     </div>
     }`
@@ -120,7 +121,7 @@ export class SignIn extends AuthPage {
       <label for="password">Password<input id="password" type="password" formControlName="password" autocomplete="new-password" required minlength="10" aria-describedby="pw-rules"></label>
       <p class="hint" id="pw-rules">{{ rules }}</p>
       <label for="confirm">Confirm password<input id="confirm" type="password" formControlName="confirm" autocomplete="new-password" required></label>
-      <label class="agree" for="agree"><input id="agree" type="checkbox" formControlName="agree"><span>I've read the <a routerLink="/privacy" target="_blank" rel="noopener">privacy notice</a></span></label>
+      <label class="agree" for="agree"><input id="agree" type="checkbox" formControlName="agree"><span>I agree to the <a routerLink="/terms" target="_blank" rel="noopener">terms of use</a> and I've read the <a routerLink="/privacy" target="_blank" rel="noopener">privacy notice</a></span></label>
       <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Working…' : 'Create account' }}</button>
     </form>
     <div class="links"><span>Already have an account? <a class="link" routerLink="/signin">Sign in</a></span></div>`
@@ -132,7 +133,7 @@ export class SignUp extends AuthPage {
     const { email, password, confirm, agree } = this.form.getRawValue();
     this.remember(email);
     if (password !== confirm) { this.error.set("The passwords don't match."); return; }
-    if (!agree) { this.error.set('Please read the privacy notice and tick the box.'); return; }
+    if (!agree) { this.error.set('Please agree to the terms, read the privacy notice, and tick the box.'); return; }
     // Recorded on the account at first sign-in, so the notice isn't shown twice (privacyGuard).
     try { localStorage.setItem(PRIVACY_KEY, PRIVACY_VERSION); } catch { /* storage blocked: they'll be asked once */ }
     return this.run(async () => {
