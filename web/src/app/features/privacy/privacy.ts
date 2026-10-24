@@ -20,6 +20,7 @@ import { PRIVACY_VERSION, RETENTION, SUPPORT_EMAIL } from '@shared/privacy';
       <h3>What we keep</h3>
       <ul>
         <li><b>About you:</b> your name, email address, password (stored scrambled by our sign-in service), and your roles on each team.</li>
+        <li><b>Practice attendance, when the team uses it:</b> for each practice, whether your player was present, late, excused or absent, with an optional note from the coach.</li>
         <li><b>About your family, entered by you or your team coordinator:</b> your player's name, jersey and shirt numbers, hometown, food allergies, uniform sizes, availability for practices and events, travel plans for tournaments, meal sign-ups, and parents' names, phone numbers and emails.</li>
         <li><b>Money:</b> dues and reimbursements recorded in the team fund. Teem Hub never takes payments or card numbers; families pay the way the coordinator asks.</li>
         <li><b>Records kept automatically:</b> which account did what and when, and server logs of requests (including your internet address) for {{ r.logDays }} days.</li>
@@ -33,6 +34,7 @@ import { PRIVACY_VERSION, RETENTION, SUPPORT_EMAIL } from '@shared/privacy';
         <li><b>Everyone on your team</b> sees the schedule, announcements, the roster (players' names and numbers), who's coming to each practice or event, who's bringing team meals, members' names, and the team fund's totals.</li>
         <li><b>The mobile number for text alerts</b> is used only to send you the alerts you chose. Team staff don't see it, and it isn't added to the roster.</li>
         <li><b>Parents' phone numbers and emails</b> are seen by the coaches and team staff. Other families see them only if you choose to share them, using the checkbox on the Roster page. Sharing is off until you turn it on.</li>
+        <li><b>Practice attendance</b> is seen by your family (your own player only), and by coaches, coordinators and team admins, who mark it. Other families never see it.</li>
         <li><b>Food allergies</b> are seen by your family, coaches, team admins and coordinators, and the food coordinator.</li>
         <li><b>Travel plans and uniform sizes</b> are seen by your family and the team coordinators and admins. Other families only see whether you've entered them.</li>
         <li><b>The full team fund</b>, including each family's dues, is seen by your family (your own lines), the finance volunteer, coordinators and admins. Everyone else sees the totals.</li>

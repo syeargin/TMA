@@ -51,17 +51,23 @@ export function accountRoutes(r: Router) {
       const settings = await getItem(keys.settings(teamId));
       const team: Item = { teamId, teamName: settings?.teamName ?? teamId, roles: m.roles ?? [], status: m.status, joined: m.at };
       if (pid) {
-        const [player, contacts, family, ledger, payments] = await Promise.all([
+        const [player, contacts, family, ledger, payments, attendance] = await Promise.all([
           getItem(keys.player(teamId, pid)),
           getItem(keys.contacts(teamId, pid)),
           getItem(keys.family(teamId, pid)),
           queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :l)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":l": "LEDGER#" } }),
-          queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :y)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":y": "PAYMENT#" } })
+          queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :y)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":y": "PAYMENT#" } }),
+          queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :a)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":a": "ATT#" } })
         ]);
         team.player = player ? { ...clean(player), parents: (contacts?.parents as unknown[]) ?? [] } : null;
         team.family = family ? clean(family) : null;
         team.fundEntries = ledger.filter((l) => l.pid === pid).map((l) => clean(l));
         team.payments = payments.filter((p) => p.pid === pid || p.submittedBy === caller.sub).map((p) => clean(p));
+        // Practice attendance: only this family's player.
+        team.practiceAttendance = attendance
+          .filter((r) => (r.marks as Record<string, unknown> | undefined)?.[pid])
+          .map((r) => ({ date: r.date, ...((r.marks as Record<string, Item>)[pid]) }))
+          .sort((x, y) => String(x.date).localeCompare(String(y.date)));
       } else {
         const payments = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :y)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":y": "PAYMENT#" } });
         team.payments = payments.filter((p) => p.submittedBy === caller.sub).map((p) => clean(p));

@@ -7,11 +7,12 @@ import { ThemeService } from '../core/theme.service';
 import { TeamStore } from '../core/team-store';
 import { Router } from '@angular/router';
 import { AvailabilitySheet } from '../features/schedule/availability-sheet';
+import { AttendanceSheet } from '../features/schedule/attendance-sheet';
 
 /** /teams/:teamId — loads the team once for all its tabs and keeps it live. */
 @Component({
   selector: 'th-team-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, AvailabilitySheet],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, AvailabilitySheet, AttendanceSheet],
   providers: [TeamStore],
   template: `
     <nav class="tabs" aria-label="Team sections">
@@ -39,6 +40,7 @@ import { AvailabilitySheet } from '../features/schedule/availability-sheet';
         }
         <router-outlet />
         <th-availability-sheet />
+        <th-attendance-sheet />
       } @else if (store.loadError()) {
         <div class="banner"><p><b>This team didn't load.</b> {{ store.loadError() }}</p><a class="btn sm" routerLink="/teams">Your teams</a></div>
       } @else {

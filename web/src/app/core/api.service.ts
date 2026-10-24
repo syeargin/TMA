@@ -1,3 +1,4 @@
+import type { PlayerMark } from '@shared/attendance';
 import type { ExportRows } from './xlsx-fill';
 export type SetupExport = { kind: 'team' | 'club'; name: string; sheets: Record<string, ExportRows>; archived?: string[] };
 import type { Feature } from '@shared/features';
@@ -66,6 +67,7 @@ export class ApiService {
     return this.call<ImportResult>('POST', `/clubs/${enc(clubId)}/import`, { sheets, apply, ...(teamId ? { teamId } : {}) });
   }
   /** Site owners: archive (read-only, out of families' lists) or restore a team. */
+  saveAttendance(teamId: string, key: string, marks: Record<string, PlayerMark | null>) { return this.call<{ key: string; marks: Record<string, PlayerMark> }>('PUT', `/teams/${enc(teamId)}/attendance/${enc(key)}`, { marks }); }
   setArchived(teamId: string, archived: boolean) { return this.call<{ archived: boolean }>('POST', `/teams/${enc(teamId)}/${archived ? 'archive' : 'restore'}`); }
   /** Site owners: delete a team and all its data. `confirm` must repeat the team id. */
   /** Your own data (R4). */
@@ -191,8 +193,8 @@ export class ApiService {
   deleteTask(teamId: string, kid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/tasks/${enc(kid)}`); }
   /** Team settings. Practices and cancellations are left out, so the API keeps what coaches saved. */
   saveSettings(teamId: string, s: Settings) {
-    const { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems, practiceColors } = s;
-    return this.call('PUT', `/teams/${enc(teamId)}/settings`, { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems, practiceColors });
+    const { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems, practiceColors, attendanceExcusedCounts } = s;
+    return this.call('PUT', `/teams/${enc(teamId)}/settings`, { teamName, season, age, coaches, teamCode, dues, budget, checklist, uniformItems, practiceColors, attendanceExcusedCounts });
   }
   /** Switch optional features on (true) or off (false). */
   saveFeatures(teamId: string, features: Partial<Record<Feature, boolean>>) {

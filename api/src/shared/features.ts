@@ -10,6 +10,7 @@ export const FEATURES = {
   refjobs:   { label: "Ref jobs", help: "Work duties assigned at tournaments.", role: null },
   uniforms:  { label: "Uniform order", help: "Uniform items and each player's sizes.", role: null },
   tasks:     { label: "Coordinator tasks", help: "The coordinator's to-do list.", role: null },
+  attendance: { label: "Practice attendance", help: "Coaches mark who came to each practice; families see their own player's attendance.", role: null },
   handbook:  { label: "Team handbook", help: "The kickoff-meeting sections and players' jobs in Team info. Who does what and the club's links stay.", role: null }
 } as const satisfies Record<string, { label: string; help: string; role: Role | null }>;
 

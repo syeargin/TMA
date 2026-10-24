@@ -10,6 +10,8 @@ import { duesFor, fundStats } from './money';
 import { fullName } from './me.service';
 import type { PatternSuggestion } from './series';
 import { ScheduleItem, buildItems, countsFor, rsvpOf } from './schedule';
+import { summarize, type AttendanceRecord, type PlayerMark, type Summary } from '@shared/attendance';
+import { today } from './dates';
 import { ToastService } from './toast.service';
 
 /**
@@ -22,7 +24,7 @@ const VIEW_ONLY = new Set<Permission>(['contacts', 'allergies', 'fundView', 'led
 /** Permissions that belong to an optional feature: they don't apply while it's switched off. */
 const PERM_FEATURE: Partial<Record<Permission, Feature>> = {
   fundView: 'fund', ledger: 'fund', finance: 'fund', reimb: 'fund',
-  meals: 'meals', refjobs: 'refjobs', tasks: 'tasks', handbook: 'handbook'
+  meals: 'meals', refjobs: 'refjobs', tasks: 'tasks', handbook: 'handbook', takeAttendance: 'attendance'
 };
 
 @Injectable()
@@ -42,6 +44,8 @@ export class TeamStore implements OnDestroy {
   readonly lost = new Subject<string>();
   /** Which item's availability list is open (rendered once by the team shell). */
   readonly availabilityFor = signal<ScheduleItem | null>(null);
+  /** Which practice's attendance is being taken (rendered once by the team shell). */
+  readonly attendanceFor = signal<ScheduleItem | null>(null);
 
   readonly you = computed(() => this.bundle()?.you ?? { roles: [] });
   readonly settings = computed(() => this.bundle()?.settings ?? null);
@@ -55,6 +59,17 @@ export class TeamStore implements OnDestroy {
   readonly announcements = computed<Announcement[]>(() => [...(this.bundle()?.announcements ?? [])].sort((a, b) =>
     Number(!!b.pinned) - Number(!!a.pinned) || String(b.at ?? '').localeCompare(String(a.at ?? ''))));
   readonly items = computed(() => buildItems(this.events(), this.settings()));
+  /** Practice attendance records (staff: everyone's; a family: their own player's marks). */
+  readonly attendance = computed<AttendanceRecord[]>(() => this.bundle()?.attendance ?? []);
+  /** Practices that still count toward attendance: cancelled ones don't. */
+  readonly practiceKeys = computed(() => new Set(this.items().filter((i) => i.kind === 'practice' && !i.cancelled).map((i) => i.key)));
+  attendanceOf(key: string): AttendanceRecord | undefined { return this.attendance().find((r) => r.key === key); }
+  /** Attendance can be taken on a practice's day or after, by coaches, coordinators and admins. */
+  canTakeAttendance(it: ScheduleItem): boolean { return it.kind === 'practice' && !it.cancelled && it.date <= today() && this.can('takeAttendance'); }
+  /** Totals per player, optionally between two dates (YYYY-MM-DD). */
+  attendanceSummary(from?: string, to?: string): Summary {
+    return summarize(this.attendance(), this.players().map((p) => p.pid), { practices: this.practiceKeys(), excusedCount: this.settings()?.attendanceExcusedCounts !== false, from, to });
+  }
   readonly meals = computed<Meal[]>(() => this.bundle()?.meals ?? []);
   readonly ledger = computed<LedgerEntry[]>(() => [...(this.bundle()?.ledger ?? [])].sort((a, b) =>
     b.date.localeCompare(a.date) || String(b.at ?? '').localeCompare(String(a.at ?? ''))));
@@ -286,6 +301,7 @@ export class TeamStore implements OnDestroy {
     const pid = this.myPid();
     return this.save(share ? 'Your contact details are shared with the team' : 'Your contact details are now staff-only', (t) => this.api.setShareContacts(t, pid, share));
   }
+  saveAttendance(key: string, marks: Record<string, PlayerMark | null>) { return this.save('Attendance saved', (t) => this.api.saveAttendance(t, key, marks)); }
   setUniform(pid: string, sizes: Record<string, string>) { return this.save('Sizes saved', (t) => this.api.setUniform(t, pid, sizes)); }
   setTravel(pid: string, eid: string, travel: Travel | null) {
     return this.save(travel ? 'Travel plans saved' : 'Travel plans cleared', (t) => this.api.setTravel(t, pid, eid, travel));
