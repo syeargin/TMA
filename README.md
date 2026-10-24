@@ -156,6 +156,12 @@ Teem Hub sends its own email through SES, from the same `noreply@` address as si
 - **Site owners** see every template under "Emails Teem Hub sends" on Your teams, with a preview and "Send me a test".
 - **Locally:** `MAIL_TRANSPORT=memory` collects mail instead of sending it (tests and the preview, which lists it at `/outbox`).
 
+**Scheduled emails (Messaging M2):** the weekly at-a-glance and the staff digest.
+- **Communications page** (Team info → Communications, for team admins and coordinators): each message on or off, the day and time, who gets it, rules that keep it relevant, the team's time zone, a pause date, a preview of this week's email from the team's records, "Send me a test", and an Upcoming tab with the next two weeks of sends (skip one without turning the message off). **Everything starts off**: a team turns each message on.
+- **Planner** (`PlannerFunction`, every 15 minutes, `lib/comms/planner.ts`): finds sends that are due in each team's time zone and queues one email per person. A run marker makes each send happen once; a send more than 3 hours late is skipped.
+- **Content** (`lib/comms/content.ts`) comes from the team's own records and the same permission table as the site: a family sees its own answers, sign-ups and dues; a staff member sees only the sections their roles allow (a food coordinator gets meals, finance gets dues). The schedule is a port of the site's, checked against it by `test/comms/comms.test.ts`.
+- **Opting out:** each person chooses per team on their Account page. Every optional email has a "Stop the weekly email" link (`/unsubscribe#t=…`, which waits for a click) and one-click unsubscribe headers for mail apps (`POST /public/unsubscribe`, no sign-in; the token is signed with a key kept in the table).
+
 **Setting it up (once, before merging the PR that added it):**
 1. **Update the domain stack** (`tma-domain`) with the new `bootstrap/domain.yaml`, keeping the parameters. It adds the configuration set and its EventBridge destination, and exports `tma-domain-MailConfigSet`.
 2. **Update the bootstrap stack** (`bootstrap/github-oidc.yaml`): app roles may now send through SES and start their own functions.

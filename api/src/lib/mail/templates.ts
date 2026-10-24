@@ -5,6 +5,7 @@
  */
 import type { MessageId } from "../../shared/messages.js";
 import { box, button, esc, frame, h1, list, p, textPart } from "./frame.js";
+import { sampleStaff, sampleWeekly, staffDigest, weekly, type StaffData, type WeeklyData } from "./digests.js";
 
 export type Rendered = { subject: string; fromName: string; html: string; text: string };
 
@@ -20,6 +21,7 @@ export type MfaResetData = { firstName?: string; clubName: string; siteUrl: stri
 
 export type MailData = {
   invite: InviteData; clubInvite: ClubInviteData; accountDeleted: AccountDeletedData; mfaReset: MfaResetData;
+  weekly: WeeklyData; staffDigest: StaffData;
 };
 export type LiveMessage = keyof MailData;
 
@@ -174,7 +176,7 @@ function mfaReset(d: MfaResetData): Rendered {
   return { subject: "Your Teem Hub two-step sign-in was reset", fromName: "Teem Hub", html, text };
 }
 
-const RENDER: { [K in LiveMessage]: (d: MailData[K]) => Rendered } = { invite, clubInvite, accountDeleted, mfaReset };
+const RENDER: { [K in LiveMessage]: (d: MailData[K]) => Rendered } = { invite, clubInvite, accountDeleted, mfaReset, weekly, staffDigest };
 
 export function render<K extends LiveMessage>(msg: K, data: MailData[K]): Rendered {
   return RENDER[msg](data);
@@ -190,6 +192,8 @@ export function sample(msg: LiveMessage, siteUrl: string, email: string): MailDa
     case "clubInvite": return { clubName: "Test Club", inviterName: "Sam Y.", email, expires, siteUrl };
     case "accountDeleted": return { firstName: "Jordan", teams: ["Test 13 Blue"], siteUrl };
     case "mfaReset": return { firstName: "Jordan", clubName: "Test Club", siteUrl };
+    case "weekly": return sampleWeekly(siteUrl);
+    case "staffDigest": return sampleStaff(siteUrl);
   }
 }
 

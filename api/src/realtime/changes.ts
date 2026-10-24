@@ -9,7 +9,7 @@ export function describeChange(pk: string, sk: string): { teamId: string; collec
   if (pk.startsWith("INVITE#") && sk.startsWith("TEAM#")) return { teamId: sk.slice(5), collection: "invites" };
   if (!pk.startsWith("TEAM#")) return null;
   const teamId = pk.slice(5);
-  if (sk === "META#SETTINGS") return { teamId, collection: "settings" };
+  if (sk === "META#SETTINGS" || sk === "META#COMMS") return { teamId, collection: "settings" };
   if (sk === "META#HANDBOOK") return { teamId, collection: "handbook" };
   if (sk.startsWith("PLAYER#")) return { teamId, collection: "players" };
   if (sk.startsWith("EVENT#")) {

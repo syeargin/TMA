@@ -150,10 +150,11 @@ describe("templates for site owners", () => {
   it("lists, previews and test-sends to the owner only", async () => {
     const list = await owner("GET", "/admin/emails");
     expect(list.status).toBe(200);
-    expect(list.body.messages.filter((m: any) => m.live).map((m: any) => m.id)).toEqual(["invite", "clubInvite", "accountDeleted", "mfaReset"]);
+    expect(list.body.messages.filter((m: any) => m.live).map((m: any) => m.id)).toEqual(["invite", "clubInvite", "accountDeleted", "mfaReset", "weekly", "staffDigest"]);
     const prev = await owner("GET", "/admin/emails/invite/preview");
     expect(prev.body).toMatchObject({ subject: expect.stringContaining("invited you"), html: expect.stringContaining("<!doctype html>") });
-    expect((await owner("GET", "/admin/emails/weekly/preview")).status).toBe(400);
+    expect((await owner("GET", "/admin/emails/packet/preview")).status).toBe(400);
+    expect((await owner("GET", "/admin/emails/weekly/preview")).body.html).toContain("Your week");
     expect((await owner("POST", "/admin/emails/clubInvite/test")).body).toEqual({ to: "owner@example.com" });
     expect(last().to).toBe("owner@example.com");
     expect((await call("GET", "/admin/emails", "u-par")).status).toBe(403);

@@ -517,6 +517,8 @@ Resources:
           APP_ENV: !Ref Env
           # Links in emails. Not the CloudFront address: the site's headers already depend on the API.
           SITE_URL: !If [HasDomain, !Sub "https://${SiteDomain}", ""]
+          # One-click unsubscribe links in emails point at the API (RFC 8058).
+          API_URL: !If [HasDomain, !Sub "https://${ApiDomain}", ""]
           MAIL_SENDER_FUNCTION: !Ref MailSenderFunction
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
@@ -556,6 +558,15 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /{proxy+}
             Method: DELETE
+        # The unsubscribe link in an email, and mail apps' one-click unsubscribe: no sign-in. The token
+        # in the link is signed, so it only changes the setting it names (lib/comms/tokens.ts).
+        PublicUnsubscribe:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /public/unsubscribe
+            Method: POST
+            Auth: { Authorizer: NONE }
 
   ApiFunctionLogs:
     Type: AWS::Logs::LogGroup
@@ -949,6 +960,63 @@ Resources:
       EventInvokeConfig:
         MaximumRetryAttempts: 2
         MaximumEventAgeInSeconds: 3600
+
+  # Messaging M2: every 15 minutes, queues the scheduled emails due on each team (lib/comms/planner.ts).
+  PlannerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        OutExtension: [.js=.mjs]
+        Target: es2022
+        Minify: true
+        Sourcemap: true
+        EntryPoints: [src/jobs/planner.ts]
+        External: ["@aws-sdk/*"]
+    Properties:
+      Description: Queues the weekly email and staff digest when they're due on each team.
+      CodeUri: api/
+      Handler: planner.handler
+      MemorySize: 512
+      Timeout: 300
+      Environment:
+        Variables:
+          APP_ENV: !Ref Env
+          SITE_URL: !If [HasDomain, !Sub "https://${SiteDomain}", ""]
+          API_URL: !If [HasDomain, !Sub "https://${ApiDomain}", ""]
+          MAIL_SENDER_FUNCTION: !Ref MailSenderFunction
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+        - LambdaInvokePolicy: { FunctionName: !Ref MailSenderFunction }
+      Events:
+        Every15:
+          Type: Schedule
+          Properties:
+            Schedule: rate(15 minutes)
+            Description: Team Hub scheduled emails
+
+  PlannerFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${PlannerFunction}"
+      RetentionInDays: 30
+
+  PlannerErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AppPrefix}-${Env}-planner-errors"
+      AlarmDescription: The scheduled-email planner failed.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions: [{ Name: FunctionName, Value: !Ref PlannerFunction }]
+      Statistic: Sum
+      Period: 900
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
 
   MailSenderFunctionLogs:
     Type: AWS::Logs::LogGroup
