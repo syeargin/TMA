@@ -106,6 +106,24 @@ await api("PUT", "/teams/test-13/announcements/a2", OWNER, { text: "Warm-ups are
   await ddb.send(new PutCommand({ TableName: TABLE, Item: { ...keys.member("test-13", GRAN), ...keys.memberGsi("test-13", GRAN), type: "Membership", status: "active", sub: GRAN, roles: ["parent"], pid: "p3", email: "gran@example.com", notifyOff: ["all"], at: new Date().toISOString() } }));
 }
 
+// Practice attendance: test-13 has Monday skills sessions since September, most of them taken, plus
+// more players so the summary has rows. Today's practice is left for taking.
+for (const [pid, first, last, jersey] of [["p4", "Dani", "Ortiz", "2"], ["p5", "Ella", "Moss", "9"], ["p6", "Fran", "Kim", "14"], ["p7", "Gia", "Lopez", "5"], ["p8", "Hana", "Reed", "12"]]) {
+  await api("PUT", `/teams/test-13/players/${pid}`, OWNER, { first, last, jersey });
+}
+await api("PUT", "/teams/test-13/events/skills", OWNER, { kind: "practice", title: "Skills session", date: "2026-09-07", time: "6:00 PM", endTime: "7:30 PM", location: "Test Gym",
+  repeat: { every: 1, days: [1], until: "2027-03-29" } });
+{
+  const marks: Record<string, string> = { p1: "PPAPPPLP", p2: "PPPPEPPP", p3: "PLPAPEPP", p4: "PPPPPPPP", p5: "PPEPPLPP", p6: "PAAPEAPL", p7: "PPPLPPPP", p8: "PPLPPPPP" };
+  const letter: Record<string, string> = { P: "present", L: "late", E: "excused", A: "absent" };
+  const mondays = ["2026-09-07", "2026-09-14", "2026-09-21", "2026-09-28", "2026-10-05", "2026-10-12", "2026-10-19"];
+  for (const [i, d] of mondays.entries()) {
+    if (d === "2026-09-28") continue; // one practice nobody marked
+    const m = Object.fromEntries(Object.entries(marks).map(([pid, row]) => [pid, { s: letter[row[i]], ...(row[i] === "L" ? { note: "Arrived 6:20" } : {}) }]));
+    await api("PUT", `/teams/test-13/attendance/skills-${d}`, OWNER, { marks: m });
+  }
+}
+
 // Site admin dashboard: the test club has a limit of 2 active teams (it's full) and no text alerts;
 // two more clubs, one of them inactive.
 await api("PUT", "/admin/clubs/test", OWNER, { teamLimit: 2, features: { texts: false } });

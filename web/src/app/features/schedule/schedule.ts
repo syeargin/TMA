@@ -29,6 +29,9 @@ export interface MonthCell { date: string; inMonth: boolean; isToday: boolean; i
 })
 export class Schedule {
   readonly store = inject(TeamStore);
+  readonly todayIso = today();
+  /** How many players are marked at a practice; 0 when attendance hasn't been taken. */
+  taken(key: string): number { return Object.keys(this.store.attendanceOf(key)?.marks ?? {}).length; }
   readonly filter = signal<Filter>('all');
   readonly range = signal<Range>('8w');
   readonly fmt = fmt;

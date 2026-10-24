@@ -1,3 +1,4 @@
+import { AttendanceCard } from './attendance-card';
 import { Component, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -17,7 +18,7 @@ interface Contact { name: string; role: string; phone?: string }
 
 @Component({
   selector: 'th-team-home',
-  imports: [RouterLink, ReactiveFormsModule, Sheet, AddToCalendar, MapLink, KindPill, RsvpButtons, RsvpCounts, RsvpStatus],
+  imports: [AttendanceCard, RouterLink, ReactiveFormsModule, Sheet, AddToCalendar, MapLink, KindPill, RsvpButtons, RsvpCounts, RsvpStatus],
   templateUrl: './team-home.html'
 })
 export class TeamHome {

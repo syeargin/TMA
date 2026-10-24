@@ -1,5 +1,6 @@
 import type { EmailStatus } from '@shared/messages';
 import type { ClubFeature, FeatureMap } from '@shared/features';
+import type { AttendanceRecord } from '@shared/attendance';
 import type { Role } from '@shared/permissions';
 
 export interface MyTeam { teamId: string; name?: string; roles: Role[]; pid?: string; clubId?: string; archived?: boolean; clubInactive?: boolean }
@@ -112,6 +113,8 @@ export interface Settings {
   features?: FeatureMap;
   /** The team's own switches only, for Team settings → Features. */
   teamFeatures?: FeatureMap;
+  /** Practice attendance: excused absences lower the percentage unless this is false. */
+  attendanceExcusedCounts?: boolean;
   dues?: { amountCents?: number; due?: string; label?: string };
   budget?: { costPerMealCents?: number; mealsPerDay?: number; people?: number; families?: number };
   [key: string]: unknown;
@@ -192,6 +195,8 @@ export interface TeamBundle {
   emailPosts?: boolean;
   /** The club's status and features (site admin dashboard). */
   clubControls?: ClubControlsView;
+  /** Practice attendance: every player's marks for staff who take it, only your own player's for a family. */
+  attendance?: AttendanceRecord[];
   teamId: string;
   you: { sub?: string; roles: Role[]; pid?: string; person?: string; clubAdmin?: boolean; siteOwner?: boolean };
   clubId?: string;

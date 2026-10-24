@@ -102,6 +102,11 @@ export function contentRoutes(r: Router) {
     a.require("roster");
     const pid = checkId(params.pid, "player");
     await deleteMany([keys.player(a.teamId, pid), keys.contacts(a.teamId, pid), keys.family(a.teamId, pid)]);
+    // Their practice attendance goes with them.
+    const att = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :a)", ExpressionAttributeValues: { ":p": `TEAM#${a.teamId}`, ":a": "ATT#" }, ProjectionExpression: "PK, SK, marks" });
+    for (const r of att.filter((x) => (x.marks as Record<string, unknown> | undefined)?.[pid])) {
+      await ddb.send(new UpdateCommand({ TableName: TABLE, Key: { PK: String(r.PK), SK: String(r.SK) }, UpdateExpression: "REMOVE marks.#p", ExpressionAttributeNames: { "#p": pid } }));
+    }
     return json(204, undefined);
   });
 

@@ -34,7 +34,9 @@ const settingsSchema = z.object({
   checklist: z.array(str(200)).max(60).default([]),
   uniformItems: z.array(str(200)).max(60).default([]),
   /** Practice uniform colors offered when adding a practice. Left out = keep what's saved. */
-  practiceColors: z.array(str(40).min(1)).max(20).optional()
+  practiceColors: z.array(str(40).min(1)).max(20).optional(),
+  /** Practice attendance: do excused absences lower the percentage? Left out = keep what's saved (default yes). */
+  attendanceExcusedCounts: z.boolean().optional()
 });
 
 /** Every feature can be listed; true = on. Features left out keep their saved setting. */
@@ -80,6 +82,8 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     refjobs: {} as Record<string, unknown>, agenda: {} as Record<string, unknown>,
     family: {} as Record<string, unknown>, ledger: [] as unknown[], payments: [] as unknown[],
     announcements: [] as unknown[], tasks: [] as unknown[], members: [] as unknown[],
+    /** Practice attendance: every player's marks for staff who take it, only their own player's for a family. */
+    attendance: [] as Record<string, unknown>[],
     /** Present when the ledger was trimmed: the team's totals, which the browser can no longer add up. */
     fundSummary: undefined as FundSummary | undefined
   };
@@ -92,6 +96,8 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
   const finance = access.can("finance");
   const accounts = access.can("accounts");
   const myPid = access.isParentOf(access.member?.pid) ? String(access.member!.pid) : "";
+  const attendanceOn = access.has("attendance");
+  const allAttendance = attendanceOn && access.can("takeAttendance");
   const allLedger: Record<string, unknown>[] = [];
   const allPayments: Record<string, unknown>[] = [];
 
@@ -119,6 +125,14 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     else if (sk.startsWith("FAMILY#")) {
       const pid = sk.slice(7);
       out.family[pid] = allFamilies || pid === myPid ? c : familySummary(c);
+    }
+    else if (sk.startsWith("ATT#")) {
+      if (allAttendance) out.attendance.push(c);
+      else if (attendanceOn && myPid) {
+        // A family gets the dates and their own player's mark: never other players' marks, notes or who took it.
+        const mine = (c.marks as Record<string, unknown> | undefined)?.[myPid];
+        out.attendance.push({ key: c.key, date: c.date, marks: mine ? { [myPid]: mine } : {} });
+      }
     }
     else if (sk.startsWith("LEDGER#")) {
       const l: Record<string, unknown> = { lid: sk.slice(7), ...c };

@@ -22,6 +22,7 @@ export const PERMISSIONS = {
   family:     { label: "Answer for own family: availability, travel, sizes, meals, payments", roles: ["parent"] },
   reimb:      { label: "Request a reimbursement", roles: ALL },
   attendance: { label: "Mark availability for any player", roles: ["admin", "coach", "coordinator"] },
+  takeAttendance: { label: "Take practice attendance and see every player's", roles: ["admin", "coach", "coordinator"] },
   schedule:   { label: "Edit schedule, practices, tournaments, hotels, game-day sheets", roles: ["admin", "coach", "coordinator"] },
   refjobs:    { label: "Assign ref jobs", roles: ["admin", "coach", "coordinator"] },
   announce:   { label: "Post and pin announcements", roles: ["admin", "coach", "coordinator"] },

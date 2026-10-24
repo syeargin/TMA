@@ -198,6 +198,15 @@ Site owners open **Site admin** (`/admin`, linked from Your teams) to manage eve
 
 How it's stored: each club's controls live in `CLUB#<c>` / `CONTROLS`, which only site owners change (`lib/club-controls.ts`). A club without the record is active, with every feature and no limit, so existing clubs are unchanged until a site owner sets something. The count of active teams goes up in the same transaction that creates or restores a team, with a condition that refuses it at the limit, so two admins creating teams at once can't go over. The daily retention job recounts every club.
 
+### Practice attendance
+
+A team feature ("Practice attendance", on by default; a site owner can switch it off per club):
+- **Taking it:** coaches, coordinators and team admins open **Take attendance** on the day's practice in the Schedule, or any past practice under **Roster › Attendance**. Each player is Present, Late, Excused or Absent, with an optional note. Marks start from the family's availability answer (In → Present, Out → Excused); "Rest present" fills the others. A player left unmarked doesn't count for that practice.
+- **The numbers** (`api/src/shared/attendance.ts`, used by the API tests and the site): attended = present or late, over the practices the player was marked at. Cancelled practices and practices nobody marked don't count. Excused absences count against the percentage unless a team admin or coordinator turns that off in Team settings.
+- **Roster › Attendance** (staff): team rate, practices taken of held, players below 75%, a table per player with the last 8 practices, practices not taken yet, a list of practices to take or edit, and a CSV download.
+- **Families** see a card on Home with their own player's attendance and the dates they missed or were late. The team data a family's browser gets carries only their own player's marks; no other player's marks, notes or who took them.
+- **Stored** as one record per practice date, `TEAM#<t>` / `ATT#<practice key>` (live updates included). Two coaches marking at once each change only the players they marked. Deleting a player removes their marks; Download my data includes your own player's.
+
 ### Two-step sign-in (R2)
 
 - Anyone can turn on an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy) under **Your teams › Two-step sign-in** (`/security`). The user pool's MFA is `OPTIONAL` with authenticator apps only: no text messages, no remembered devices. Once it's on, Cognito asks for a 6-digit code at every sign-in.

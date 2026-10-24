@@ -3,7 +3,7 @@
 
 export type Collection =
   | "settings" | "handbook" | "players" | "events" | "refjobs" | "agenda" | "meals"
-  | "family" | "payments" | "ledger" | "announcements" | "tasks" | "members" | "invites";
+  | "family" | "payments" | "ledger" | "announcements" | "tasks" | "members" | "invites" | "attendance";
 
 export function describeChange(pk: string, sk: string): { teamId: string; collection: Collection } | null {
   if (pk.startsWith("INVITE#") && sk.startsWith("TEAM#")) return { teamId: sk.slice(5), collection: "invites" };
@@ -24,6 +24,7 @@ export function describeChange(pk: string, sk: string): { teamId: string; collec
   if (sk.startsWith("LEDGER#")) return { teamId, collection: "ledger" };
   if (sk.startsWith("ANN#")) return { teamId, collection: "announcements" };
   if (sk.startsWith("TASK#")) return { teamId, collection: "tasks" };
+  if (sk.startsWith("ATT#")) return { teamId, collection: "attendance" };
   if (sk.startsWith("MEMBER#")) return { teamId, collection: "members" };
   return null;
 }

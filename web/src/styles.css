@@ -579,3 +579,34 @@ label.agree input{width:18px;height:18px;margin-top:1px;flex:none}
 .admin-panel{display:grid;gap:4px;padding:6px 4px 10px}
 .admin-panel .comms-set label:not(.check-row){display:grid;gap:4px;max-width:420px;margin-top:6px}
 .admin-history{padding:4px 0;border-top:1px solid var(--line-2)}
+/* Practice attendance */
+.att-d{display:inline-flex;width:22px;height:22px;border-radius:6px;align-items:center;justify-content:center;font:700 11.5px var(--f-body);font-style:normal;margin-right:4px;flex:none}
+.att-d.m-present,.att-seg .m-present[aria-pressed=true]{background:var(--ok-soft);color:var(--ok)}
+.att-d.m-late,.att-seg .m-late[aria-pressed=true]{background:var(--warn-soft);color:var(--warn)}
+.att-d.m-excused,.att-seg .m-excused[aria-pressed=true]{background:color-mix(in srgb,#1F6FB2 14%,var(--bg));color:color-mix(in srgb,#1F5E99 80%,var(--ink))}
+.att-d.m-absent,.att-seg .m-absent[aria-pressed=true]{background:var(--bad-soft);color:var(--bad)}
+.att-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--sunken);border-radius:10px;padding:8px 12px}
+.att-list{gap:0}
+.att-row{display:flex;flex-direction:column;gap:7px;padding:10px 0;border-top:1px solid var(--line-2)}
+.att-row.unmarked{background:color-mix(in srgb,var(--warn-soft) 45%,transparent)}
+.att-name{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.att-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.att-seg button{min-height:44px;border:1px solid var(--line);background:var(--surface);border-radius:10px;font:600 14px var(--f-body);color:var(--ink);cursor:pointer}
+.att-seg button[aria-pressed=true]{border-color:currentColor;font-weight:700}
+.att-note{display:flex;gap:8px;align-items:center}
+.att-note input{flex:1;min-height:36px}
+.att-save{position:sticky;bottom:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 0 2px;background:var(--surface)}
+.att-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+.att-missing{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.att-legend{display:flex;gap:10px;flex-wrap:wrap}
+.att-table td.num,.att-table th.num{text-align:right;padding-right:16px}
+.att-table .att-bar{display:inline-block;width:80px;margin:0 8px 0 0;vertical-align:middle;padding:0;background:var(--sunken)}
+.att-dots{display:inline-flex;flex-wrap:nowrap}
+.att-card-top{display:flex;gap:14px;align-items:center}
+.att-card-h{font-size:17px;margin:0;font-family:var(--f-body);text-transform:none;letter-spacing:0}
+.att-ring-t{font:800 19px var(--f-display);fill:var(--ink)}
+.att-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line-2);text-align:center}
+.att-stats b{display:block;font:800 22px var(--f-cond)}
+.att-stats span{display:inline-flex;align-items:center;justify-content:center}
+.att-sub{font-size:14px;margin:14px 0 2px}
+.att-miss{gap:10px}

@@ -1,3 +1,4 @@
+import { AttendanceSummary } from './attendance-summary';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { FormArray, FormControl, FormGroup, NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -18,7 +19,7 @@ const parentGroup = (p?: Parent): ParentGroup => new FormGroup({
 /** Players and parents (Roster) and the team uniform order (Uniforms). */
 @Component({
   selector: 'th-roster',
-  imports: [ReactiveFormsModule, RouterLink, Sheet, Messages],
+  imports: [ReactiveFormsModule, RouterLink, Sheet, Messages, AttendanceSummary],
   templateUrl: './roster.html'
 })
 export class Roster {
@@ -31,6 +32,9 @@ export class Roster {
   get manage() { return this.store.can('roster'); }
   get myPid() { return this.store.myPid(); }
   readonly uniforms = computed(() => this.section() === 'uniforms' && this.store.has('uniforms'));
+  /** Roster › Attendance: coaches, coordinators and team admins. */
+  readonly showAttendance = computed(() => this.store.can('takeAttendance'));
+  readonly attendance = computed(() => this.section() === 'attendance' && this.showAttendance());
   readonly emails = computed(() => this.store.players().flatMap((p) => (p.parents ?? []).map((x) => x.email).filter((e): e is string => !!e)));
   readonly linked = computed(() => new Set(this.store.members().map((m) => m.pid).filter(Boolean)));
   hasAllergy(p: Player) { return !!p.allergies && !/^\s*(none|n\/a|no)\s*$/i.test(p.allergies); }

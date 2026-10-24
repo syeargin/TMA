@@ -40,6 +40,9 @@ const dollars = (cents?: number) => (cents ? String(cents / 100) : '');
             }
           }
         </fieldset>
+        @if (store.has('attendance')) {
+          <label class="check"><input type="checkbox" formControlName="attendanceExcused"> <span><b>Excused absences lower practice attendance</b> <span class="small muted">Off: an excused absence doesn't count for or against the player's percentage.</span></span></label>
+        }
         <div class="two">
           <label>Team name<input formControlName="teamName" required></label>
           <label>Season<input formControlName="season" placeholder="2026-27"></label>
@@ -106,7 +109,8 @@ export class SettingsForm {
   readonly coaches = new FormArray<CoachGroup>([]);
   readonly form = this.fb.group({
     teamName: '', season: '', age: '', teamCode: '', coaches: this.coaches,
-    duesAmount: '', duesDue: '', duesLabel: '', costPerMeal: '', mealsPerDay: '', people: '', checklist: '', uniformItems: '', practiceColors: ''
+    duesAmount: '', duesDue: '', duesLabel: '', costPerMeal: '', mealsPerDay: '', people: '', checklist: '', uniformItems: '', practiceColors: '',
+    attendanceExcused: true
   });
 
   constructor() {
@@ -126,7 +130,8 @@ export class SettingsForm {
           costPerMeal: dollars(s.budget?.costPerMealCents), mealsPerDay: s.budget?.mealsPerDay ? String(s.budget.mealsPerDay) : '',
           people: s.budget?.people ? String(s.budget.people) : '',
           checklist: (s.checklist ?? []).join('\n'), uniformItems: (s.uniformItems ?? []).join('\n'),
-          practiceColors: (s.practiceColors ?? []).join('\n')
+          practiceColors: (s.practiceColors ?? []).join('\n'),
+          attendanceExcused: s.attendanceExcusedCounts !== false
         });
         this.form.markAsPristine();
       });
@@ -154,7 +159,8 @@ export class SettingsForm {
       coaches: v.coaches.filter((c) => c.name.trim()).map((c) => ({ name: c.name.trim(), ...(c.phone.trim() ? { phone: c.phone.trim() } : {}) })),
       dues: { amountCents: toCents(v.duesAmount), ...(v.duesDue ? { due: v.duesDue } : {}), ...(v.duesLabel.trim() ? { label: v.duesLabel.trim() } : {}) },
       budget, checklist: lines(v.checklist), uniformItems: lines(v.uniformItems),
-      practiceColors: [...new Set(lines(v.practiceColors).map((c) => c.slice(0, 40)))].slice(0, 20)
+      practiceColors: [...new Set(lines(v.practiceColors).map((c) => c.slice(0, 40)))].slice(0, 20),
+      attendanceExcusedCounts: v.attendanceExcused
     };
     this.busy.set(true);
     const ok = await this.store.saveSettings(next);

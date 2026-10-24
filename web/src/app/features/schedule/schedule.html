@@ -72,6 +72,11 @@
     <div class="side">
       @if (pid()) { <th-rsvp [item]="it" [pid]="pid()" /> }
       <th-counts [item]="it" />
+      @if (store.has('attendance') && store.canTakeAttendance(it)) {
+        @if (taken(it.key); as n) { <span class="pill p-mute" [title]="n + ' players marked'">Attendance taken · {{ n }}</span> }
+        @else if (it.date < todayIso) { <span class="pill p-warn">Attendance not taken</span> }
+        <button class="link-btn small" type="button" (click)="store.attendanceFor.set(it)">{{ taken(it.key) ? 'Edit attendance' : 'Take attendance' }}</button>
+      }
       <th-add-to-calendar [item]="it" [path]="it.kind === 'tournament' ? '/teams/' + store.teamId() + '/tournaments/' + it.key : '/teams/' + store.teamId() + '/schedule'" />
       @if (store.can('schedule')) {
         @if (it.practice) {
