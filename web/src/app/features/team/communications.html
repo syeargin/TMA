@@ -17,8 +17,11 @@
   }
 
   @if (tab() === 'messages') {
+    @for (g of groups(); track g.title) {
+    <h3 class="comms-group">{{ g.title }}</h3>
+    <p class="small muted" style="margin:2px 0 0">{{ g.sub }}</p>
     <div class="comms-grid">
-      @for (m of p.messages; track m.id) {
+      @for (m of g.messages; track m.id) {
         @if (draft(m.id); as d) {
         <section class="card comms-msg" [class.off]="!d.on">
           <div class="card-h">
@@ -27,18 +30,36 @@
           </div>
           <div class="card-b">
             <p class="muted small">{{ m.help }}</p>
-            <div class="two">
-              <label [for]="m.id + '-day'">Every
-                <select [id]="m.id + '-day'" [value]="d.day" (change)="setDay(m.id, $any($event.target).value)">
-                  @for (o of days; track o.value) { <option [value]="o.value" [selected]="o.value === d.day">{{ o.label }}</option> }
-                </select>
-              </label>
-              <label [for]="m.id + '-time'">At
-                <select [id]="m.id + '-time'" (change)="setTime(m.id, $any($event.target).value)">
-                  @for (o of timesFor(m.id); track o.value) { <option [value]="o.value" [selected]="o.value === d.time">{{ o.label }}</option> }
-                </select>
-              </label>
-            </div>
+            @if (m.featureOff) { <p class="small comms-warn">The team fund is turned off in Team settings, so this isn't sent.</p> }
+            @switch (m.config.timing.kind) {
+              @case ('weekly') {
+                <div class="two">
+                  <label [for]="m.id + '-day'">Every
+                    <select [id]="m.id + '-day'" (change)="setDay(m.id, $any($event.target).value)">
+                      @for (o of days; track o.value) { <option [value]="o.value" [selected]="o.value === d.day">{{ o.label }}</option> }
+                    </select>
+                  </label>
+                  <label [for]="m.id + '-time'">At
+                    <select [id]="m.id + '-time'" (change)="setTime(m.id, $any($event.target).value)">
+                      @for (o of timesFor(m.id); track o.value) { <option [value]="o.value" [selected]="o.value === d.time">{{ o.label }}</option> }
+                    </select>
+                  </label>
+                </div>
+              }
+              @case ('before') {
+                <div class="two">
+                  <label [for]="m.id + '-days'">Days before {{ whatOf(m) }}
+                    <input [id]="m.id + '-days'" type="number" min="1" max="14" [value]="d.days" (change)="setDays(m.id, $any($event.target).value)">
+                  </label>
+                  <label [for]="m.id + '-time'">At
+                    <select [id]="m.id + '-time'" (change)="setTime(m.id, $any($event.target).value)">
+                      @for (o of timesFor(m.id); track o.value) { <option [value]="o.value" [selected]="o.value === d.time">{{ o.label }}</option> }
+                    </select>
+                  </label>
+                </div>
+              }
+              @default { <p class="small"><b>When:</b> {{ whenOf(m) }}</p> }
+            }
             <fieldset class="comms-set">
               <legend>Who gets it</legend>
               @for (a of m.config.audience; track a.key) {
@@ -46,14 +67,16 @@
               }
               <div class="small muted">Reaches {{ m.reach }} {{ m.reach === 1 ? 'person' : 'people' }} as saved, leaving out anyone who turned it off.</div>
             </fieldset>
+            @if (m.config.rules.length) {
             <fieldset class="comms-set">
               <legend>Keep it relevant</legend>
               @for (r of m.config.rules; track r.key) {
                 <label class="check-row"><input type="checkbox" [checked]="d.rules[r.key]" (change)="setRule(m.id, r.key, $any($event.target).checked)"> {{ r.label }}</label>
               }
             </fieldset>
+            }
             <div class="comms-actions">
-              <button class="link-btn small" type="button" (click)="showPreview(m)" [attr.aria-expanded]="preview()?.msg === m.id">{{ preview()?.msg === m.id ? 'Hide preview' : 'Preview this week’s' }}</button>
+              <button class="link-btn small" type="button" (click)="showPreview(m)" [attr.aria-expanded]="preview()?.msg === m.id">{{ preview()?.msg === m.id ? 'Hide preview' : 'Preview' }}</button>
               <button class="link-btn small" type="button" (click)="test(m)" [disabled]="busy()">Send me a test</button>
             </div>
             @if (preview(); as pv) { @if (pv.msg === m.id) {
@@ -65,6 +88,7 @@
         }
       }
     </div>
+    }
 
     <section class="card" style="margin-top:14px">
       <div class="card-h"><h3>For every message</h3></div>
@@ -81,7 +105,7 @@
           </label>
         </div>
         <p class="small muted">Always sent, whatever is set here: {{ always().join(', ') }}.</p>
-        @if (later().length) { <p class="small muted">Coming next: {{ later().map(l => l.label).join(', ') }}.</p> }
+        @if (later().length) { <p class="small muted">Coming later: {{ later().map(l => l.label).join(', ') }}.</p> }
       </div>
     </section>
 
@@ -103,7 +127,7 @@
             @if (!u.paused) { <button class="link-btn small" type="button" (click)="skip(u)" [disabled]="busy()">{{ u.skipped ? 'Undo skip' : 'Skip this one' }}</button> }
           </div>
         } @empty {
-          <div class="empty">Nothing scheduled. Turn on the weekly email or the staff digest under Messages.</div>
+          <div class="empty">Nothing scheduled in the next two weeks. Turn messages on under Messages.</div>
         }
         <p class="small muted" style="margin-top:10px">People with nothing that week don’t get an email when “Skip the week” is on, so fewer may go out than shown.</p>
       </div>

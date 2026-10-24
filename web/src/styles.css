@@ -187,6 +187,9 @@ main.narrow{max-width:480px}
 .email-detail.bad{color:var(--bad)}
 .email-list{display:flex;flex-direction:column}
 .email-list .li{align-items:flex-start}
+.answer-done{background:var(--ok-soft);color:var(--ok);border-radius:10px;padding:12px 14px;font-size:16px;margin:12px 0 0}
+.comms-group{margin:22px 0 0;font-size:18px}
+.comms-warn{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:6px 10px}
 .comms-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px;margin-top:14px}
 .comms-msg.off .card-b>*:not(.comms-actions):not(.email-preview){opacity:.7}
 .switch-row{flex-direction:row;align-items:center;gap:8px;font-weight:700;color:var(--ink);cursor:pointer}

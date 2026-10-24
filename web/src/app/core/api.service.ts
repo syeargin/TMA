@@ -102,6 +102,7 @@ export class ApiService {
   testComms(teamId: string, msg: string) { return this.call<{ to: string }>('POST', `/teams/${enc(teamId)}/comms/${enc(msg)}/test`); }
   myNotifications() { return this.call<{ teams: MyNotifications[] }>('GET', '/me/notifications'); }
   saveMyNotifications(teamId: string, off: string[]) { return this.call('PUT', `/me/notifications/${enc(teamId)}`, { off }); }
+  answerFromEmail(t: string, peek: boolean) { return this.call<{ teamId: string; teamName: string; player: string; title: string; date: string; time: string; answer: 'yes' | 'maybe' | 'no'; current: string; recorded: boolean }>('POST', '/public/answer', { t, peek }); }
   unsubscribe(t: string, undo = false) { return this.call<{ teamName: string; message: string; off: boolean }>('POST', '/public/unsubscribe', { t, undo }); }
   team(teamId: string) { return this.call<TeamBundle>('GET', `/teams/${enc(teamId)}`); }
   invites(teamId: string) { return this.call<{ invites: Invite[] }>('GET', `/teams/${enc(teamId)}/invites`); }
@@ -135,8 +136,8 @@ export class ApiService {
   setRsvp(teamId: string, pid: string, answers: Record<string, Rsvp | ''>) {
     return this.call('PUT', `/teams/${enc(teamId)}/family/${enc(pid)}`, { rsvp: answers });
   }
-  saveAnnouncement(teamId: string, aid: string, a: { text: string; pinned: boolean }) {
-    return this.call('PUT', `/teams/${enc(teamId)}/announcements/${enc(aid)}`, a);
+  saveAnnouncement(teamId: string, aid: string, a: { text: string; pinned: boolean; email?: boolean }) {
+    return this.call<{ aid: string; emailed?: number; reason?: 'off' | 'cap' | 'already' }>('PUT', `/teams/${enc(teamId)}/announcements/${enc(aid)}`, a);
   }
   deleteAnnouncement(teamId: string, aid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/announcements/${enc(aid)}`); }
 

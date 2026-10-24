@@ -6,7 +6,7 @@ import type { StaffContent, WeeklyContent } from "../comms/content.js";
 import { box, button, esc, FONT, frame, h1, MUTED, p } from "./frame.js";
 import type { Rendered } from "./templates.js";
 
-type Common = {
+export type Common = {
   teamName: string; teamId: string; clubName?: string; colors?: { primary?: string; accent?: string };
   firstName?: string; siteUrl: string;
   /** "Sundays at 6:00 PM" */
@@ -17,17 +17,17 @@ type Common = {
 export type WeeklyData = Common & { hideEmpty: boolean; content: WeeklyContent };
 export type StaffData = Common & { content: StaffContent };
 
-const base = (u: string) => u.replace(/\/$/, "");
-const label = (text: string, color = MUTED) =>
+export const base = (u: string) => u.replace(/\/$/, "");
+export const label = (text: string, color = MUTED) =>
   `<div style="font-family:${FONT};font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:${color};margin:0 0 6px">${esc(text)}</div>`;
-const row = (left: string, right: string) =>
+export const row = (left: string, right: string) =>
   `<tr><td valign="top" style="width:92px;padding:9px 10px 9px 0;border-top:1px solid #E6EAF1;font-family:${FONT};font-size:13px;font-weight:700;color:#47546C;text-transform:uppercase">${left}</td>` +
   `<td valign="top" style="padding:9px 0;border-top:1px solid #E6EAF1;font-family:${FONT};font-size:14px;line-height:1.45;color:#101B2E">${right}</td></tr>`;
-const table = (rows: string[]) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;border-bottom:1px solid #E6EAF1">${rows.join("")}</table>`;
-const pill = (text: string, bg: string, fg: string) => `<span style="display:inline-block;padding:1px 8px;border-radius:999px;background:${bg};color:${fg};font-size:12px;font-weight:700">${esc(text)}</span>`;
-const section = (title: string, inner: string) => `<div style="margin:0 0 18px">${label(title)}${inner}</div>`;
+export const table = (rows: string[]) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;border-bottom:1px solid #E6EAF1">${rows.join("")}</table>`;
+export const pill = (text: string, bg: string, fg: string) => `<span style="display:inline-block;padding:1px 8px;border-radius:999px;background:${bg};color:${fg};font-size:12px;font-weight:700">${esc(text)}</span>`;
+export const section = (title: string, inner: string) => `<div style="margin:0 0 18px">${label(title)}${inner}</div>`;
 
-function footer(d: Common, what: string, who: string): string[] {
+export function footer(d: Common, what: string, who: string): string[] {
   const settings = `${base(d.siteUrl)}/account`;
   return [
     `You get the ${esc(what)} ${esc(d.schedule)} because you're ${esc(who)} on ${esc(d.teamName)}.`,

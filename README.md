@@ -162,6 +162,13 @@ Teem Hub sends its own email through SES, from the same `noreply@` address as si
 - **Content** (`lib/comms/content.ts`) comes from the team's own records and the same permission table as the site: a family sees its own answers, sign-ups and dues; a staff member sees only the sections their roles allow (a food coordinator gets meals, finance gets dues). The schedule is a port of the site's, checked against it by `test/comms/comms.test.ts`.
 - **Opting out:** each person chooses per team on their Account page. Every optional email has a "Stop the weekly email" link (`/unsubscribe#t=…`, which waits for a click) and one-click unsubscribe headers for mail apps (`POST /public/unsubscribe`, no sign-in; the token is signed with a key kept in the table).
 
+**Reminders and event emails (Messaging M2b),** also on the Communications page and off until a team turns them on:
+- **Tournament packet**, N days before each tournament (default 7): the game-day sheet, what to bring, the team hotel, and each family's own jobs (meals they signed up for, ball cart or volleyballs) and missing travel plans.
+- **Availability reminder**, N days before each practice or event (default 2), only to families who haven't answered. One email per family per day, with **one-tap In / Maybe / Out** links to `/answer#t=…` (`POST /public/answer`, no sign-in): the token names one parent, one player, one date and one answer, and expires the day after; the page shows what it will record and waits for a tap. It's skipped when the weekly email went out in the two days before.
+- **Dues reminder**, N days before the team's dues date, to families who still owe, and optionally the day after. Needs the team fund on.
+- **Payment recorded**, when finance confirms a family's payment or enters a new one for a family, and **Reimbursement approved**, to whoever asked. Each payment emails once.
+- **Announcement emails**: "Also email the team" when posting (people with the announce permission), at most two a week by default, each post once.
+
 **Setting it up (once, before merging the PR that added it):**
 1. **Update the domain stack** (`tma-domain`) with the new `bootstrap/domain.yaml`, keeping the parameters. It adds the configuration set and its EventBridge destination, and exports `tma-domain-MailConfigSet`.
 2. **Update the bootstrap stack** (`bootstrap/github-oidc.yaml`): app roles may now send through SES and start their own functions.

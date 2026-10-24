@@ -567,6 +567,15 @@ Resources:
             Path: /public/unsubscribe
             Method: POST
             Auth: { Authorizer: NONE }
+        # One-tap In / Maybe / Out from the availability reminder: no sign-in, a signed token for one
+        # player and one date that expires the day after (lib/comms/tokens.ts).
+        PublicAnswer:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /public/answer
+            Method: POST
+            Auth: { Authorizer: NONE }
 
   ApiFunctionLogs:
     Type: AWS::Logs::LogGroup
@@ -975,7 +984,7 @@ Resources:
         EntryPoints: [src/jobs/planner.ts]
         External: ["@aws-sdk/*"]
     Properties:
-      Description: Queues the weekly email and staff digest when they're due on each team.
+      Description: Queues scheduled emails (weekly, staff digest, tournament packets, reminders) when they're due on each team.
       CodeUri: api/
       Handler: planner.handler
       MemorySize: 512

@@ -10,7 +10,7 @@ import { can, type Permission } from "../../shared/permissions.js";
 import { addDays, between, buildItems, shortDate, takesRsvp, type Item } from "./schedule.js";
 
 type Row = Record<string, unknown>;
-const str = (v: unknown) => (typeof v === "string" ? v : "");
+export const str = (v: unknown) => (typeof v === "string" ? v : "");
 
 export type Member = { sub: string; roles: string[]; pid: string; email: string; firstName: string; notifyOff: string[] };
 export type Team = {
@@ -51,25 +51,25 @@ export async function loadTeam(teamId: string, clubId: string): Promise<Team> {
   return t;
 }
 
-const has = (t: Team, f: Feature) => isOn(t.features, f);
+export const has = (t: Team, f: Feature) => isOn(t.features, f);
 const allowed = (m: Member, p: Permission) => can(m.roles, p);
-const STAFF = ["admin", "coach", "coordinator", "food", "finance"];
+export const STAFF = ["admin", "coach", "coordinator", "food", "finance"];
 export const isStaff = (m: Member) => m.roles.some((r) => STAFF.includes(r));
 
 /** "Ella M." */
-function playerShort(p: Row | undefined): string {
+export function playerShort(p: Row | undefined): string {
   if (!p) return "";
   const last = str(p.last);
   return `${str(p.first)}${last ? ` ${last[0]}.` : ""}`.trim();
 }
 
-const money = (c: number) => `$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+export const money = (c: number) => `$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
 /** The week an email covers: the 7 days after the day it's sent. */
 export const weekOf = (sendDate: string) => ({ from: addDays(sendDate, 1), to: addDays(sendDate, 7) });
 export const weekLabel = (w: { from: string; to: string }) => `${shortDate(w.from)} – ${shortDate(w.to)}`;
 
-function duesOwed(t: Team, pid: string): number {
+export function duesOwed(t: Team, pid: string): number {
   const dues = t.settings.dues as { amountCents?: number } | undefined;
   const amount = Number(dues?.amountCents ?? 0);
   if (!amount) return 0;
