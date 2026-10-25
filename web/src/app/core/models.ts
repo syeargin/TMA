@@ -1,4 +1,4 @@
-import type { FeedEvent, FeedRules, FilterSuggestion, PresetId } from '@shared/feed-rules';
+import type { EventSource, FeedEvent, FeedRules, FilterSuggestion, PresetId } from '@shared/feed-rules';
 import type { EmailStatus } from '@shared/messages';
 import type { ClubFeature, FeatureMap } from '@shared/features';
 import type { AttendanceRecord } from '@shared/attendance';
@@ -148,6 +148,8 @@ export interface TeamEvent {
   skip?: string[];
   /** Dates of a series changed on their own ("Edit this date"), by YYYY-MM-DD. */
   overrides?: Record<string, Occurrence>;
+  /** From the club's calendar (calendar feed sync). */
+  src?: EventSource;
   [key: string]: unknown;
 }
 
@@ -224,13 +226,19 @@ export interface TeamBundle {
 
 // ---------- Calendar feed sync ----------
 export type FeedHistory = { v: number; at: string; by: string; note?: string; summary: string };
+export type FeedRun = { at: string; ok: boolean; trigger: 'import' | 'job' | 'manual'; added: number; changed: number; unchanged: number; missing: number; total: number; error?: string; changes: { eid: string; title: string; date: string; text: string }[] };
 export type FeedView = {
   connected: boolean;
-  source?: { host: string; masked: string; preset: PresetId; presetLabel: string; calendarName: string; savedAt: string; savedBy: string; lastCheck: { at: string; total: number; matched: number } | null };
+  source?: {
+    host: string; masked: string; preset: PresetId; presetLabel: string; calendarName: string; savedAt: string; savedBy: string; lastCheck: { at: string; total: number; matched: number } | null;
+    importedAt: string | null; importFrom: string | null; lastSync: Omit<FeedRun, 'changes'> | null; lastOkAt: string | null; failures: number; nextManualAt: string | null;
+  };
+  runs?: FeedRun[];
   version: number;
   rules: FeedRules | null;
   history: FeedHistory[];
 };
+export type ReplaceResult = { practicesRemoved: number; seriesEnded: number; answersMoved: number; attendanceMoved: number };
 export type FeedCheck = {
   calendar: { name: string; prodid: string; zone: string; teamZone: string; total: number; from: string; to: string; warnings: string[] };
   host: string; masked: string; preset: PresetId; presetLabel: string;

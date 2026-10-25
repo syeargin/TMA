@@ -50,7 +50,8 @@ export function buildItems(events: TeamEvent[], settings: Settings | null): Sche
       address: e.address || undefined, city: e.city || undefined
     };
     if (!e.repeat) {
-      out.push({ ...base, key: e.eid, date: e.date, end: e.endDate || e.date, cancelled: false });
+      // A one-time event is cancelled when its date is in its cancelled list (events from a calendar feed).
+      out.push({ ...base, key: e.eid, date: e.date, end: e.endDate || e.date, cancelled: (e.cancelled ?? []).includes(e.date) });
       continue;
     }
     const r = e.repeat;

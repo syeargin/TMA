@@ -286,3 +286,46 @@ function canonical(v: unknown): string {
   if (v && typeof v === "object") return `{${Object.keys(v).filter((k) => (v as Record<string, unknown>)[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`).join(",")}}`;
   return JSON.stringify(v);
 }
+
+// ---------- Imported events ----------
+
+/** "17:30" → "5:30 PM", the way times are typed on the schedule. */
+export function clock(t?: string): string {
+  if (!t) return "";
+  const h = Number(t.slice(0, 2)), m = t.slice(3, 5);
+  return `${((h + 11) % 12) + 1}:${m} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/** What an imported event takes from the feed. Everything else on it (uniform, notes, tournament details) belongs to the team. */
+export const FEED_OWNED = ["title", "date", "endDate", "time", "endTime", "location", "address", "court"] as const;
+export type FeedOwned = (typeof FEED_OWNED)[number];
+export type FeedFields = { kind: FeedKind; cancelled: boolean } & Partial<Record<FeedOwned, string>>;
+
+/** A mapped feed event as event fields: times as "5:30 PM", empty fields left out. */
+export function feedFields(m: MappedEvent): FeedFields {
+  const f: FeedFields = { kind: m.kind, cancelled: m.cancelled, title: m.title, date: m.date };
+  if (m.endDate !== m.date) f.endDate = m.endDate;
+  if (m.time) f.time = clock(m.time);
+  if (m.endTime && m.endTime !== m.time) f.endTime = clock(m.endTime);
+  if (m.venue) f.location = m.venue;
+  if (m.address) f.address = m.address;
+  if (m.court) f.court = m.court;
+  return f;
+}
+
+/** Where an imported event came from, as stored on it (EVENT#… src). */
+export type EventSource = {
+  uid: string;
+  /** Fingerprint of the feed fields last written, so unchanged events aren't written again. */
+  fp: string;
+  added: string;
+  /** Rules version that last wrote it. */
+  rulesV: number;
+  /** An admin picked the type: the feed's type rules don't change it any more. */
+  kindSet?: boolean;
+  /** Syncs in a row it wasn't in the feed (only counted for events that haven't happened yet). */
+  missing?: number;
+  missingSince?: string;
+  /** The latest change, for the "Changed" badge. */
+  change?: { at: string; text: string };
+};

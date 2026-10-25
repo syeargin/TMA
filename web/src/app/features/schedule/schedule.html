@@ -55,6 +55,11 @@
           <span class="t">{{ it.title }}</span>
         }
         <th-kind-pill [item]="it" />
+        @if (it.event?.src) {
+          <span class="pill p-feed" [title]="feedOn() ? 'From ' + feedLabel() + '. Date, time, place and court update on their own.' : 'From ' + feedLabel() + '. Syncing is turned off.'">{{ feedLabel() }}{{ feedOn() ? '' : ' · paused' }}</span>
+          @if (feedChange(it); as c) { <span class="pill p-warn" [title]="'Changed in ' + feedLabel() + '’s calendar'">Changed: {{ c }}</span> }
+          @if (feedGone(it)) { <span class="pill p-bad" [title]="'This event is no longer on ' + feedLabel() + '’s calendar'">Not on {{ feedLabel() }}’s schedule</span> }
+        }
         @if (it.series) {
           <span class="pill p-series" [title]="describe(it.series, true)"><span aria-hidden="true">↻</span> {{ shortLabel(it.series) }}<span class="sr-only">: {{ describe(it.series, true) }}</span></span>
         }

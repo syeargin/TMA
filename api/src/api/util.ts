@@ -47,6 +47,16 @@ export async function queryAll(input: Omit<ConstructorParameters<typeof QueryCom
   return items;
 }
 
+export async function putMany(items: Record<string, unknown>[]) {
+  for (let i = 0; i < items.length; i += 25) {
+    let batch = items.slice(i, i + 25).map((Item) => ({ PutRequest: { Item } }));
+    for (let attempt = 0; batch.length && attempt < 5; attempt++) {
+      const res = await ddb.send(new BatchWriteCommand({ RequestItems: { [TABLE]: batch } }));
+      batch = (res.UnprocessedItems?.[TABLE] ?? []) as typeof batch;
+    }
+  }
+}
+
 export async function deleteMany(keysToDelete: { PK: string; SK: string }[]) {
   for (let i = 0; i < keysToDelete.length; i += 25) {
     let batch = keysToDelete.slice(i, i + 25).map((Key) => ({ DeleteRequest: { Key } }));

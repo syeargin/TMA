@@ -151,7 +151,7 @@ describe("limits and disconnecting", () => {
   });
 
   it("forgets the link and every rules version", async () => {
-    expect((await coord("DELETE", `/teams/${T}/feed`)).body).toEqual({ connected: false });
+    expect((await coord("DELETE", `/teams/${T}/feed`)).body).toEqual({ connected: false, eventsKept: 0 });
     expect(await feedItems()).toEqual([]);
     expect((await coord("GET", `/teams/${T}/feed`)).body).toEqual({ connected: false });
     expect((await coord("POST", `/teams/${T}/feed/check`, {})).body.message).toMatch(/Paste the team's calendar link/);

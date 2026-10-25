@@ -5,6 +5,7 @@ import { ApiService } from '../../core/api.service';
 import type { FeedCheck, FeedView } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { ToastService } from '../../core/toast.service';
+import { today } from '../../core/dates';
 import { CalendarFeed, clock } from './calendar-feed';
 
 const ev = (title: string, date: string, extra: Partial<FeedEvent> = {}): FeedEvent => ({
@@ -29,7 +30,14 @@ const check: FeedCheck = {
 };
 const saved: FeedView = {
   connected: true, version: 1, rules, history: [{ v: 1, at: '2030-01-01T12:00:00Z', by: 'me', summary: 'Title starts with "14-1 Gold -"' }],
-  source: { host: 'cal.example.com', masked: check.masked, preset: 'sprocket', presetLabel: 'Sprocket Sports', calendarName: 'My Calendar', savedAt: '2030-01-01T12:00:00Z', savedBy: 'me', lastCheck: { at: '2030-01-01T12:00:00Z', total: 5, matched: 4 } }
+  source: { host: 'cal.example.com', masked: check.masked, preset: 'sprocket', presetLabel: 'Sprocket Sports', calendarName: 'My Calendar', savedAt: '2030-01-01T12:00:00Z', savedBy: 'me', lastCheck: { at: '2030-01-01T12:00:00Z', total: 5, matched: 4 },
+    importedAt: null, importFrom: null, lastSync: null, lastOkAt: null, failures: 0, nextManualAt: null }
+};
+
+const imported: FeedView = {
+  ...saved,
+  source: { ...saved.source!, importedAt: '2030-01-02T12:00:00Z', importFrom: '2030-01-02', lastSync: { at: new Date().toISOString(), ok: true, trigger: 'job', added: 0, changed: 1, unchanged: 3, missing: 0, total: 4 }, lastOkAt: new Date().toISOString(), failures: 0, nextManualAt: null },
+  runs: [{ at: new Date().toISOString(), ok: true, trigger: 'job', added: 0, changed: 1, unchanged: 3, missing: 0, total: 4, changes: [{ eid: 'fd1', title: 'Practice', date: '2030-01-14', text: 'now 8:00 AM (was 7:30 AM)' }] }]
 };
 
 function setup(view: FeedView) {
@@ -37,11 +45,11 @@ function setup(view: FeedView) {
     feed: vi.fn(() => Promise.resolve(view)),
     checkFeed: vi.fn(() => Promise.resolve(structuredClone(check))),
     saveFeed: vi.fn(() => Promise.resolve(saved)),
-    restoreFeedRules: vi.fn(), disconnectFeed: vi.fn(() => Promise.resolve({ connected: false, version: 0, rules: null, history: [] }))
+    restoreFeedRules: vi.fn(), importFeed: vi.fn(), syncFeed: vi.fn(), disconnectFeed: vi.fn(() => Promise.resolve({ connected: false, version: 0, rules: null, history: [] }))
   };
   const store = {
     teamId: signal('t14'), items: () => [{ kind: 'practice', date: '2030-01-14', cancelled: false }],
-    you: () => ({ sub: 'me', roles: ['admin'] }), authorName: () => ''
+    you: () => ({ sub: 'me', roles: ['admin'] }), authorName: () => '', has: () => true, refresh: vi.fn(() => Promise.resolve())
   };
   TestBed.configureTestingModule({ providers: [{ provide: ApiService, useValue: api }, { provide: TeamStore, useValue: store }, { provide: ToastService, useValue: { show: vi.fn() } }] });
   const f = TestBed.createComponent(CalendarFeed);
@@ -101,6 +109,30 @@ describe('calendar feed panel', () => {
     button(el, 'Save rules').click();
     await settle();
     expect(api.saveFeed).toHaveBeenCalledWith('t14', { rules: { ...rules, types: [rules.types[1]] } });
+  });
+
+  it('imports onto the schedule, replacing hand-entered practices from today', async () => {
+    const { api, el } = setup(saved);
+    api.importFeed.mockResolvedValue({ run: { ok: true, added: 4 }, replaced: { practicesRemoved: 0, seriesEnded: 1, answersMoved: 2, attendanceMoved: 0 }, feed: imported });
+    await settle();
+    expect(text(el)).toContain('1 practice dates from today on');
+    button(el, 'Import onto the schedule').click();
+    await settle();
+    expect(api.importFeed).toHaveBeenCalledWith('t14', today(), today());
+    expect(text(el)).toContain('Healthy');
+    expect(text(el)).toContain('Recent syncs');
+    expect(text(el)).toContain('Practice: now 8:00 AM (was 7:30 AM)');
+  });
+
+  it('syncs now, and says when it can again', async () => {
+    const { api, el } = setup(imported);
+    api.syncFeed.mockResolvedValue({ run: { ok: true, added: 0, changed: 0, missing: 0 }, feed: { ...imported, source: { ...imported.source!, nextManualAt: new Date(Date.now() + 299_000).toISOString() } } });
+    await settle();
+    button(el, 'Sync now').click();
+    await settle();
+    expect(api.syncFeed).toHaveBeenCalledWith('t14');
+    expect(text(el)).toContain('Sync now works again in 5 minutes');
+    expect(button(el, 'Sync now').disabled).toBe(true);
   });
 
   it('asks before disconnecting', async () => {

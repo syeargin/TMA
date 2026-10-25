@@ -2,7 +2,7 @@
  * Calendar feed sync, stage C1: a team admin or coordinator pastes the team's calendar link once,
  * checks what's in it, sets the import rules and saves both. The link is stored encrypted
  * (lib/feed/secret.ts) and never sent back or logged; screens show a masked form. Nothing is written
- * to the schedule yet: importing and the regular sync come in stage C2.
+ * to the schedule here; importing and the regular sync are in lib/feed/sync.ts (stage C2).
  *
  * TEAM#t / FEED#SOURCE        the link (sealed), its host, masked form, preset and rules version
  * TEAM#t / FEED#RULES#0001…   every version of the rules, with who saved it and a note
@@ -20,8 +20,9 @@ import { applyRules, describeFilter, detectPreset, FEED_KINDS, PRESETS, sameRule
 import { loadAccess, type TeamAccess } from "../context.js";
 import { HttpError, json, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
-import { checkId, deleteMany, getItem, now, putItem, queryAll } from "../util.js";
-import { TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
+import { checkId, date, getItem, now, putItem, queryAll } from "../util.js";
+import { TransactWriteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { disconnect, importFeed, lockFeed, MANUAL_EVERY_MS, syncTeam, unlockFeed } from "../../lib/feed/sync.js";
 
 const kind = z.enum(FEED_KINDS);
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -44,6 +45,12 @@ export const rulesSchema = z.object({
   preset: z.enum(Object.keys(PRESETS) as [PresetId, ...PresetId[]]).optional()
 });
 
+const importSchema = z.object({
+  /** The schedule takes feed events that end on or after this date. */
+  from: date,
+  /** Hand-entered practices from this date on give way to the feed's (answers and attendance move over). */
+  replaceFrom: date.nullable().optional()
+});
 const checkSchema = z.object({ url: z.string().trim().min(8).max(2000).optional() });
 const saveSchema = z.object({
   /** Needed the first time, and to change the link; left out to keep the saved one. */
@@ -52,7 +59,7 @@ const saveSchema = z.object({
   note: z.string().trim().max(200).optional()
 });
 
-type Source = {
+type Source = Record<string, unknown> & {
   link: string; host: string; masked: string; preset: PresetId; version: number;
   savedAt: string; savedBy: string; calendarName?: string;
   lastCheck?: { at: string; total: number; matched: number };
@@ -103,12 +110,18 @@ async function view(teamId: string) {
   if (!src) return { connected: false as const };
   const all = await versions(teamId);
   const current = all.find((x) => x.v === src.version) ?? all[0];
+  const runs = src.importedAt ? await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":s": "FEED#SYNC#" }, ScanIndexForward: false, Limit: 8 }) : [];
   return {
     connected: true as const,
-    source: { host: src.host, masked: src.masked, preset: src.preset, presetLabel: PRESETS[src.preset]?.label ?? "", calendarName: src.calendarName ?? "", savedAt: src.savedAt, savedBy: src.savedBy, lastCheck: src.lastCheck ?? null },
+    source: {
+      host: src.host, masked: src.masked, preset: src.preset, presetLabel: PRESETS[src.preset]?.label ?? "", calendarName: src.calendarName ?? "", savedAt: src.savedAt, savedBy: src.savedBy, lastCheck: src.lastCheck ?? null,
+      importedAt: src.importedAt ?? null, importFrom: src.importFrom ?? null, lastSync: src.lastSync ?? null, lastOkAt: src.lastOkAt ?? null, failures: src.failures ?? 0,
+      nextManualAt: src.manualAt ? new Date(Number(src.manualAt) + MANUAL_EVERY_MS).toISOString() : null
+    },
     version: current?.v ?? 0,
     rules: current?.rules ?? null,
-    history: all.slice(0, 20).map(({ rules: _r, ...h }) => h)
+    history: all.slice(0, 20).map(({ rules: _r, ...h }) => h),
+    runs: runs.slice(0, 8).map((r) => ({ at: r.at, ok: r.ok, trigger: r.trigger, added: r.added, changed: r.changed, unchanged: r.unchanged, missing: r.missing, total: r.total, error: r.error, changes: r.changes ?? [] }))
   };
 }
 
@@ -163,8 +176,10 @@ export function feedRoutes(r: Router) {
     const changed = !current || !sameRules(current.rules, rules);
     const v = changed ? (all[0]?.v ?? 0) + 1 : current!.v;
     const at = now();
-    const item: Source & Record<string, unknown> = {
-      ...keys.feedSource(a.teamId), type: "FeedSource", link: sealed, host, masked, preset, version: v,
+    // Keep what the import and the sync keep on the source (when it was imported, the last sync).
+    const { lockUntil: _l, ...kept } = (src ?? {}) as Record<string, unknown>;
+    const item: Source = {
+      ...kept, ...keys.feedSource(a.teamId), type: "FeedSource", link: sealed, host, masked, preset, version: v,
       savedAt: at, savedBy: caller.sub, ...(calendarName ? { calendarName } : {}), ...(lastCheck ? { lastCheck } : {})
     };
     const writes: NonNullable<ConstructorParameters<typeof TransactWriteCommand>[0]["TransactItems"]> = [{ Put: { TableName: TABLE, Item: item } }];
@@ -202,9 +217,43 @@ export function feedRoutes(r: Router) {
   /** Disconnect: forgets the link and every version of the rules. (Allowed with the feature off, so a team can clean up.) */
   r.on("DELETE", "/teams/{teamId}/feed", async ({ caller, params }) => {
     const a = await access(caller, params.teamId, false);
-    const items = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `TEAM#${a.teamId}`, ":s": "FEED#" }, ProjectionExpression: "PK, SK" });
-    await deleteMany(items.map((i) => ({ PK: String(i.PK), SK: String(i.SK) })));
-    console.log(JSON.stringify({ msg: "feed disconnected", teamId: a.teamId, by: caller.sub }));
-    return json(200, { connected: false });
+    const { kept } = await disconnect(a.teamId);
+    console.log(JSON.stringify({ msg: "feed disconnected", teamId: a.teamId, by: caller.sub, eventsKept: kept }));
+    return json(200, { connected: false, eventsKept: kept });
+  });
+
+  /** First import: the feed's events go onto the schedule, and the sync every 30 minutes starts. */
+  r.on("POST", "/teams/{teamId}/feed/import", async ({ caller, params, body }) => {
+    const a = await access(caller, params.teamId, true);
+    a.require("schedule");
+    const b = parseBody(importSchema, body);
+    const src = (await getItem(keys.feedSource(a.teamId))) as Source | undefined;
+    if (!src) throw notFound("Save the team's calendar link first.");
+    if (src.importedAt) throw new HttpError(409, "This feed is already on the schedule. It syncs on its own; use Sync now to check it straight away.", "feed_imported");
+    if (b.replaceFrom && b.replaceFrom < b.from) throw new HttpError(400, "Replace practices from a date on or after the import starts.", "bad_request");
+    if (!(await lockFeed(a.teamId))) throw new HttpError(409, "The feed is syncing right now. Try again in a minute.", "feed_busy");
+    try {
+      const { run, replaced } = await importFeed(a.teamId, { from: b.from, replaceFrom: b.replaceFrom ?? null, by: caller.sub });
+      if (!run.ok) throw new HttpError(422, run.error ?? "Couldn't read the feed.", run.code ?? "feed_error");
+      return json(200, { run: { ...run, changes: undefined }, replaced, feed: await view(a.teamId) });
+    } finally { await unlockFeed(a.teamId); }
+  });
+
+  /** Sync now: at most once every 5 minutes per team. */
+  r.on("POST", "/teams/{teamId}/feed/sync", async ({ caller, params }) => {
+    const a = await access(caller, params.teamId, true);
+    const src = (await getItem(keys.feedSource(a.teamId))) as Source | undefined;
+    if (!src?.importedAt) throw new HttpError(409, "Import the feed onto the schedule first.", "feed_not_imported");
+    const t = Date.now();
+    if (src.manualAt && t - Number(src.manualAt) < MANUAL_EVERY_MS) {
+      const mins = Math.ceil((Number(src.manualAt) + MANUAL_EVERY_MS - t) / 60000);
+      throw new HttpError(429, `It synced a moment ago. Sync now works again in ${mins} minute${mins === 1 ? "" : "s"}.`, "feed_rate_limited");
+    }
+    if (!(await lockFeed(a.teamId))) throw new HttpError(409, "The feed is syncing right now. Try again in a minute.", "feed_busy");
+    try {
+      await ddb.send(new UpdateCommand({ TableName: TABLE, Key: keys.feedSource(a.teamId), UpdateExpression: "SET manualAt = :t", ExpressionAttributeValues: { ":t": t } }));
+      const run = await syncTeam(a.teamId, { trigger: "manual", by: caller.sub });
+      return json(200, { run, feed: await view(a.teamId) });
+    } finally { await unlockFeed(a.teamId); }
   });
 }

@@ -58,7 +58,8 @@ const norm = (s?: string) => String(s ?? '').trim().toLowerCase().replace(/\s+/g
 export function findPatterns(events: TeamEvent[]): PatternSuggestion[] {
   const groups = new Map<string, TeamEvent[]>();
   for (const e of events) {
-    if (e.kind !== 'event' || e.repeat || e.endDate && e.endDate !== e.date) continue;
+    // Events from the club's calendar stay one per date: the feed owns them.
+    if (e.kind !== 'event' || e.repeat || e.src || e.endDate && e.endDate !== e.date) continue;
     const k = `${norm(e.title)}|${norm(e.time)}|${norm(e.location)}`;
     groups.set(k, [...(groups.get(k) ?? []), e]);
   }

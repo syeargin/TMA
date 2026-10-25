@@ -1,12 +1,12 @@
 import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  applyRules, describeFilter, describeRule, FEED_KIND_LABELS, FEED_KINDS,
+  applyRules, clock, describeFilter, describeRule, FEED_KIND_LABELS, FEED_KINDS,
   type FeedFilter, type FeedKind, type FeedRules, type TypeRule
 } from '@shared/feed-rules';
 import { ApiService } from '../../core/api.service';
 import { fmt, fmtRange, today } from '../../core/dates';
-import type { FeedCheck, FeedView } from '../../core/models';
+import type { FeedCheck, FeedRun, FeedView } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { ToastService } from '../../core/toast.service';
 import { explain } from '../../core/errors';
@@ -15,12 +15,7 @@ import { Sheet } from '../../shared/sheet';
 
 type NewRule = { when: TypeRule['when']; text: string; hours: number; kind: FeedKind };
 
-/** "17:30" → "5:30 PM". */
-export function clock(t?: string): string {
-  if (!t) return '';
-  const h = Number(t.slice(0, 2)), m = t.slice(3, 5);
-  return `${((h + 11) % 12) + 1}:${m} ${h < 12 ? 'AM' : 'PM'}`;
-}
+export { clock };
 
 /**
  * Calendar feed sync (Team info, admins and coordinators): paste the team's calendar link once,
@@ -33,7 +28,7 @@ export function clock(t?: string): string {
   template: `
     <th-sheet heading="Calendar feed" [open]="open()" (closed)="closed.emit()">
       <div class="feed-panel">
-      <p class="muted small" style="margin-top:0">Bring the team's schedule in from your club's scheduling system. Teem Hub keeps it up to date, and everything your team adds (availability, attendance, tournament details, notes) stays here.</p>
+      <p class="muted small" style="margin-top:0">Bring the team's schedule in from your club's scheduling system. Teem Hub keeps it up to date every 30 minutes, and everything your team adds (availability, attendance, tournament details, notes) stays here.</p>
       <th-messages [error]="error()" />
 
       @if (loading()) { <p class="muted">Loading…</p> }
@@ -44,9 +39,53 @@ export function clock(t?: string): string {
               <button class="link-btn small" type="button" (click)="changeLink()">Change link</button></div>
             <div class="small muted feed-mask">{{ view()!.source!.masked }}</div>
             <div class="small muted">Rules version {{ view()!.version }}@if (view()!.source!.lastCheck; as lc) { · last checked {{ fmt(lc.at.slice(0, 10)) }}: {{ lc.matched }} of {{ lc.total }} events are the team's }</div>
-            <p class="small" style="margin:8px 0 0">Importing these events into the schedule is coming soon. Nothing on your schedule has changed.</p>
-            @if (!check()) { <div style="margin-top:10px"><button class="btn sm" type="button" [disabled]="busy()" (click)="runCheck()">{{ busy() ? 'Checking…' : 'Check feed and edit rules' }}</button></div> }
+            @if (view()!.source!.importedAt) {
+              @if (view()!.source!.lastSync; as ls) {
+                <div class="feed-status">
+                  @if (ls.ok) { <span class="pill p-ok">Healthy</span> } @else { <span class="pill p-bad">Last sync failed</span> }
+                  <span class="small">Synced {{ ago(ls.at) }} · it syncs on its own every 30 minutes</span>
+                </div>
+                @if (!ls.ok) { <p class="small feed-warn">{{ ls.error }} Nothing on the schedule changed.@if (view()!.source!.failures > 1) { It has failed {{ view()!.source!.failures }} times in a row. }</p> }
+              }
+              <div class="form-actions" style="margin-top:10px">
+                <button class="btn sm" type="button" [disabled]="busy() || syncWait()" (click)="syncNow()">{{ syncing() ? 'Syncing…' : 'Sync now' }}</button>
+                @if (syncWait()) { <span class="small muted">Sync now works again {{ syncWait() }}.</span> }
+                @if (!check()) { <button class="link-btn small" type="button" [disabled]="busy()" (click)="runCheck()">Check feed and edit rules</button> }
+              </div>
+            } @else {
+              <p class="small" style="margin:8px 0 0">Link and rules saved. Nothing is on the schedule yet.</p>
+              @if (!check()) {
+                <fieldset class="group feed-import">
+                  <legend>Put it on the schedule</legend>
+                  <label class="check"><input type="radio" name="from" [checked]="importAll() === false" (change)="importAll.set(false)"><span><b>From today</b><span class="small muted">Past dates in the calendar are left out.</span></span></label>
+                  <label class="check"><input type="radio" name="from" [checked]="importAll()" (change)="importAll.set(true)"><span><b>The whole season</b><span class="small muted">Past practices show up under attendance as not taken.</span></span></label>
+                  @if (handPractices() > 0) {
+                    <label class="check"><input type="checkbox" name="replace" [checked]="replace()" (change)="replace.set($any($event.target).checked)">
+                      <span><b>Replace the practices entered by hand</b><span class="small muted">{{ handPractices() }} practice dates from {{ replaceFrom() === todayIso ? 'today' : fmt(replaceFrom()) }} on. Families' answers and attendance move to the club calendar's practice on the same day.</span></span></label>
+                    @if (replace()) { <label class="feed-date">From<input type="date" name="replaceFrom" [ngModel]="replaceFrom()" (ngModelChange)="replaceFrom.set($event || todayIso)" [min]="todayIso"></label> }
+                    @if (!replace()) { <p class="small feed-warn">Keeping both shows those practices twice.</p> }
+                  }
+                  <div class="form-actions">
+                    <button class="btn primary" type="button" [disabled]="busy()" (click)="runImport()">{{ importing() ? 'Importing…' : 'Import onto the schedule' }}</button>
+                    <button class="link-btn small" type="button" [disabled]="busy()" (click)="runCheck()">Check feed and edit rules first</button>
+                  </div>
+                  <p class="small muted" style="margin:0">Families aren't notified about the import. After that, Teem Hub syncs every 30 minutes.</p>
+                </fieldset>
+              }
+            }
           </section>
+          @if (view()!.source!.importedAt && view()!.runs?.length && !check()) {
+            <fieldset class="group">
+              <legend>Recent syncs</legend>
+              @for (r of view()!.runs!.slice(0, 6); track r.at) {
+                <div class="li small feed-run"><span class="pill" [class.p-ok]="r.ok" [class.p-bad]="!r.ok">{{ r.ok ? 'OK' : 'Failed' }}</span>
+                  <div class="grow"><b>{{ when2(r.at) }}</b> · {{ runText(r) }}
+                    @for (c of r.changes.slice(0, 3); track c.eid) { <div class="muted">{{ fmt(c.date) }} {{ c.title }}: {{ c.text }}</div> }
+                    @if (!r.ok) { <div class="muted">{{ r.error }}</div> }
+                  </div></div>
+              }
+            </fieldset>
+          }
         } @else {
           <label>Calendar link (.ics)
             <span class="feed-link">
@@ -164,7 +203,7 @@ export function clock(t?: string): string {
             </fieldset>
           }
           <section class="feed-box feed-danger">
-            <div class="grow"><b>Disconnect</b><div class="small muted">Forgets the link and the rules.</div></div>
+            <div class="grow"><b>Disconnect</b><div class="small muted">Forgets the link and the rules.@if (view()!.source!.importedAt) { Imported events stay on the schedule as the team's own, with everything families entered. }</div></div>
             @if (confirmDisconnect()) {
               <button class="btn sm danger" type="button" [disabled]="busy()" (click)="disconnect()">Yes, disconnect</button>
               <button class="link-btn small" type="button" (click)="confirmDisconnect.set(false)">Keep it</button>
@@ -198,6 +237,12 @@ export class CalendarFeed {
   readonly custom = signal(false);
   readonly customMode = signal<'prefix' | 'contains'>('prefix');
   readonly customText = signal('');
+  readonly importAll = signal(false);
+  readonly replace = signal(true);
+  readonly importing = signal(false);
+  readonly syncing = signal(false);
+  readonly todayIso = today();
+  readonly replaceFrom = signal(today());
   url = '';
   note = '';
   newRule: NewRule = { when: 'title', text: '', hours: 6, kind: 'event' };
@@ -230,6 +275,17 @@ export class CalendarFeed {
     return this.store.items().filter((i) => i.kind === 'practice' && !i.cancelled && dates.has(i.date)).length;
   });
 
+  /** Practice dates entered by hand (not from the calendar) from the replace date on. */
+  readonly handPractices = computed(() => this.store.items().filter((i) => i.kind === 'practice' && !i.event?.src && !i.cancelled && i.date >= this.replaceFrom()).length);
+
+  /** "in 3 minutes" while Sync now has to wait. */
+  readonly syncWait = computed(() => {
+    const at = this.view()?.source?.nextManualAt;
+    const ms = at ? Date.parse(at) - this.now() : 0;
+    return ms > 0 ? `in ${Math.ceil(ms / 60000)} minute${Math.ceil(ms / 60000) === 1 ? '' : 's'}` : '';
+  });
+  private readonly now = signal(Date.now());
+
   readonly sampleFeedTitle = computed(() => this.result()?.matched[0]?.feedTitle ?? '');
   readonly sampleTitle = computed(() => this.result()?.matched[0]?.title ?? '');
 
@@ -242,11 +298,12 @@ export class CalendarFeed {
 
   private reset() {
     this.check.set(null); this.rules.set(null); this.error.set(''); this.changingLink.set(false);
-    this.confirmDisconnect.set(false); this.custom.set(false); this.url = ''; this.note = ''; this.checkedUrl = '';
+    this.confirmDisconnect.set(false); this.custom.set(false); this.url = ''; this.note = ''; this.checkedUrl = ''; this.replaceFrom.set(today());
   }
 
   async load() {
     this.loading.set(true);
+    this.now.set(Date.now());
     try { this.view.set(await this.api.feed(this.store.teamId())); }
     catch (e) { this.error.set(explain(e)); }
     finally { this.loading.set(false); }
@@ -332,6 +389,42 @@ export class CalendarFeed {
   }
 
   discard() { this.check.set(null); this.rules.set(null); this.error.set(''); if (!this.view()?.connected) this.closed.emit(); }
+
+  ago(at: string) {
+    const m = Math.round((Date.now() - Date.parse(at)) / 60000);
+    return m < 1 ? 'just now' : m < 60 ? `${m} minute${m === 1 ? '' : 's'} ago` : m < 1440 ? `${Math.round(m / 60)} hour${Math.round(m / 60) === 1 ? '' : 's'} ago` : `on ${fmt(at.slice(0, 10))}`;
+  }
+  when2(at: string) { return `${fmt(at.slice(0, 10))} ${new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`; }
+  runText(r: FeedRun) {
+    if (!r.ok) return 'nothing changed';
+    const parts = [r.added && `${r.added} added`, r.changed && `${r.changed} changed`, r.missing && `${r.missing} not in the calendar`].filter(Boolean);
+    return parts.length ? parts.join(' · ') : 'no changes';
+  }
+
+  async runImport() {
+    this.busy.set(true); this.importing.set(true); this.error.set('');
+    try {
+      const from = this.importAll() ? '2000-01-01' : today();
+      const replaceFrom = this.handPractices() > 0 && this.replace() ? this.replaceFrom() : null;
+      const r = await this.api.importFeed(this.store.teamId(), from, replaceFrom);
+      this.view.set(r.feed);
+      const moved = r.replaced ? r.replaced.answersMoved + r.replaced.attendanceMoved : 0;
+      this.toast.show(`${r.run.added} events added to the schedule${moved ? `; ${moved} answers and attendance records moved over` : ''}`);
+      await this.store.refresh(['events'], true);
+    } catch (e) { this.error.set(explain(e)); }
+    finally { this.busy.set(false); this.importing.set(false); }
+  }
+
+  async syncNow() {
+    this.busy.set(true); this.syncing.set(true); this.error.set('');
+    try {
+      const r = await this.api.syncFeed(this.store.teamId());
+      this.view.set(r.feed); this.now.set(Date.now());
+      this.toast.show(r.run.ok ? `Synced: ${this.runText(r.run)}` : `Sync failed: ${r.run.error}`, !r.run.ok);
+      if (r.run.added || r.run.changed) await this.store.refresh(['events'], true);
+    } catch (e) { this.error.set(explain(e)); }
+    finally { this.busy.set(false); this.syncing.set(false); }
+  }
 
   async restore(v: number) {
     this.busy.set(true); this.error.set('');

@@ -17,6 +17,9 @@ const KIND_LABEL: Record<EventKind, string> = { practice: 'Practice', tournament
  */
 export type EditMode = 'series' | 'date' | 'following';
 
+/** Fields the club's calendar sets on events it brings in (calendar feed sync). */
+const FEED_LOCKED = ['title', 'date', 'endDate', 'time', 'endTime', 'location', 'address', 'court'] as const;
+
 /** Fields one date of a series can change on its own. */
 const OCCURRENCE_FIELDS = ['title', 'time', 'endTime', 'location', 'address', 'court', 'uniformColor', 'notes'] as const;
 
@@ -28,6 +31,11 @@ const OCCURRENCE_FIELDS = ['title', 'time', 'endTime', 'location', 'address', 'c
     <th-sheet [heading]="heading()" [open]="open()" (closed)="closed.emit()">
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
         <th-messages [error]="error()" />
+        @if (feedLocked()) {
+          <p class="hint feed-hint">From {{ feedLabel() }}'s calendar@if (event()?.src?.change; as c) { · changed {{ ago(c.at) }}: {{ c.text }} }. The name, date, time, place and court update from there on their own. Everything else here is the team's.</p>
+        } @else if (event()?.src) {
+          <p class="hint feed-hint">From {{ feedLabel() }}'s calendar. Syncing is turned off, so you can change everything; turning it back on brings the calendar's details back.</p>
+        }
         @if (mode() === 'date') {
           <p class="hint">Changes apply to {{ atLabel() }} only. The rest of the series stays as it is.</p>
         } @else if (mode() === 'following') {
@@ -87,7 +95,7 @@ const OCCURRENCE_FIELDS = ['title', 'time', 'endTime', 'location', 'address', 'c
           }
         }
         <label>{{ kind() === 'tournament' ? 'Notes' : 'Details' }}<textarea formControlName="notes" rows="3"></textarea></label>
-        @if (kind() !== 'tournament' && mode() !== 'date') {
+        @if (kind() !== 'tournament' && mode() !== 'date' && !event()?.src) {
           <fieldset class="group">
             <legend>Repeat</legend>
             <label>Repeats
@@ -162,7 +170,7 @@ const OCCURRENCE_FIELDS = ['title', 'time', 'endTime', 'location', 'address', 'c
           @if (mode() === 'date' && hasDateChange()) {
             <button class="btn" type="button" [disabled]="busy()" (click)="undoDate()">Match the series again</button>
           }
-          @if (event() && mode() === 'series') {
+          @if (event() && mode() === 'series' && !feedLocked()) {
             <button class="btn" type="button" [class.danger]="!confirmDelete()" [class.confirming]="confirmDelete()" [disabled]="busy()" (click)="remove()">
               {{ confirmDelete() ? 'Tap again to delete' : event()?.repeat ? 'Delete series' : 'Delete' }}
             </button>
@@ -227,6 +235,13 @@ export class EventForm {
     return this.event() ? `Edit ${this.event()?.repeat ? label + ' series' : label}` : `Add ${label}`;
   });
   readonly hasDateChange = computed(() => !!this.event()?.overrides?.[this.at()]);
+  /** An event from the club's calendar while it syncs: the calendar's fields can't be changed here. */
+  readonly feedLocked = computed(() => !!this.event()?.src && this.store.has('calfeed'));
+  readonly feedLabel = computed(() => this.store.club()?.short || 'the club');
+  ago(at: string) {
+    const h = Math.round((Date.now() - Date.parse(at)) / 36e5);
+    return h < 1 ? 'just now' : h < 24 ? `${h} hour${h === 1 ? '' : 's'} ago` : fmt(at.slice(0, 10));
+  }
 
   /**
    * How many families' answers sit on dates a series edit (or split) would drop, so a coach sees it before saving.
@@ -279,10 +294,13 @@ export class EventForm {
           meet: e?.meet ?? '', uniforms: e?.uniforms ?? '', admissions: e?.admissions ?? '', teamCode: e?.teamCode ?? '',
           scheduleLink: e?.scheduleLink ?? '', ticketHelp: e?.ticketHelp ?? '', cartPid: e?.cartPid ?? e?.dutyPid ?? '', ballsPid: e?.ballsPid ?? e?.dutyPid ?? '', foodPlan: e?.foodPlan ?? '',
           reservations: e?.reservations ?? '', checklist: (e?.checklist ?? []).join('\n'),
-          every: e?.repeat?.every ?? (k === 'practice' ? 1 : 0), until: e?.repeat?.until ?? '', skipTournaments: e?.repeat?.skipTournaments ?? true,
+          every: e ? e.repeat?.every ?? 0 : k === 'practice' ? 1 : 0, until: e?.repeat?.until ?? '', skipTournaments: e?.repeat?.skipTournaments ?? true,
           days: Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((i) => [`d${i}`, !!e?.repeat?.days.includes(i)]))
         });
         if (mode === 'following') this.form.controls.kind.disable(); else this.form.controls.kind.enable();
+        // From the club's calendar: its date, time, place and court come from there while it syncs.
+        const locked = !!e?.src && this.store.has('calfeed');
+        for (const f of FEED_LOCKED) { const c = this.form.controls[f]; if (locked) c.disable(); else c.enable(); }
         this.values.set(this.form.getRawValue());
         this.kind.set(k);
       });
