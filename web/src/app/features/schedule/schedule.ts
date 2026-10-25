@@ -55,6 +55,16 @@ export class Schedule {
   /** The schedule date picked for "this date" and "this and following". */
   readonly editAt = signal('');
   readonly courtLabel = courtLabel;
+  /** Calendar feed sync: what events from the club's calendar are labelled ("A5"). */
+  readonly feedLabel = computed(() => this.store.club()?.short || 'Club calendar');
+  readonly feedOn = computed(() => this.store.has('calfeed'));
+  /** The latest change from the club's calendar, shown for a week. */
+  feedChange(it: ScheduleItem): string {
+    const c = it.event?.src?.change;
+    return c && Date.now() - Date.parse(c.at) < 7 * 864e5 ? c.text : '';
+  }
+  /** Gone from the club's calendar for two syncs in a row (staff only; an admin decides what to do). */
+  feedGone(it: ScheduleItem): boolean { return (it.event?.src?.missing ?? 0) >= 2 && this.store.can('schedule'); }
 
   readonly pid = this.store.myPid;
 

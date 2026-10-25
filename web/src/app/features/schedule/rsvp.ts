@@ -53,6 +53,7 @@ export class RsvpCounts {
 @Component({
   selector: 'th-kind-pill',
   template: `
+    @if (item().cancelled && item().kind !== 'practice') { <span class="pill p-bad">Cancelled</span> }
     @switch (item().kind) {
       @case ('tournament') { <span class="pill" [class.p-travel]="item().travel" [class.p-local]="!item().travel">{{ item().travel ? 'Travel' : 'Local' }}</span> }
       @case ('practice') { @if (item().cancelled) { <span class="pill p-bad">Cancelled</span> } }

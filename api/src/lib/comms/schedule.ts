@@ -69,7 +69,8 @@ export function buildItems(events: Row[], settings: Row | null): Item[] {
       note: e.kind === "tournament" ? "" : str(e.notes), travel: !!e.travel, eid
     };
     const r = e.repeat as { every: number; days: number[]; until: string; skipTournaments?: boolean } | undefined;
-    if (!r) { out.push({ ...base, key: eid, date: str(e.date), end: str(e.endDate) || str(e.date), cancelled: false }); continue; }
+    // A one-time event is cancelled when its date is in its cancelled list (events from a calendar feed).
+    if (!r) { out.push({ ...base, key: eid, date: str(e.date), end: str(e.endDate) || str(e.date), cancelled: ((e.cancelled as string[] | undefined) ?? []).includes(str(e.date)) }); continue; }
     const skip = new Set((e.skip as string[] | undefined) ?? []);
     const cancelled = new Set((e.cancelled as string[] | undefined) ?? []);
     for (const d of expandPattern(str(e.date), r.until, r.days, r.every)) {

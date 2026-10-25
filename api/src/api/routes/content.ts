@@ -4,6 +4,8 @@ import { ddb, TABLE } from "../../lib/db.js";
 import { notifyAnnouncement } from "../../lib/comms/events.js";
 import { keys } from "../../lib/keys.js";
 import { loadAccess } from "../context.js";
+import { feedActive } from "../../lib/feed/sync.js";
+import { FEED_OWNED } from "../../shared/feed-rules.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { cents, checkId, date, deleteItem, deleteMany, getItem, newId, now, optStr, putItem, queryAll, str } from "../util.js";
@@ -115,10 +117,25 @@ export function contentRoutes(r: Router) {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
     a.require("schedule");
     const eid = checkId(params.eid, "event");
-    const ev = parseBody(eventSchema, body);
+    const ev = parseBody(eventSchema, body) as z.infer<typeof eventSchema> & Record<string, unknown>;
     if (!ev.repeat) delete ev.overrides; // only a series has dates of its own
+    // From the club's calendar (calendar feed sync): the feed's fields stay as the feed has them while
+    // it syncs; the team's own fields change as usual. Picking another type sticks.
+    const old = await getItem(keys.event(a.teamId, eid));
+    const fromFeed: Record<string, unknown> = {};
+    if (old?.src) {
+      if (ev.repeat) throw badRequest("Events from the club's calendar can't repeat. Each date comes from the calendar on its own.");
+      const s = { ...(old.src as Record<string, unknown>) };
+      if (ev.kind !== old.kind) s.kindSet = true;
+      if (await feedActive(a.teamId, a.features)) {
+        for (const k of FEED_OWNED) { if (old[k] !== undefined) (ev as Record<string, unknown>)[k] = old[k]; else delete ev[k]; }
+      }
+      // The editor has no way to cancel a one-time event: the calendar's cancellation stays.
+      if (old.cancelled) ev.cancelled = old.cancelled as string[]; else delete ev.cancelled;
+      fromFeed.src = s;
+    }
     await putItem({
-      ...keys.event(a.teamId, eid), type: "Event", ...ev,
+      ...keys.event(a.teamId, eid), type: "Event", ...ev, ...fromFeed,
       GSI2PK: `TEAM#${a.teamId}#CAL`, GSI2SK: `${ev.date}#${eid}`,
       updatedAt: now(), updatedBy: caller.sub
     });
@@ -135,6 +152,7 @@ export function contentRoutes(r: Router) {
     const evs = (events as Record<string, unknown>[]).map((e, i): Record<string, unknown> & { eid: string } => ({ ...e, eid: eids[i] }))
       .sort((x, y) => String(x.date).localeCompare(String(y.date)));
     if (evs.some((e) => e.kind === "tournament" || e.repeat)) throw badRequest("Only separate one-time events can be combined.");
+    if (evs.some((e) => e.src)) throw badRequest("Events from the club's calendar can't be combined: each date comes from the calendar on its own.");
     const first = evs[0];
     const seriesId = first.eid;
     const { PK: _pk, SK: _sk, eid: _e, GSI2PK: _g1, GSI2SK: _g2, updatedAt: _u, updatedBy: _ub, ...base } = first;
@@ -221,6 +239,8 @@ export function contentRoutes(r: Router) {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
     a.require("schedule");
     const eid = checkId(params.eid, "event");
+    const ev = await getItem(keys.event(a.teamId, eid));
+    if (ev?.src && (await feedActive(a.teamId, a.features))) throw conflict("This event comes from the club's calendar, so it can't be deleted here. If it's gone from the club's schedule, Teem Hub asks an admin what to do; to stop importing events like it, change the feed's rules.", "feed_event");
     const children = await queryAll({
       KeyConditionExpression: "PK = :p AND begins_with(SK, :s)",
       ExpressionAttributeValues: { ":p": `TEAM#${a.teamId}`, ":s": `EVENT#${eid}#` },
