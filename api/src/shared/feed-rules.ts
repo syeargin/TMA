@@ -277,6 +277,12 @@ export function describeRule(r: TypeRule): string {
 
 /** Same rules? (Saving unchanged rules doesn't make a new version.) */
 export function sameRules(a: FeedRules, b: FeedRules): boolean {
-  const norm = (r: FeedRules) => JSON.stringify({ ...r, preset: undefined });
-  return norm(a) === norm(b);
+  return canonical({ ...a, preset: undefined }) === canonical({ ...b, preset: undefined });
+}
+
+/** JSON with object keys sorted: the database doesn't keep the order keys were saved in. */
+function canonical(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonical).join(",")}]`;
+  if (v && typeof v === "object") return `{${Object.keys(v).filter((k) => (v as Record<string, unknown>)[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`).join(",")}}`;
+  return JSON.stringify(v);
 }

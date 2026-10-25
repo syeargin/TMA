@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { expandRule, FeedError, parseFeed, parseLine, unescapeText, unfold, zoneFromTzid } from "../../src/lib/feed/ical.js";
-import { applyRules, detectPreset, findCourt, splitVenue, startingRules, suggestFilters, type FeedEvent } from "../../src/shared/feed-rules.js";
+import { applyRules, detectPreset, sameRules, findCourt, splitVenue, startingRules, suggestFilters, type FeedEvent } from "../../src/shared/feed-rules.js";
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8");
 const window = { windowStart: "2025-09-01", windowEnd: "2027-12-31" };
@@ -104,6 +104,14 @@ describe("rule pieces", () => {
     expect(findCourt("Gym B Court 3", "Court")).toBe("Court 3");
     expect(findCourt("Field #4", "field")).toBe("Field 4");
     expect(findCourt("Courtside seats", "Court")).toBe("");
+  });
+
+  it("compares rules whatever order their keys come back in", () => {
+    const a = startingRules("sprocket", []);
+    const shuffled = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(a).reverse())));
+    shuffled.court = { label: "Court", from: "description" };
+    expect(sameRules(a, shuffled)).toBe(true);
+    expect(sameRules(a, { ...a, fallback: "practice" })).toBe(false);
   });
 
   it("splits venue and address", () => {
