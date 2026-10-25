@@ -1,4 +1,4 @@
-import type { EventSource, FeedEvent, FeedRules, FilterSuggestion, PresetId } from '@shared/feed-rules';
+import type { EventSource, FeedEvent, FeedRules, FilterSuggestion, PresetId, ReviewItem } from '@shared/feed-rules';
 import type { EmailStatus } from '@shared/messages';
 import type { ClubFeature, FeatureMap } from '@shared/features';
 import type { AttendanceRecord } from '@shared/attendance';
@@ -204,6 +204,8 @@ export interface TeamBundle {
   you: { sub?: string; roles: Role[]; pid?: string; person?: string; clubAdmin?: boolean; siteOwner?: boolean };
   clubId?: string;
   club?: Club | null;
+  /** Calendar feed sync health, for the team's feed admins. */
+  feedStatus?: { attention: boolean; failures: number; paused: boolean; lastOkAt: string | null };
   /** The team's entry in its club's team list. */
   team?: ClubTeam | null;
   settings: Settings | null;
@@ -232,8 +234,11 @@ export type FeedView = {
   source?: {
     host: string; masked: string; preset: PresetId; presetLabel: string; calendarName: string; savedAt: string; savedBy: string; lastCheck: { at: string; total: number; matched: number } | null;
     importedAt: string | null; importFrom: string | null; lastSync: Omit<FeedRun, 'changes'> | null; lastOkAt: string | null; failures: number; nextManualAt: string | null;
+    attention: { at: string; was: number; now: number } | null; pausedSince: string | null;
+    catchUp: { at: string; changes: { eid: string; title: string; date: string; text: string }[]; added: { title: string; date: string }[]; addedCount: number; missing: number } | null;
   };
   runs?: FeedRun[];
+  review?: ReviewItem[];
   version: number;
   rules: FeedRules | null;
   history: FeedHistory[];
@@ -244,5 +249,6 @@ export type FeedCheck = {
   host: string; masked: string; preset: PresetId; presetLabel: string;
   suggestions: FilterSuggestion[];
   rules: FeedRules;
+  template?: { at: string; used: boolean } | null;
   events: FeedEvent[];
 };

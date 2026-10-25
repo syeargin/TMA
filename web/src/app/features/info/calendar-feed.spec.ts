@@ -31,7 +31,7 @@ const check: FeedCheck = {
 const saved: FeedView = {
   connected: true, version: 1, rules, history: [{ v: 1, at: '2030-01-01T12:00:00Z', by: 'me', summary: 'Title starts with "14-1 Gold -"' }],
   source: { host: 'cal.example.com', masked: check.masked, preset: 'sprocket', presetLabel: 'Sprocket Sports', calendarName: 'My Calendar', savedAt: '2030-01-01T12:00:00Z', savedBy: 'me', lastCheck: { at: '2030-01-01T12:00:00Z', total: 5, matched: 4 },
-    importedAt: null, importFrom: null, lastSync: null, lastOkAt: null, failures: 0, nextManualAt: null }
+    importedAt: null, importFrom: null, lastSync: null, lastOkAt: null, failures: 0, nextManualAt: null, attention: null, pausedSince: null, catchUp: null }
 };
 
 const imported: FeedView = {
@@ -45,11 +45,11 @@ function setup(view: FeedView) {
     feed: vi.fn(() => Promise.resolve(view)),
     checkFeed: vi.fn(() => Promise.resolve(structuredClone(check))),
     saveFeed: vi.fn(() => Promise.resolve(saved)),
-    restoreFeedRules: vi.fn(), importFeed: vi.fn(), syncFeed: vi.fn(), disconnectFeed: vi.fn(() => Promise.resolve({ connected: false, version: 0, rules: null, history: [] }))
+    restoreFeedRules: vi.fn(), importFeed: vi.fn(), syncFeed: vi.fn(), reviewFeed: vi.fn(), catchUpFeed: vi.fn(), applyCatchUp: vi.fn(), acceptFeedDrop: vi.fn(), saveFeedTemplate: vi.fn(() => Promise.resolve({})), disconnectFeed: vi.fn(() => Promise.resolve({ connected: false, version: 0, rules: null, history: [] }))
   };
   const store = {
     teamId: signal('t14'), items: () => [{ kind: 'practice', date: '2030-01-14', cancelled: false }],
-    you: () => ({ sub: 'me', roles: ['admin'] }), authorName: () => '', has: () => true, refresh: vi.fn(() => Promise.resolve())
+    you: () => ({ sub: 'me', roles: ['admin'] }), authorName: () => '', has: () => true, refresh: vi.fn(() => Promise.resolve()), club: () => ({ short: 'A5', name: 'A5 Volleyball' }), clubId: () => 'a5', setFeature: vi.fn(() => Promise.resolve(true))
   };
   TestBed.configureTestingModule({ providers: [{ provide: ApiService, useValue: api }, { provide: TeamStore, useValue: store }, { provide: ToastService, useValue: { show: vi.fn() } }] });
   const f = TestBed.createComponent(CalendarFeed);
@@ -133,6 +133,55 @@ describe('calendar feed panel', () => {
     expect(api.syncFeed).toHaveBeenCalledWith('t14');
     expect(text(el)).toContain('Sync now works again in 5 minutes');
     expect(button(el, 'Sync now').disabled).toBe(true);
+  });
+
+  it('lists what needs review and settles it', async () => {
+    const v: FeedView = { ...imported, review: [
+      { kind: 'missing', eid: 'fd1', title: 'Practice', date: '2030-01-14', time: '6:00 PM', since: '2030-01-10T00:00:00Z', syncs: 2 },
+      { kind: 'conflict', eid: 'fd2', title: 'Practice', date: '2030-01-21', field: 'court', mine: 'Court 6', feed: 'Court 9' }
+    ] };
+    const { api, el } = setup(v);
+    api.reviewFeed.mockResolvedValue({ feed: { ...v, review: [v.review![1]] } });
+    await settle();
+    const t = text(el);
+    expect(t).toContain('Needs your review 2');
+    expect(t).toContain("Gone from A5's calendar for 2 syncs");
+    expect(t).toContain("A5 now has Court 9 for the court; the team's override says Court 6.");
+    button(el, 'Cancel it').click();
+    await settle();
+    expect(api.reviewFeed).toHaveBeenCalledWith('t14', { action: 'cancel', eid: 'fd1' });
+    expect(text(el)).not.toContain('Gone from');
+    button(el, 'Keep Court 6').click();
+    await settle();
+    expect(api.reviewFeed).toHaveBeenLastCalledWith('t14', { action: 'keepMine', eid: 'fd2', field: 'court' });
+  });
+
+  it('asks for a catch-up after syncing was off, and pauses when the rules stop matching', async () => {
+    const v: FeedView = { ...imported, source: { ...imported.source!, pausedSince: '2030-01-05T00:00:00Z' } };
+    const { api, el } = setup(v);
+    api.catchUpFeed.mockResolvedValue({ feed: { ...v, source: { ...v.source!, catchUp: { at: 'x', changes: [{ eid: 'fd1', title: 'Practice', date: '2030-01-14', text: 'now 8:00 AM (was 7:30 AM)' }], added: [{ title: 'Practice', date: '2030-02-01' }], addedCount: 1, missing: 0 } } } });
+    api.applyCatchUp.mockResolvedValue({ feed: imported });
+    await settle();
+    expect(text(el)).toContain('Catch up with A5');
+    button(el, 'See what changed').click();
+    await settle();
+    expect(text(el)).toContain('Practice: now 8:00 AM (was 7:30 AM)');
+    button(el, 'Apply 2 changes and resume').click();
+    await settle();
+    expect(api.applyCatchUp).toHaveBeenCalledWith('t14');
+    expect(text(el)).not.toContain('Catch up with');
+  });
+
+  it('shows a paused feed and lets an admin accept the drop', async () => {
+    const v: FeedView = { ...imported, source: { ...imported.source!, attention: { at: 'x', was: 52, now: 0 } } };
+    const { api, el } = setup(v);
+    api.acceptFeedDrop.mockResolvedValue({ feed: imported });
+    await settle();
+    expect(text(el)).toContain('The rules matched 0 events, down from 52.');
+    expect(text(el)).toContain('Needs attention · syncing paused');
+    button(el, "That's right, sync it").click();
+    await settle();
+    expect(api.acceptFeedDrop).toHaveBeenCalledWith('t14');
   });
 
   it('asks before disconnecting', async () => {

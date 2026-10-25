@@ -1,3 +1,11 @@
+@if (store.feedAlert(); as fa) {
+  <div class="banner warn feed-alert" role="status"><p><b>Calendar feed:</b>
+    @if (fa.attention) { syncing is paused because the rules suddenly match far fewer events. }
+    @else if (fa.catchUp) { syncing is back on; look over what changed while it was off. }
+    @else if (fa.failing) { the club's calendar couldn't be read for a while. }
+    @if (fa.review) { {{ fa.review }} {{ fa.review === 1 ? 'thing needs' : 'things need' }} your review. }
+    <a [routerLink]="['/teams', store.teamId(), 'info']" [queryParams]="{ feed: 1 }">Open Calendar feed</a></p></div>
+}
 @if (needsLink()) {
   <div class="banner info"><p><b>Your account isn’t linked to a player yet.</b> Ask your team admin to link you to your player so you can mark availability for your family.</p></div>
 }

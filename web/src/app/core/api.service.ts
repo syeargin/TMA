@@ -77,6 +77,14 @@ export class ApiService {
   restoreFeedRules(teamId: string, v: number) { return this.call<FeedView>('POST', `/teams/${enc(teamId)}/feed/rules/${v}/restore`).then(withHistory); }
   importFeed(teamId: string, from: string, replaceFrom: string | null) { return this.call<{ run: FeedRun; replaced: ReplaceResult | null; feed: FeedView }>('POST', `/teams/${enc(teamId)}/feed/import`, { from, replaceFrom }); }
   syncFeed(teamId: string) { return this.call<{ run: FeedRun; feed: FeedView }>('POST', `/teams/${enc(teamId)}/feed/sync`); }
+  reviewFeed(teamId: string, body: { action: string; eid: string; field?: string }) { return this.call<{ feed: FeedView }>('POST', `/teams/${enc(teamId)}/feed/review`, body).then((r) => ({ feed: withHistory(r.feed) })); }
+  catchUpFeed(teamId: string) { return this.call<{ feed: FeedView }>('POST', `/teams/${enc(teamId)}/feed/catchup`).then((r) => ({ feed: withHistory(r.feed) })); }
+  applyCatchUp(teamId: string) { return this.call<{ feed: FeedView }>('POST', `/teams/${enc(teamId)}/feed/catchup/apply`).then((r) => ({ feed: withHistory(r.feed) })); }
+  acceptFeedDrop(teamId: string) { return this.call<{ feed: FeedView }>('POST', `/teams/${enc(teamId)}/feed/attention/accept`).then((r) => ({ feed: withHistory(r.feed) })); }
+  /** An admin's own time, place or court for one event from the club's calendar (null: back to the calendar's). */
+  overrideEvent(teamId: string, eid: string, ov: Record<string, string | null>) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/override`, { ov }); }
+  eventHistory(teamId: string, eid: string) { return this.call<{ history: { at: string; text: string; reason: string; by?: string }[] }>('GET', `/teams/${enc(teamId)}/events/${enc(eid)}/history`); }
+  saveFeedTemplate(clubId: string, preset: string, rules: FeedRules) { return this.call('PUT', `/clubs/${enc(clubId)}/feed-templates/${enc(preset)}`, { rules }); }
   disconnectFeed(teamId: string) { return this.call<FeedView>('DELETE', `/teams/${enc(teamId)}/feed`).then(withHistory); }
   saveAttendance(teamId: string, key: string, marks: Record<string, PlayerMark | null>) { return this.call<{ key: string; marks: Record<string, PlayerMark> }>('PUT', `/teams/${enc(teamId)}/attendance/${enc(key)}`, { marks }); }
   setArchived(teamId: string, archived: boolean) { return this.call<{ archived: boolean }>('POST', `/teams/${enc(teamId)}/${archived ? 'archive' : 'restore'}`); }

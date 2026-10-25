@@ -26,7 +26,7 @@ import { getControls, isActive } from "../club-controls.js";
 import { addDays, FeedError, parseFeed } from "./ical.js";
 import { loadFeed } from "./fetch.js";
 import { openLink } from "./secret.js";
-import { applyRules, FEED_OWNED, feedFields, FEED_KIND_LABELS, type EventSource, type FeedFields, type FeedRules } from "../../shared/feed-rules.js";
+import { applyRules, FEED_OWNED, feedFields, FEED_KIND_LABELS, OVERRIDABLE, OVERRIDE_LABELS, type EventSource, type FeedFields, type FeedRules, type Overridable } from "../../shared/feed-rules.js";
 import { effectiveFeatures, isOn, type FeatureMap } from "../../shared/features.js";
 import { deleteMany, getItem, putItem, putMany, queryAll } from "../../api/util.js";
 
@@ -111,6 +111,119 @@ async function teamEvents(teamId: string) {
   return { events, fromFeed };
 }
 
+/** A sync that stops because the rules suddenly match far fewer events than last time. */
+export function needsAttention(prevTotal: number | undefined, now: number): boolean {
+  return !!prevTotal && prevTotal >= 6 && (now === 0 || now < prevTotal / 2);
+}
+
+/** What the calendar said last for each field (overridden fields keep the calendar's value in src). */
+function lastFeedFields(e: Row): FeedFields {
+  const f = currentFields(e);
+  const s = e.src as EventSource;
+  for (const [k, v] of Object.entries(s.ov ?? {})) {
+    void v;
+    const feed = s.conflict?.[k as Overridable] ?? s.ovBase?.[k as Overridable] ?? "";
+    if (feed) f[k as Overridable] = feed; else delete f[k as Overridable];
+  }
+  return f;
+}
+
+type Plan = {
+  added: Row[];
+  updates: { old: Row & { eid: string }; f: FeedFields; s: EventSource; text: string; fields: Record<string, { was?: unknown; now?: unknown }> }[];
+  missing: { eid: string; n: number; since: string }[];
+  resets: string[];
+  total: number;
+  attention?: { was: number; now: number };
+};
+
+/** Works out what a sync would do, without writing anything. */
+async function plan(teamId: string, src: Source, from: string, at: string, by: string): Promise<{ p: Plan; today: string }> {
+  const rules = await currentRules(teamId, src.version);
+  const zone = zoneOf(await getComms(teamId));
+  const today = localParts(new Date(), zone).date;
+  const got = await loadFeed(await openLink(src.link, teamId));
+  const parsed = parseFeed(got.body, { teamZone: zone, windowStart: addDays(today, -400), windowEnd: addDays(today, 550) });
+  const matched = applyRules(parsed.events, rules).matched.filter((m) => m.endDate >= from);
+  const p: Plan = { added: [], updates: [], missing: [], resets: [], total: matched.length };
+  if (!src.attentionAck && needsAttention(Number(src.lastGoodTotal ?? 0) || undefined, matched.length)) {
+    p.attention = { was: Number(src.lastGoodTotal), now: matched.length };
+    return { p, today };
+  }
+  const { fromFeed } = await teamEvents(teamId);
+  const seen = new Set<string>();
+  for (const m of matched) {
+    if (seen.has(m.uid)) continue;
+    seen.add(m.uid);
+    const f = feedFields(m);
+    const old = fromFeed.get(m.uid);
+    if (!old) {
+      const eid = eidFor(m.uid);
+      const { cancelled, ...fields } = f;
+      p.added.push({
+        ...keys.event(teamId, eid), type: "Event", ...fields, travel: false, ...(cancelled ? { cancelled: [f.date] } : {}),
+        src: { uid: m.uid, fp: fingerprint(f, false), added: at, rulesV: src.version } satisfies EventSource,
+        GSI2PK: `TEAM#${teamId}#CAL`, GSI2SK: `${f.date}#${eid}`, updatedAt: at, updatedBy: by
+      });
+      continue;
+    }
+    const s = old.src as EventSource;
+    const kindSet = !!s.kindSet;
+    const fp = fingerprint(f, kindSet);
+    // Back after an admin kept or cancelled it while it was gone: written again even if nothing else changed.
+    const back = !!(s.gone || s.keep);
+    // Changed by hand while syncing was off (not an override): the calendar's value comes back.
+    const drifted = FEED_OWNED.some((k) => !(k in (s.ov ?? {})) && String(old[k] ?? "") !== String(f[k] ?? ""));
+    if (fp === s.fp && !back && !drifted) {
+      if (s.missing) p.resets.push(old.eid);
+      continue;
+    }
+    const was = fp === s.fp && drifted ? { ...currentFields(old), ...Object.fromEntries(Object.keys(s.ov ?? {}).map((k) => [k, f[k as Overridable]])) } as FeedFields : lastFeedFields(old);
+    const text = fp === s.fp && back && !drifted ? (s.gone ? "back on" : "") : changeText(was, f, kindSet) || (s.gone ? "back on" : "");
+    const fields: Record<string, { was?: unknown; now?: unknown }> = {};
+    for (const k of [...FEED_OWNED, "cancelled", "kind"] as const) if ((was as Row)[k] !== (f as Row)[k] && !(k === "kind" && kindSet)) fields[k] = { was: (was as Row)[k], now: (f as Row)[k] };
+    // Overridden fields: the admin's value stays; a calendar change to one is a conflict to review.
+    const conflict: Partial<Record<Overridable, string>> = {};
+    for (const k of Object.keys(s.ov ?? {}) as Overridable[]) {
+      const feedNow = f[k] ?? "";
+      if (feedNow !== (s.ovBase?.[k] ?? "")) conflict[k] = feedNow;
+    }
+    const { missing: _m, missingSince: _ms, keep: _k, gone: _g, conflict: _c, ...rest } = s;
+    const next: EventSource = { ...rest, fp, rulesV: src.version, ...(text ? { change: { at, text } } : {}), ...(Object.keys(conflict).length ? { conflict } : {}) };
+    p.updates.push({ old, f, s: next, text, fields });
+  }
+  // Events gone from the feed: counted, never removed here. Ones that already happened, or that an admin kept or cancelled, don't count.
+  const missingNow: (Row & { eid: string })[] = [];
+  for (const [uid, e] of fromFeed) {
+    if (seen.has(uid)) continue;
+    if (String(e.endDate || e.date) < today) continue;
+    const s = e.src as EventSource;
+    if (s.keep || s.gone) continue;
+    p.missing.push({ eid: e.eid, n: (s.missing ?? 0) + 1, since: s.missingSince ?? at });
+    missingNow.push(e);
+  }
+  // A new event with the same date, time and name as one that just went missing: probably the same one with a new id.
+  for (const a of p.added) {
+    const twin = missingNow.find((e) => e.date === a.date && (e.time ?? "") === (a.time ?? "") && String(e.title).toLowerCase() === String(a.title).toLowerCase());
+    if (twin) (a.src as EventSource).dupOf = twin.eid;
+  }
+  return { p, today };
+}
+
+export type Preview = { added: { title: string; date: string }[]; changes: { eid: string; title: string; date: string; text: string }[]; missing: number; total: number; attention?: { was: number; now: number } };
+
+/** What a sync would do now, for the catch-up after syncing was off. */
+export async function previewSync(teamId: string): Promise<Preview> {
+  const src = (await getItem(keys.feedSource(teamId))) as Source | undefined;
+  if (!src?.importFrom) throw new FeedError("feed_not_imported", "Import the feed first.");
+  const { p } = await plan(teamId, src, src.importFrom, new Date().toISOString(), "feed");
+  return {
+    added: p.added.map((a) => ({ title: String(a.title), date: String(a.date) })),
+    changes: p.updates.filter((u) => u.text).map((u) => ({ eid: u.old.eid, title: String(u.f.title), date: String(u.f.date), text: u.text })),
+    missing: p.missing.length, total: p.total, ...(p.attention ? { attention: p.attention } : {})
+  };
+}
+
 /**
  * Reads the feed and brings the team's events in line with it. `importFrom` is where the schedule
  * starts taking feed events (set when the feed was imported); earlier events are left alone.
@@ -123,63 +236,30 @@ export async function syncTeam(teamId: string, opt: { trigger: SyncRun["trigger"
   if (!src) throw new FeedError("feed_missing", "This team has no calendar feed.");
   const from = opt.importFrom ?? src.importFrom;
   if (!from) throw new FeedError("feed_not_imported", "Import the feed first.");
+  let attention: Plan["attention"];
   try {
-    const rules = await currentRules(teamId, src.version);
-    const zone = zoneOf(await getComms(teamId));
-    const today = localParts(new Date(), zone).date;
-    const got = await loadFeed(await openLink(src.link, teamId));
-    const parsed = parseFeed(got.body, { teamZone: zone, windowStart: addDays(today, -400), windowEnd: addDays(today, 550) });
-    const matched = applyRules(parsed.events, rules).matched.filter((m) => m.endDate >= from);
-    run.total = matched.length;
-    const { fromFeed } = await teamEvents(teamId);
-    const seen = new Set<string>();
-    const added: Row[] = [];
+    const { p } = await plan(teamId, src, from, at, opt.by);
+    run.total = p.total;
+    if (p.attention) {
+      attention = p.attention;
+      throw new FeedError("feed_attention", `The rules matched ${p.attention.now} events this time, down from ${p.attention.was}. The club may have renamed the team or changed systems, so syncing is paused until an admin checks the rules. Nothing on the schedule changed.`);
+    }
     const chgRows: Row[] = [];
-    for (const m of matched) {
-      if (seen.has(m.uid)) continue;
-      seen.add(m.uid);
-      const f = feedFields(m);
-      const old = fromFeed.get(m.uid);
-      if (!old) {
-        const eid = eidFor(m.uid);
-        const s: EventSource = { uid: m.uid, fp: fingerprint(f, false), added: at, rulesV: src.version };
-        const { cancelled, ...fields } = f;
-        added.push({
-          ...keys.event(teamId, eid), type: "Event", ...fields, travel: false, ...(cancelled ? { cancelled: [f.date] } : {}),
-          src: s, GSI2PK: `TEAM#${teamId}#CAL`, GSI2SK: `${f.date}#${eid}`, updatedAt: at, updatedBy: opt.by
-        });
-        run.added++;
-        continue;
-      }
-      const s = old.src as EventSource;
-      const kindSet = !!s.kindSet;
-      const fp = fingerprint(f, kindSet);
-      if (fp === s.fp) {
-        run.unchanged++;
-        if (s.missing) await setMissing(teamId, old.eid, 0);
-        continue;
-      }
-      const was = currentFields(old);
-      const text = changeText(was, f, kindSet);
-      await writeChange(teamId, old, f, kindSet, { ...s, fp, rulesV: src.version, ...(text ? { change: { at, text } } : {}) }, at, opt.by);
-      if (text) {
+    for (const u of p.updates) {
+      await writeChange(teamId, u.old, u.f, !!u.s.kindSet, u.s, at, opt.by);
+      if (u.text) {
         run.changed++;
-        const fields: Record<string, { was?: string | boolean; now?: string | boolean }> = {};
-        for (const k of [...FEED_OWNED, "cancelled", "kind"] as const) if ((was as Row)[k] !== (f as Row)[k] && !(k === "kind" && kindSet)) fields[k] = { was: (was as Row)[k] as string, now: (f as Row)[k] as string };
-        const reason = s.rulesV !== src.version ? "rules" : "feed";
-        chgRows.push({ PK: `TEAM#${teamId}`, SK: `FEED#CHG#${at}#${old.eid}`, type: "FeedChange", eid: old.eid, at, title: f.title, date: f.date, text, fields, reason, ttl: Math.floor(Date.now() / 1000) + 365 * DAY });
-        run.changes.push({ eid: old.eid, title: String(f.title), date: String(f.date), text });
+        const reason = (u.old.src as EventSource).rulesV !== src.version ? "rules" : "feed";
+        chgRows.push({ PK: `TEAM#${teamId}`, SK: `FEED#CHG#${at}#${u.old.eid}`, type: "FeedChange", eid: u.old.eid, at, title: u.f.title, date: u.f.date, text: u.text, fields: JSON.parse(JSON.stringify(u.fields)), reason, ttl: Math.floor(Date.now() / 1000) + 365 * DAY });
+        run.changes.push({ eid: u.old.eid, title: String(u.f.title), date: String(u.f.date), text: u.text });
       } else run.unchanged++;
     }
-    // Events gone from the feed: counted, never removed here. Ones that already happened don't count.
-    for (const [uid, e] of fromFeed) {
-      if (seen.has(uid)) continue;
-      if ((String(e.endDate || e.date)) < today) continue;
-      const s = e.src as EventSource;
-      run.missing++;
-      await setMissing(teamId, e.eid, (s.missing ?? 0) + 1, s.missingSince ?? at);
-    }
-    await putMany(added);
+    run.unchanged += p.total - p.added.length - p.updates.length;
+    for (const eid of p.resets) await setMissing(teamId, eid, 0);
+    for (const m of p.missing) await setMissing(teamId, m.eid, m.n, m.since);
+    run.missing = p.missing.length;
+    run.added = p.added.length;
+    await putMany(p.added);
     await putMany(chgRows);
     run.ok = true;
   } catch (e) {
@@ -190,11 +270,15 @@ export async function syncTeam(teamId: string, opt: { trigger: SyncRun["trigger"
   run.ms = Date.now() - started;
   const { changes, ...summary } = run;
   await putItem({ PK: `TEAM#${teamId}`, SK: `FEED#SYNC#${at}`, type: "FeedSync", ...summary, changes: changes.slice(0, 20), ttl: Math.floor(Date.now() / 1000) + 90 * DAY });
+  const upd = run.ok
+    ? { e: "SET lastSync = :s, lastOkAt = :at, failures = :zero, lastGoodTotal = :n REMOVE attention, attentionAck", v: { ":s": summary, ":at": at, ":zero": 0, ":n": run.total } }
+    : attention
+      ? { e: "SET lastSync = :s, attention = :a", v: { ":s": summary, ":a": { at: src.attention ? (src.attention as Row).at : at, ...attention } } }
+      : { e: "SET lastSync = :s ADD failures :one", v: { ":s": summary, ":one": 1 } };
   await ddb.send(new UpdateCommand({
     TableName: TABLE, Key: keys.feedSource(teamId), ConditionExpression: "attribute_exists(PK)",
-    UpdateExpression: run.ok ? "SET lastSync = :s, lastOkAt = :at, failures = :zero" : "SET lastSync = :s ADD failures :one",
-    ExpressionAttributeValues: run.ok ? { ":s": summary, ":at": at, ":zero": 0 } : { ":s": summary, ":one": 1 }
-  })).catch(() => undefined);
+    UpdateExpression: upd.e, ExpressionAttributeValues: upd.v
+  })).catch((e) => console.error(JSON.stringify({ msg: "feed source not updated", teamId, error: String(e) })));
   console.log(JSON.stringify({ msg: "feed synced", teamId, trigger: run.trigger, ok: run.ok, added: run.added, changed: run.changed, missing: run.missing, total: run.total, ms: run.ms, code: run.code }));
   return run;
 }
@@ -213,11 +297,11 @@ async function writeChange(teamId: string, old: Row & { eid: string }, f: FeedFi
   const sets = ["src = :src", "updatedAt = :at", "updatedBy = :by", "GSI2SK = :g"];
   const removes: string[] = [];
   const names: Record<string, string> = {};
-  const { missing: _m, missingSince: _ms, ...kept } = s;
-  const values: Record<string, unknown> = { ":src": kept, ":at": at, ":by": by, ":g": `${f.date}#${old.eid}` };
+  const values: Record<string, unknown> = { ":src": JSON.parse(JSON.stringify(s)), ":at": at, ":by": by, ":g": `${f.date}#${old.eid}` };
   for (const k of FEED_OWNED) {
     names[`#${k}`] = k;
-    if (f[k]) { sets.push(`#${k} = :${k}`); values[`:${k}`] = f[k]; } else removes.push(`#${k}`);
+    const v = k in (s.ov ?? {}) ? s.ov![k as Overridable] : f[k];
+    if (v) { sets.push(`#${k} = :${k}`); values[`:${k}`] = v; } else removes.push(`#${k}`);
   }
   if (!kindSet) { names["#kind"] = "kind"; sets.push("#kind = :kind"); values[":kind"] = f.kind; }
   names["#cancelled"] = "cancelled";
@@ -227,6 +311,139 @@ async function writeChange(teamId: string, old: Row & { eid: string }, f: FeedFi
     UpdateExpression: `SET ${sets.join(", ")}${removes.length ? ` REMOVE ${removes.join(", ")}` : ""}`,
     ExpressionAttributeNames: names, ExpressionAttributeValues: values
   }));
+}
+
+// ---------- Overrides and review ----------
+
+const chgRow = (teamId: string, eid: string, e: Row, text: string, reason: string, by: string) => ({
+  PK: `TEAM#${teamId}`, SK: `FEED#CHG#${new Date().toISOString()}#${eid}`, type: "FeedChange", eid, at: new Date().toISOString(),
+  title: e.title, date: e.date, text, reason, by, ttl: Math.floor(Date.now() / 1000) + 365 * DAY
+});
+
+async function feedEvent(teamId: string, eid: string): Promise<Row & { src: EventSource }> {
+  const e = await getItem(keys.event(teamId, eid));
+  if (!e?.src) throw new FeedError("feed_not_feed_event", "That event isn't from the club's calendar.");
+  return e as Row & { src: EventSource };
+}
+
+async function saveEvent(teamId: string, eid: string, set: Row, remove: string[], src: EventSource, by: string) {
+  const names: Record<string, string> = { "#src": "src" };
+  const values: Record<string, unknown> = { ":src": JSON.parse(JSON.stringify(src)), ":at": new Date().toISOString(), ":by": by };
+  const sets = ["#src = :src", "updatedAt = :at", "updatedBy = :by"];
+  Object.entries(set).forEach(([k, v], i) => { names[`#f${i}`] = k; values[`:f${i}`] = v; sets.push(`#f${i} = :f${i}`); });
+  const rem = remove.map((k, i) => { names[`#r${i}`] = k; return `#r${i}`; });
+  await ddb.send(new UpdateCommand({
+    TableName: TABLE, Key: keys.event(teamId, eid), ConditionExpression: "attribute_exists(PK)",
+    UpdateExpression: `SET ${sets.join(", ")}${rem.length ? ` REMOVE ${rem.join(", ")}` : ""}`, ExpressionAttributeNames: names, ExpressionAttributeValues: values
+  }));
+}
+
+const label = (k: Overridable) => OVERRIDE_LABELS[k];
+
+/** Sets (or, with null, clears) an admin's own values for some of the calendar's fields on one event. */
+export async function setOverrides(teamId: string, eid: string, ov: Partial<Record<Overridable, string | null>>, by: string) {
+  const e = await feedEvent(teamId, eid);
+  const s: EventSource = { ...e.src, ov: { ...(e.src.ov ?? {}) }, ovBase: { ...(e.src.ovBase ?? {}) }, conflict: { ...(e.src.conflict ?? {}) } };
+  const set: Row = {}, remove: string[] = [], said: string[] = [];
+  for (const [k, raw] of Object.entries(ov) as [Overridable, string | null][]) {
+    if (!OVERRIDABLE.includes(k)) continue;
+    const had = k in s.ov!;
+    const feedNow = had ? (s.conflict![k] ?? s.ovBase![k] ?? "") : String(e[k] ?? "");
+    const v = raw === null ? null : raw.trim();
+    if (v === null || v === feedNow) {
+      if (!had) continue;
+      delete s.ov![k]; delete s.ovBase![k]; delete s.conflict![k];
+      if (feedNow) set[k] = feedNow; else remove.push(k);
+      said.push(`${label(k)} back to the calendar's${feedNow ? ` (${feedNow})` : ""}`);
+      continue;
+    }
+    if (!had) s.ovBase![k] = feedNow;
+    s.ov![k] = v;
+    delete s.conflict![k];
+    if (v) set[k] = v; else remove.push(k);
+    said.push(`${label(k)} set to ${v || "nothing"}${feedNow ? ` (the calendar has ${feedNow})` : ""}`);
+  }
+  for (const k of ["ov", "ovBase", "conflict"] as const) if (!Object.keys(s[k] ?? {}).length) delete s[k];
+  if (!said.length) return;
+  await saveEvent(teamId, eid, set, remove, s, by);
+  await putItem(chgRow(teamId, eid, e, said.join("; "), "override", by));
+}
+
+export type ReviewAction =
+  | { action: "cancel" | "keep" | "merge" | "different"; eid: string }
+  | { action: "useFeed" | "keepMine"; eid: string; field: Overridable };
+
+/** Settles one item on the review list. */
+export async function settleReview(teamId: string, b: ReviewAction, by: string): Promise<{ eid: string }> {
+  const e = await feedEvent(teamId, b.eid);
+  const { missing: _m, missingSince: _ms, ...s } = e.src;
+  switch (b.action) {
+    case "cancel":
+      await saveEvent(teamId, b.eid, { cancelled: [String(e.date)] }, [], { ...s, gone: true, change: { at: new Date().toISOString(), text: "cancelled" } }, by);
+      await putItem(chgRow(teamId, b.eid, e, "cancelled: it's gone from the club's calendar", "review", by));
+      return { eid: b.eid };
+    case "keep":
+      await saveEvent(teamId, b.eid, {}, [], { ...s, keep: true }, by);
+      await putItem(chgRow(teamId, b.eid, e, "kept, though it's gone from the club's calendar", "review", by));
+      return { eid: b.eid };
+    case "different": {
+      const { dupOf: _d, ...rest } = s;
+      await saveEvent(teamId, b.eid, {}, [], rest, by);
+      return { eid: b.eid };
+    }
+    case "useFeed":
+      await setOverrides(teamId, b.eid, { [b.field]: null }, by);
+      return { eid: b.eid };
+    case "keepMine": {
+      const v = s.conflict?.[b.field];
+      if (v === undefined) return { eid: b.eid };
+      const conflict = { ...(s.conflict ?? {}) }; delete conflict[b.field];
+      const next: EventSource = { ...s, ovBase: { ...(s.ovBase ?? {}), [b.field]: v }, conflict };
+      if (!Object.keys(conflict).length) delete next.conflict;
+      await saveEvent(teamId, b.eid, {}, [], next, by);
+      await putItem(chgRow(teamId, b.eid, e, `kept the team's ${label(b.field)} (${s.ov?.[b.field] || "nothing"}); the calendar has ${v || "nothing"}`, "override", by));
+      return { eid: b.eid };
+    }
+    case "merge": {
+      // The new entry is the old event under a new id: the old event (with its answers, attendance, meals and
+      // ref jobs) takes the new id and the calendar's current details, and the new entry goes.
+      if (!s.dupOf) throw new FeedError("feed_not_duplicate", "That event isn't marked as a possible duplicate.");
+      const old = await feedEvent(teamId, s.dupOf);
+      const os = old.src;
+      const f = currentFields(e);
+      const set: Row = { cancelled: f.cancelled ? [f.date] : [] }, remove: string[] = [];
+      for (const k of FEED_OWNED) {
+        const v = k in (os.ov ?? {}) ? os.ov![k as Overridable] : f[k];
+        if (v) set[k] = v; else remove.push(k);
+      }
+      if (!os.kindSet) set.kind = f.kind;
+      const { missing: _om, missingSince: _oms, keep: _ok, gone: _og, ...orest } = os;
+      await saveEvent(teamId, s.dupOf, { ...set, GSI2SK: `${f.date}#${s.dupOf}` }, remove, { ...orest, uid: s.uid, fp: s.fp, rulesV: s.rulesV }, by);
+      // Anything families already put on the new entry moves to the old event, unless it has its own.
+      const families = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :f)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":f": "FAMILY#" } });
+      for (const fam of families) {
+        const rsvp = { ...((fam.rsvp ?? {}) as Row) };
+        if (!rsvp[b.eid]) continue;
+        if (!rsvp[s.dupOf]) rsvp[s.dupOf] = rsvp[b.eid];
+        delete rsvp[b.eid];
+        await ddb.send(new UpdateCommand({ TableName: TABLE, Key: { PK: String(fam.PK), SK: String(fam.SK) }, UpdateExpression: "SET rsvp = :r", ExpressionAttributeValues: { ":r": rsvp } }));
+      }
+      const att = await getItem(keys.attendance(teamId, b.eid));
+      if (att && !(await getItem(keys.attendance(teamId, s.dupOf)))) { const { PK: _p, SK: _s, ...rest } = att; await putItem({ ...keys.attendance(teamId, s.dupOf), ...rest, key: s.dupOf }); }
+      const children = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":s": `EVENT#${b.eid}#` }, ProjectionExpression: "PK, SK" });
+      await deleteMany([keys.event(teamId, b.eid), keys.attendance(teamId, b.eid), ...(children as { PK: string; SK: string }[])]);
+      await putItem(chgRow(teamId, s.dupOf, { ...old, ...set }, "matched to its new entry in the club's calendar", "review", by));
+      return { eid: s.dupOf };
+    }
+  }
+}
+
+/** Syncing was turned off: the job and the team switch both mark it, so turning it back on shows a catch-up first. */
+export async function markPaused(teamId: string) {
+  await ddb.send(new UpdateCommand({
+    TableName: TABLE, Key: keys.feedSource(teamId), ConditionExpression: "attribute_exists(importedAt)",
+    UpdateExpression: "SET pausedSince = if_not_exists(pausedSince, :at)", ExpressionAttributeValues: { ":at": new Date().toISOString() }
+  })).catch(() => undefined);
 }
 
 // ---------- Import ----------
@@ -360,7 +577,11 @@ export async function runFeedSync(opt: { concurrency?: number } = {}) {
       try {
         const clubId = await clubOfTeam(teamId);
         const [controls, dir, settings] = await Promise.all([getControls(clubId), getItem(keys.teamDir(clubId, teamId)), getItem(keys.settings(teamId))]);
-        if (!isActive(controls) || dir?.archived || !isOn(effectiveFeatures(settings?.features as FeatureMap, controls.features), "calfeed")) { out.skipped++; continue; }
+        if (!isActive(controls) || dir?.archived) { out.skipped++; continue; }
+        if (!isOn(effectiveFeatures(settings?.features as FeatureMap, controls.features), "calfeed")) { await markPaused(teamId); out.skipped++; continue; }
+        const src = await getItem(keys.feedSource(teamId));
+        // Back on after a pause: an admin looks over what changed first (Calendar feed › Catch up).
+        if (src?.pausedSince) { out.skipped++; continue; }
         if (!(await lock(teamId))) { out.skipped++; continue; }
         try {
           const run = await syncTeam(teamId, { trigger: "job", by: "feed" });

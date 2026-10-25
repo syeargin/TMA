@@ -1,3 +1,4 @@
+import { markPaused } from "../../lib/feed/sync.js";
 import { TransactWriteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
 import { effective, type TeamComms } from "../../shared/messages.js";
@@ -85,7 +86,9 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     /** Practice attendance: every player's marks for staff who take it, only their own player's for a family. */
     attendance: [] as Record<string, unknown>[],
     /** Present when the ledger was trimmed: the team's totals, which the browser can no longer add up. */
-    fundSummary: undefined as FundSummary | undefined
+    fundSummary: undefined as FundSummary | undefined,
+    /** Calendar feed sync health, for the team's feed admins (team admins and coordinators). */
+    feedStatus: undefined as { attention: boolean; failures: number; paused: boolean; lastOkAt: unknown } | undefined
   };
   const contacts: Record<string, unknown> = {};
   const allContacts = access.can("contacts");
@@ -106,6 +109,10 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     const c = clean(it)!;
     if (sk === "META#SETTINGS") out.settings = c;
     else if (sk === "META#HANDBOOK") out.handbook = c;
+    // Calendar feed health for whoever looks after the feed (never the link itself).
+    else if (sk === "FEED#SOURCE") {
+      if (access.can("calendarFeed") && it.importedAt) out.feedStatus = { attention: !!it.attention, failures: Number(it.failures ?? 0), paused: !!it.pausedSince, lastOkAt: it.lastOkAt ?? null };
+    }
     else if (sk.startsWith("META#")) continue;
     else if (sk.startsWith("PLAYER#") && sk.endsWith("#CONTACTS")) contacts[sk.slice(7, -9)] = c;
     else if (sk.startsWith("PLAYER#")) {
@@ -320,6 +327,7 @@ export function teamRoutes(r: Router) {
         ExpressionAttributeValues: { ":f": next, ":at": now(), ":by": caller.sub }
       }));
     } catch (e) { mapDbError(e, "This team has no settings yet."); }
+    if (features.calfeed === false) await markPaused(access.teamId);
     console.log(JSON.stringify({ msg: "team features changed", teamId: access.teamId, by: caller.sub, off: Object.keys(next) }));
     return json(200, { features: next });
   });

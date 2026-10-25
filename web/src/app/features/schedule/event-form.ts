@@ -4,6 +4,9 @@ import { DAYS, fmt, newId, pd } from '../../core/dates';
 import { describe, expandPattern } from '../../core/series';
 import type { EventKind, Occurrence, TeamEvent } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
+import { ApiService } from '../../core/api.service';
+import { explain } from '../../core/errors';
+import { OVERRIDABLE, OVERRIDE_LABELS, type Overridable } from '@shared/feed-rules';
 import { Messages } from '../../shared/messages';
 import { Sheet } from '../../shared/sheet';
 
@@ -32,7 +35,21 @@ const OCCURRENCE_FIELDS = ['title', 'time', 'endTime', 'location', 'address', 'c
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
         <th-messages [error]="error()" />
         @if (feedLocked()) {
-          <p class="hint feed-hint">From {{ feedLabel() }}'s calendar@if (event()?.src?.change; as c) { · changed {{ ago(c.at) }}: {{ c.text }} }. The name, date, time, place and court update from there on their own. Everything else here is the team's.</p>
+          <div class="hint feed-hint">
+            <p style="margin:0">From {{ feedLabel() }}'s calendar@if (event()?.src?.change; as c) { · changed {{ ago(c.at) }}: {{ c.text }} }. The name, date, time, place and court update from there on their own. Everything else here is the team's.</p>
+            @for (o of overrides(); track o.field) {
+              <div class="feed-ov"><span class="pill p-mute">Override</span><span class="grow">{{ o.label }}: {{ o.mine || 'nothing' }} · {{ feedLabel() }} has {{ o.feed || 'nothing' }}</span>
+                <button class="link-btn small" type="button" [disabled]="busy()" (click)="useFeed(o.field)">Use {{ feedLabel() }}'s</button></div>
+            }
+            @if (!overriding()) {
+              <button class="link-btn small" type="button" (click)="startOverride()">Override the time, place or court</button>
+            } @else {
+              <p class="small" style="margin:4px 0 0"><b>Overriding:</b> your time, place and court stay even when {{ feedLabel() }}'s calendar changes. If it does, you'll be asked which to keep.</p>
+            }
+            <details class="feed-hist" (toggle)="loadHistory($any($event.target).open)"><summary class="link-btn small">History</summary>
+              @if (history(); as h) { <ul class="small" style="padding-left:18px">@for (x of h; track x.at) { <li>{{ fmtWhen(x.at) }}: {{ x.text }}</li> } @empty { <li class="muted">No changes yet.</li> }</ul> } @else { <p class="small muted">Loading…</p> }
+            </details>
+          </div>
         } @else if (event()?.src) {
           <p class="hint feed-hint">From {{ feedLabel() }}'s calendar. Syncing is turned off, so you can change everything; turning it back on brings the calendar's details back.</p>
         }
@@ -237,6 +254,30 @@ export class EventForm {
   readonly hasDateChange = computed(() => !!this.event()?.overrides?.[this.at()]);
   /** An event from the club's calendar while it syncs: the calendar's fields can't be changed here. */
   readonly feedLocked = computed(() => !!this.event()?.src && this.store.has('calfeed'));
+  private readonly api = inject(ApiService);
+  readonly overriding = signal(false);
+  readonly history = signal<{ at: string; text: string }[] | null>(null);
+  readonly overrides = computed(() => {
+    const s = this.event()?.src;
+    return Object.entries(s?.ov ?? {}).map(([f, mine]) => ({ field: f as Overridable, label: OVERRIDE_LABELS[f as Overridable].replace(/^./, (c) => c.toUpperCase()), mine: mine ?? '', feed: s?.conflict?.[f as Overridable] ?? s?.ovBase?.[f as Overridable] ?? '' }));
+  });
+  startOverride() {
+    this.overriding.set(true);
+    for (const f of OVERRIDABLE) this.form.controls[f].enable();
+  }
+  async useFeed(f: Overridable) {
+    const e = this.event(); if (!e) return;
+    this.busy.set(true);
+    try { await this.api.overrideEvent(this.store.teamId(), e.eid, { [f]: null }); await this.store.refresh(['events'], true); this.closed.emit(); }
+    catch (err) { this.error.set(explain(err)); }
+    finally { this.busy.set(false); }
+  }
+  async loadHistory(open: boolean) {
+    const e = this.event();
+    if (!open || !e || this.history()) return;
+    try { this.history.set((await this.api.eventHistory(this.store.teamId(), e.eid)).history); } catch { this.history.set([]); }
+  }
+  fmtWhen(at: string) { return `${fmt(at.slice(0, 10))} ${new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`; }
   readonly feedLabel = computed(() => this.store.club()?.short || 'the club');
   ago(at: string) {
     const h = Math.round((Date.now() - Date.parse(at)) / 36e5);
@@ -300,6 +341,8 @@ export class EventForm {
         if (mode === 'following') this.form.controls.kind.disable(); else this.form.controls.kind.enable();
         // From the club's calendar: its date, time, place and court come from there while it syncs.
         const locked = !!e?.src && this.store.has('calfeed');
+        this.overriding.set(false);
+        this.history.set(null);
         for (const f of FEED_LOCKED) { const c = this.form.controls[f]; if (locked) c.disable(); else c.enable(); }
         this.values.set(this.form.getRawValue());
         this.kind.set(k);
@@ -357,6 +400,14 @@ export class EventForm {
     for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k];
     this.busy.set(true);
     const e = this.event();
+    if (e?.src && this.overriding()) {
+      const ov: Record<string, string> = {};
+      for (const f of OVERRIDABLE) { const now = String(v[f] ?? '').trim(); if (now !== String(e[f] ?? '')) ov[f] = now; }
+      if (Object.keys(ov).length) {
+        try { await this.api.overrideEvent(this.store.teamId(), e.eid, ov); }
+        catch (err) { this.error.set(explain(err)); this.busy.set(false); return; }
+      }
+    }
     const ok = following && e ? await this.store.splitSeries(e, this.at(), next) : await this.store.saveEvent(next, !e);
     this.busy.set(false);
     if (ok) this.closed.emit();

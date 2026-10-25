@@ -1,7 +1,7 @@
 import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
-  applyRules, clock, describeFilter, describeRule, FEED_KIND_LABELS, FEED_KINDS,
+  applyRules, clock, describeFilter, describeRule, OVERRIDE_LABELS, type Overridable, type ReviewItem, FEED_KIND_LABELS, FEED_KINDS,
   type FeedFilter, type FeedKind, type FeedRules, type TypeRule
 } from '@shared/feed-rules';
 import { ApiService } from '../../core/api.service';
@@ -42,10 +42,12 @@ export { clock };
             @if (view()!.source!.importedAt) {
               @if (view()!.source!.lastSync; as ls) {
                 <div class="feed-status">
-                  @if (ls.ok) { <span class="pill p-ok">Healthy</span> } @else { <span class="pill p-bad">Last sync failed</span> }
+                  @if (view()!.source!.attention) { <span class="pill p-warn">Needs attention · syncing paused</span> }
+                  @else if (view()!.source!.pausedSince) { <span class="pill p-warn">{{ store.has('calfeed') ? 'Catch up first' : 'Paused' }}</span> }
+                  @else if (ls.ok) { <span class="pill p-ok">Healthy</span> } @else { <span class="pill p-bad">Last sync failed</span> }
                   <span class="small">Synced {{ ago(ls.at) }} · it syncs on its own every 30 minutes</span>
                 </div>
-                @if (!ls.ok) { <p class="small feed-warn">{{ ls.error }} Nothing on the schedule changed.@if (view()!.source!.failures > 1) { It has failed {{ view()!.source!.failures }} times in a row. }</p> }
+                @if (!ls.ok && !view()!.source!.attention) { <p class="small feed-warn">{{ ls.error }} Nothing on the schedule changed.@if (view()!.source!.failures > 1) { It has failed {{ view()!.source!.failures }} times in a row. }</p> }
               }
               <div class="form-actions" style="margin-top:10px">
                 <button class="btn sm" type="button" [disabled]="busy() || syncWait()" (click)="syncNow()">{{ syncing() ? 'Syncing…' : 'Sync now' }}</button>
@@ -74,6 +76,66 @@ export { clock };
               }
             }
           </section>
+          @if (view()!.source!.attention; as at) {
+            @if (!check()) {
+              <section class="feed-box feed-attn">
+                <b>The rules matched {{ at.now }} events, down from {{ at.was }}.</b>
+                <p class="small" style="margin:4px 0 8px">The club may have renamed the team or moved to another system. Syncing is paused, nothing on the schedule changed, and families weren't told anything.</p>
+                <div class="form-actions">
+                  <button class="btn sm primary" type="button" [disabled]="busy()" (click)="runCheck()">Check feed and fix the rules</button>
+                  <button class="btn sm" type="button" [disabled]="busy()" (click)="acceptDrop()">That's right, sync it</button>
+                </div>
+              </section>
+            }
+          }
+          @if (view()!.source!.pausedSince && store.has('calfeed') && !check()) {
+            <section class="feed-box feed-attn">
+              <b>Catch up with {{ feedLabel() }}</b>
+              <p class="small" style="margin:4px 0 8px">Syncing was off since {{ fmt(view()!.source!.pausedSince!.slice(0, 10)) }}. Look over what changed in the club's calendar before it starts again. Changes you made while it was off to times, places and courts stay as overrides.</p>
+              @if (view()!.source!.catchUp; as cu) {
+                @for (c of cu.changes; track c.eid) { <div class="li small"><span class="pill p-warn">Changed</span><div class="grow">{{ fmt(c.date) }} · {{ c.title }}: {{ c.text }}</div></div> }
+                @for (a of cu.added.slice(0, 8); track $index) { <div class="li small"><span class="pill p-ok">New</span><div class="grow">{{ fmt(a.date) }} · {{ a.title }}</div></div> }
+                @if (cu.addedCount > 8) { <div class="small muted">and {{ cu.addedCount - 8 }} more new events</div> }
+                @if (cu.missing) { <div class="li small"><span class="pill p-bad">Not in feed</span><div class="grow">{{ cu.missing }} events aren't in the calendar now: they go to review, nothing is removed.</div></div> }
+                @if (!cu.changes.length && !cu.addedCount && !cu.missing) { <p class="small muted">Nothing changed while it was off.</p> }
+                <div class="form-actions">
+                  <button class="btn sm primary" type="button" [disabled]="busy()" (click)="applyCatchUp()">{{ cu.changes.length + cu.addedCount ? 'Apply ' + (cu.changes.length + cu.addedCount) + ' changes and resume' : 'Resume syncing' }}</button>
+                  <button class="btn sm" type="button" [disabled]="busy()" (click)="keepOff()">Keep it off</button>
+                </div>
+              } @else {
+                <div class="form-actions"><button class="btn sm primary" type="button" [disabled]="busy()" (click)="previewCatchUp()">{{ busy() ? 'Checking…' : 'See what changed' }}</button></div>
+              }
+            </section>
+          }
+          @if (view()!.review?.length && !check()) {
+            <fieldset class="group feed-review">
+              <legend>Needs your review <span class="pill p-warn">{{ view()!.review!.length }}</span></legend>
+              @for (r of view()!.review!; track r.kind + r.eid + ($any(r).field ?? '')) {
+                <div class="li small feed-run">
+                  @switch (r.kind) {
+                    @case ('missing') {
+                      <span class="pill p-bad">Not in feed</span>
+                      <div class="grow"><b>{{ fmt(r.date) }} · {{ r.title }}@if (r.time) { · {{ r.time }} }</b>
+                        <div class="muted">Gone from {{ feedLabel() }}'s calendar for {{ r.syncs }} syncs. Usually it means it was cancelled.</div>
+                        <div class="form-actions"><button class="btn sm primary" type="button" [disabled]="busy()" (click)="settle(r, 'cancel')">Cancel it</button><button class="link-btn small" type="button" [disabled]="busy()" (click)="settle(r, 'keep')">Keep it</button></div></div>
+                    }
+                    @case ('duplicate') {
+                      <span class="pill p-warn">Looks the same</span>
+                      <div class="grow"><b>{{ fmt(r.date) }} · {{ r.title }}@if (r.time) { · {{ r.time }} }</b>
+                        <div class="muted">A new entry in the calendar matches one that disappeared. Merge them to keep the answers and notes on the old one.</div>
+                        <div class="form-actions"><button class="btn sm primary" type="button" [disabled]="busy()" (click)="settle(r, 'merge')">Merge</button><button class="link-btn small" type="button" [disabled]="busy()" (click)="settle(r, 'different')">They're different</button></div></div>
+                    }
+                    @case ('conflict') {
+                      <span class="pill p-mute">Override</span>
+                      <div class="grow"><b>{{ fmt(r.date) }} · {{ r.title }}</b>
+                        <div class="muted">{{ feedLabel() }} now has {{ $any(r).feed || 'no ' + fieldLabel($any(r).field) }} for the {{ fieldLabel($any(r).field) }}; the team's override says {{ $any(r).mine || 'nothing' }}.</div>
+                        <div class="form-actions"><button class="btn sm" type="button" [disabled]="busy()" (click)="settle(r, 'useFeed')">Use {{ $any(r).feed || "the calendar's" }}</button><button class="link-btn small" type="button" [disabled]="busy()" (click)="settle(r, 'keepMine')">Keep {{ $any(r).mine || 'the override' }}</button></div></div>
+                    }
+                  }
+                </div>
+              }
+            </fieldset>
+          }
           @if (view()!.source!.importedAt && view()!.runs?.length && !check()) {
             <fieldset class="group">
               <legend>Recent syncs</legend>
@@ -101,7 +163,7 @@ export { clock };
           @if (rules(); as r) {
           <section class="feed-found">
             <div class="row"><h4>What we found</h4><span class="pill p-ok">Feed works</span><span class="spacer"></span><span class="small muted">{{ c.calendar.name || c.host }}</span></div>
-            <div class="feed-detect small"><b>Detected: {{ c.presetLabel }}</b> · rules filled in for {{ c.preset === 'generic' ? 'a standard calendar' : c.presetLabel }}. Change anything below.</div>
+            <div class="feed-detect small"><b>Detected: {{ c.presetLabel }}</b> · @if (c.template?.used) { rules from {{ clubName() }}'s template for {{ c.presetLabel }}. } @else { rules filled in for {{ c.preset === 'generic' ? 'a standard calendar' : c.presetLabel }}. } Change anything below.</div>
             <div class="feed-stats">
               <div><span class="small muted">In the feed</span><b>{{ c.calendar.total }}</b><span class="small muted">{{ range(c) }}</span></div>
               @for (k of kinds; track k) { <div><span class="small muted">{{ kindLabel[k] }}s</span><b>{{ result()!.counts[k] }}</b></div> }
@@ -184,6 +246,9 @@ export { clock };
             <p class="small muted">{{ upcoming() }} of the team's {{ result()!.matched.length }} events are from today on.</p>
           </section>
 
+          @if (store.you().clubAdmin) {
+            <label class="check"><input type="checkbox" name="tpl" [(ngModel)]="saveTemplate"><span><b>Also save these as {{ clubName() }}'s rules for {{ c.presetLabel }}</b><span class="small muted">Other teams in the club start from them (everything but which events are the team's).@if (c.template) { It replaces the club's current template. }</span></span></label>
+          }
           <label>Note for the history (optional)<input name="note" [(ngModel)]="note" maxlength="200" placeholder="First setup"></label>
           <div class="form-actions">
             <button class="btn primary" type="button" [disabled]="busy() || !result()!.matched.length" (click)="save()">{{ saving() ? 'Saving…' : (view()?.connected && !changingLink() ? 'Save rules' : 'Save link and rules') }}</button>
@@ -382,10 +447,39 @@ export class CalendarFeed {
     try {
       const v = await this.api.saveFeed(this.store.teamId(), { ...(this.checkedUrl ? { url: this.checkedUrl } : {}), rules: r, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
       this.view.set(v);
-      this.toast.show('Calendar feed saved');
+      const preset = this.check()?.preset;
+      if (this.saveTemplate && preset && this.store.clubId()) await this.api.saveFeedTemplate(this.store.clubId(), preset, r);
+      this.toast.show(this.saveTemplate ? `Calendar feed saved, and the club's ${this.check()?.presetLabel} template` : 'Calendar feed saved');
       this.reset();
     } catch (e) { this.error.set(explain(e)); }
     finally { this.busy.set(false); this.saving.set(false); }
+  }
+
+  readonly feedLabel = computed(() => this.store.club()?.short || 'the club');
+  readonly clubName = computed(() => this.store.club()?.name || 'the club');
+  saveTemplate = false;
+  fieldLabel(f: Overridable) { return OVERRIDE_LABELS[f]; }
+
+  private async act(fn: () => Promise<{ feed: FeedView }>, done: string, refresh = true) {
+    this.busy.set(true); this.error.set('');
+    try {
+      const r = await fn();
+      this.view.set(r.feed);
+      if (done) this.toast.show(done);
+      if (refresh) await this.store.refresh(['events'], true);
+    } catch (e) { this.error.set(explain(e)); }
+    finally { this.busy.set(false); }
+  }
+  settle(r: ReviewItem, action: 'cancel' | 'keep' | 'merge' | 'different' | 'useFeed' | 'keepMine') {
+    const done = { cancel: `${r.title} on ${fmt(r.date)} is cancelled`, keep: 'Kept on the schedule', merge: 'Merged', different: 'Kept as two events', useFeed: "Using the calendar's value", keepMine: 'Kept the override' }[action];
+    return this.act(() => this.api.reviewFeed(this.store.teamId(), { action, eid: r.eid, ...(r.kind === 'conflict' ? { field: r.field } : {}) }), done);
+  }
+  previewCatchUp() { return this.act(() => this.api.catchUpFeed(this.store.teamId()), '', false); }
+  applyCatchUp() { return this.act(() => this.api.applyCatchUp(this.store.teamId()), 'Caught up. Syncing every 30 minutes again.'); }
+  acceptDrop() { return this.act(() => this.api.acceptFeedDrop(this.store.teamId()), 'Synced with the new count'); }
+  async keepOff() {
+    await this.store.setFeature('calfeed', false);
+    this.closed.emit();
   }
 
   discard() { this.check.set(null); this.rules.set(null); this.error.set(''); if (!this.view()?.connected) this.closed.emit(); }

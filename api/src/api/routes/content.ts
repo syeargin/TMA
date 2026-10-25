@@ -5,7 +5,7 @@ import { notifyAnnouncement } from "../../lib/comms/events.js";
 import { keys } from "../../lib/keys.js";
 import { loadAccess } from "../context.js";
 import { feedActive } from "../../lib/feed/sync.js";
-import { FEED_OWNED } from "../../shared/feed-rules.js";
+import { FEED_OWNED, OVERRIDABLE } from "../../shared/feed-rules.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { cents, checkId, date, deleteItem, deleteMany, getItem, newId, now, optStr, putItem, queryAll, str } from "../util.js";
@@ -129,6 +129,16 @@ export function contentRoutes(r: Router) {
       if (ev.kind !== old.kind) s.kindSet = true;
       if (await feedActive(a.teamId, a.features)) {
         for (const k of FEED_OWNED) { if (old[k] !== undefined) (ev as Record<string, unknown>)[k] = old[k]; else delete ev[k]; }
+      } else {
+        // Syncing is off: time, place and court edits are kept as overrides, so turning it back on doesn't undo them.
+        const ov = { ...((s.ov ?? {}) as Record<string, string>) }, base = { ...((s.ovBase ?? {}) as Record<string, string>) };
+        for (const k of OVERRIDABLE) {
+          const now = String(ev[k] ?? ""), was = String(old[k] ?? "");
+          if (now === was) continue;
+          if (!(k in ov)) base[k] = was;
+          if (now === base[k]) { delete ov[k]; delete base[k]; } else ov[k] = now;
+        }
+        if (Object.keys(ov).length) { s.ov = ov; s.ovBase = base; } else { delete s.ov; delete s.ovBase; }
       }
       // The editor has no way to cancel a one-time event: the calendar's cancellation stays.
       if (old.cancelled) ev.cancelled = old.cancelled as string[]; else delete ev.cancelled;
