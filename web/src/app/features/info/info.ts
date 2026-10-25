@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { newId } from '../../core/dates';
@@ -21,6 +21,8 @@ const TONE: Record<TaskStatus, string> = { 'To do': 'p-bad', 'In progress': 'p-w
 export class Info {
   /** From the route: /info or /info/tasks */
   readonly section = input<string>('');
+  /** ?feed=1 opens the Calendar feed panel (from the alert on Home). */
+  readonly feed = input<string>('');
   readonly store = inject(TeamStore);
   /** "A5", or "the club" when the club has no short name. */
   readonly clubShort = computed(() => this.store.club()?.short || 'the club');
@@ -33,6 +35,9 @@ export class Info {
   readonly feedOpen = signal(false);
   /** Calendar feed sync: admins and coordinators, while the feature is on. */
   get manageFeed() { return this.store.can('calendarFeed'); }
+  constructor() {
+    effect(() => { if (this.feed() && this.store.can('calendarFeed')) untracked(() => this.feedOpen.set(true)); });
+  }
 
   /** Role holders by name, from the team's accounts. */
   readonly whoDoesWhat = computed(() => {

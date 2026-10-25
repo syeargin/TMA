@@ -328,4 +328,40 @@ export type EventSource = {
   missingSince?: string;
   /** The latest change, for the "Changed" badge. */
   change?: { at: string; text: string };
+  /** An admin's own values for some of the calendar's fields ("Override"). */
+  ov?: Partial<Record<Overridable, string>>;
+  /** What the calendar said for each overridden field when the override was set ("" = nothing). */
+  ovBase?: Partial<Record<Overridable, string>>;
+  /** The calendar has since changed an overridden field: its new value, for the review list. */
+  conflict?: Partial<Record<Overridable, string>>;
+  /** Gone from the calendar and an admin kept it, or cancelled it: no more counting. */
+  keep?: boolean;
+  gone?: boolean;
+  /** Added by a sync while an event with the same date, time and name went missing: maybe the same one. */
+  dupOf?: string;
 };
+
+/** Calendar fields an admin may override on an event (time, place, court). The name and date stay the calendar's. */
+export const OVERRIDABLE = ["time", "endTime", "location", "address", "court"] as const;
+export type Overridable = (typeof OVERRIDABLE)[number];
+export const OVERRIDE_LABELS: Record<Overridable, string> = { time: "start time", endTime: "end time", location: "place", address: "address", court: "court" };
+
+/** One thing an admin should look at (Calendar feed › Needs your review). */
+export type ReviewItem =
+  | { kind: "missing"; eid: string; title: string; date: string; time?: string; since: string; syncs: number }
+  | { kind: "duplicate"; eid: string; of: string; title: string; date: string; time?: string }
+  | { kind: "conflict"; eid: string; title: string; date: string; field: Overridable; mine: string; feed: string };
+
+/** Review items from the team's events (feed events with a src block). */
+export function reviewItems(events: { eid: string; title?: unknown; date?: unknown; endDate?: unknown; time?: unknown; src?: EventSource }[], today: string): ReviewItem[] {
+  const out: ReviewItem[] = [];
+  for (const e of events) {
+    const s = e.src;
+    if (!s) continue;
+    const base = { eid: e.eid, title: String(e.title ?? ""), date: String(e.date ?? ""), ...(e.time ? { time: String(e.time) } : {}) };
+    if ((s.missing ?? 0) >= 2 && !s.keep && !s.gone && String(e.endDate || e.date) >= today) out.push({ kind: "missing", ...base, since: s.missingSince ?? "", syncs: s.missing ?? 0 });
+    if (s.dupOf && events.some((x) => x.eid === s.dupOf)) out.push({ kind: "duplicate", ...base, of: s.dupOf });
+    for (const [f, v] of Object.entries(s.conflict ?? {})) out.push({ kind: "conflict", ...base, field: f as Overridable, mine: s.ov?.[f as Overridable] ?? "", feed: v ?? "" });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}

@@ -220,15 +220,18 @@ describe("the job and the switches", () => {
     expect(await runFeedSync()).toMatchObject({ skipped: 1 });
     expect((await owner("PUT", "/admin/clubs/fs", { features: { calfeed: true } })).status).toBe(200);
     expect((await coord("PUT", `/teams/${T}/features`, { features: { calfeed: true } })).status).toBe(200);
+    // Back on: the job waits for an admin to look over what changed (C3), then the edit made while off stays as an override.
+    expect(await runFeedSync()).toMatchObject({ synced: 0, skipped: 1 });
+    expect((await coord("POST", `/teams/${T}/feed/catchup/apply`)).body.run).toMatchObject({ ok: true });
+    expect(await ev("SprocketSports-100")).toMatchObject({ court: "Court 3", src: { ov: { court: "Court 3" }, conflict: { court: "Court 8" } } });
     expect(await runFeedSync()).toMatchObject({ synced: 1 });
-    expect((await ev("SprocketSports-100"))!.court).toBe("Court 8");
   });
 
   it("disconnecting keeps the events as the team's own", async () => {
     expect((await coord("DELETE", `/teams/${T}/feed`)).body).toEqual({ connected: false, eventsKept: 6 });
     const e = (await ev("SprocketSports-100"))!;
     expect(e.src).toBeUndefined();
-    expect(e).toMatchObject({ title: "Practice", court: "Court 8" });
+    expect(e).toMatchObject({ title: "Practice", court: "Court 3" });
     expect(await runFeedSync()).toMatchObject({ teams: 0 });
   });
 });

@@ -1,3 +1,4 @@
+import { reviewItems } from '@shared/feed-rules';
 import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
 import { Permission, can as roleCan } from '@shared/permissions';
@@ -51,6 +52,19 @@ export class TeamStore implements OnDestroy {
   readonly settings = computed(() => this.bundle()?.settings ?? null);
   /** The club this team belongs to: name, colors, and the links shown on Team Info. */
   readonly club = computed(() => this.bundle()?.club ?? null);
+  readonly clubId = computed(() => this.bundle()?.clubId ?? '');
+  /**
+   * Calendar feed sync: what needs a feed admin's eye (team admins and coordinators): events gone from the
+   * club's calendar, possible duplicates, overrides the calendar has changed, a paused or failing feed.
+   */
+  readonly feedAlert = computed(() => {
+    const st = this.bundle()?.feedStatus;
+    if (!st || !this.can('calendarFeed')) return null;
+    const review = reviewItems(this.events(), today()).length;
+    const failing = st.failures >= 3;
+    if (!review && !st.attention && !failing && !(st.paused && this.has('calfeed'))) return null;
+    return { review, attention: st.attention, failing, catchUp: st.paused && this.has('calfeed') };
+  });
   readonly players = computed<Player[]>(() => [...(this.bundle()?.players ?? [])].sort((a, b) =>
     (a.order ?? 999) - (b.order ?? 999) || String(a.last ?? '').localeCompare(String(b.last ?? '')) || a.first.localeCompare(b.first)));
   readonly events = computed<TeamEvent[]>(() => this.bundle()?.events ?? []);

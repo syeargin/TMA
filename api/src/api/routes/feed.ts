@@ -16,13 +16,13 @@ import { localParts } from "../../lib/comms/zoned.js";
 import { addDays, FeedError, parseFeed, type ParsedFeed } from "../../lib/feed/ical.js";
 import { loadFeed, maskFeedUrl } from "../../lib/feed/fetch.js";
 import { openLink, sealLink } from "../../lib/feed/secret.js";
-import { applyRules, describeFilter, detectPreset, FEED_KINDS, PRESETS, sameRules, startingRules, suggestFilters, type FeedRules, type PresetId } from "../../shared/feed-rules.js";
-import { loadAccess, type TeamAccess } from "../context.js";
+import { applyRules, describeFilter, detectPreset, FEED_KINDS, OVERRIDABLE, PRESETS, reviewItems, sameRules, startingRules, suggestFilters, type FeedRules, type Overridable, type PresetId, type ReviewItem } from "../../shared/feed-rules.js";
+import { loadAccess, loadClubAccess, type TeamAccess } from "../context.js";
 import { HttpError, json, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
-import { checkId, date, getItem, now, putItem, queryAll } from "../util.js";
+import { checkId, date, deleteItem, getItem, now, putItem, queryAll } from "../util.js";
 import { TransactWriteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
-import { disconnect, importFeed, lockFeed, MANUAL_EVERY_MS, syncTeam, unlockFeed } from "../../lib/feed/sync.js";
+import { disconnect, importFeed, lockFeed, MANUAL_EVERY_MS, previewSync, setOverrides, settleReview, syncTeam, unlockFeed } from "../../lib/feed/sync.js";
 
 const kind = z.enum(FEED_KINDS);
 const text = (max: number) => z.string().trim().min(1).max(max);
@@ -116,14 +116,36 @@ async function view(teamId: string) {
     source: {
       host: src.host, masked: src.masked, preset: src.preset, presetLabel: PRESETS[src.preset]?.label ?? "", calendarName: src.calendarName ?? "", savedAt: src.savedAt, savedBy: src.savedBy, lastCheck: src.lastCheck ?? null,
       importedAt: src.importedAt ?? null, importFrom: src.importFrom ?? null, lastSync: src.lastSync ?? null, lastOkAt: src.lastOkAt ?? null, failures: src.failures ?? 0,
-      nextManualAt: src.manualAt ? new Date(Number(src.manualAt) + MANUAL_EVERY_MS).toISOString() : null
+      nextManualAt: src.manualAt ? new Date(Number(src.manualAt) + MANUAL_EVERY_MS).toISOString() : null,
+      attention: src.attention ?? null, pausedSince: src.pausedSince ?? null, catchUp: src.catchUp ?? null
     },
+    review: src.importedAt ? await review(teamId) : [],
     version: current?.v ?? 0,
     rules: current?.rules ?? null,
     history: all.slice(0, 20).map(({ rules: _r, ...h }) => h),
     runs: runs.slice(0, 8).map((r) => ({ at: r.at, ok: r.ok, trigger: r.trigger, added: r.added, changed: r.changed, unchanged: r.unchanged, missing: r.missing, total: r.total, error: r.error, changes: r.changes ?? [] }))
   };
 }
+
+/** What needs an admin: events gone from the calendar, possible duplicates, overrides the calendar has changed. */
+async function review(teamId: string): Promise<ReviewItem[]> {
+  const rows = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :e)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":e": "EVENT#fd" } });
+  const events = rows.filter((r) => String(r.SK).split("#").length === 2).map((r) => ({ ...r, eid: String(r.SK).slice(6) })) as Parameters<typeof reviewItems>[0];
+  return reviewItems(events, localParts(new Date(), zoneOf(await getComms(teamId))).date);
+}
+
+async function template(clubId: string, preset: string) {
+  const t = await getItem(keys.feedTemplate(clubId, preset));
+  return t ? { rules: t.rules as Omit<FeedRules, "filter"> & { filterMode: FeedRules["filter"]["mode"] }, at: String(t.at), by: String(t.by) } : null;
+}
+
+const reviewSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.enum(["cancel", "keep"]), eid: z.string().max(64) }),
+  z.object({ action: z.enum(["merge", "different"]), eid: z.string().max(64) }),
+  z.object({ action: z.enum(["useFeed", "keepMine"]), eid: z.string().max(64), field: z.enum(OVERRIDABLE) })
+]);
+const overrideSchema = z.object({ ov: z.record(z.enum(OVERRIDABLE), z.string().trim().max(300).nullable()) });
+const templateSchema = z.object({ rules: rulesSchema });
 
 export function feedRoutes(r: Router) {
   r.on("GET", "/teams/{teamId}/feed", async ({ caller, params }) => {
@@ -142,12 +164,18 @@ export function feedRoutes(r: Router) {
     const { parsed, host, zone } = await readFeed(link, a.teamId);
     const preset = detectPreset({ prodid: parsed.prodid, host, uids: parsed.events.slice(0, 50).map((e) => e.uid) });
     const saved = src && !b.url ? (await versions(a.teamId)).find((x) => x.v === src.version)?.rules : undefined;
+    // A club template for this system fills in everything but which events are the team's.
+    const tpl = await template(a.clubId, preset);
+    const start = startingRules(preset, parsed.events);
+    const fromTemplate = tpl ? { ...start, ...tpl.rules, filter: tpl.rules.filterMode === "all" ? { mode: "all" as const } : start.filter } : null;
+    if (fromTemplate) delete (fromTemplate as Record<string, unknown>).filterMode;
     console.log(JSON.stringify({ msg: "feed checked", teamId: a.teamId, by: caller.sub, host, preset, events: parsed.events.length, newLink: !!b.url }));
     return json(200, {
       calendar: { name: parsed.name, prodid: parsed.prodid.slice(0, 120), zone: parsed.zone || zone, teamZone: zone, total: parsed.events.length, from: parsed.from, to: parsed.to, warnings: parsed.warnings },
       host, masked: maskFeedUrl(link), preset, presetLabel: PRESETS[preset].label,
       suggestions: suggestFilters(parsed.events),
-      rules: saved ?? startingRules(preset, parsed.events),
+      rules: saved ?? fromTemplate ?? start,
+      template: tpl ? { at: tpl.at, used: !saved } : null,
       events: parsed.events
     });
   });
@@ -178,6 +206,8 @@ export function feedRoutes(r: Router) {
     const at = now();
     // Keep what the import and the sync keep on the source (when it was imported, the last sync).
     const { lockUntil: _l, ...kept } = (src ?? {}) as Record<string, unknown>;
+    // New rules after the feed stopped matching: the next sync applies them, however many events they match.
+    if (changed && kept.importedAt) { delete kept.attention; kept.attentionAck = true; }
     const item: Source = {
       ...kept, ...keys.feedSource(a.teamId), type: "FeedSource", link: sealed, host, masked, preset, version: v,
       savedAt: at, savedBy: caller.sub, ...(calendarName ? { calendarName } : {}), ...(lastCheck ? { lastCheck } : {})
@@ -244,6 +274,7 @@ export function feedRoutes(r: Router) {
     const a = await access(caller, params.teamId, true);
     const src = (await getItem(keys.feedSource(a.teamId))) as Source | undefined;
     if (!src?.importedAt) throw new HttpError(409, "Import the feed onto the schedule first.", "feed_not_imported");
+    if (src.pausedSince) throw new HttpError(409, "Syncing was off for a while. Look over what changed in the club's calendar and apply it first.", "feed_catchup");
     const t = Date.now();
     if (src.manualAt && t - Number(src.manualAt) < MANUAL_EVERY_MS) {
       const mins = Math.ceil((Number(src.manualAt) + MANUAL_EVERY_MS - t) / 60000);
@@ -255,5 +286,91 @@ export function feedRoutes(r: Router) {
       const run = await syncTeam(a.teamId, { trigger: "manual", by: caller.sub });
       return json(200, { run, feed: await view(a.teamId) });
     } finally { await unlockFeed(a.teamId); }
+  });
+
+  /** After syncing was off: what the calendar changed meanwhile (nothing is written). */
+  r.on("POST", "/teams/{teamId}/feed/catchup", async ({ caller, params }) => {
+    const a = await access(caller, params.teamId, true);
+    const src = (await getItem(keys.feedSource(a.teamId))) as Source | undefined;
+    if (!src?.pausedSince) throw new HttpError(409, "There's nothing to catch up on.", "feed_no_catchup");
+    await rateLimit(a.teamId);
+    try {
+      const preview = await previewSync(a.teamId);
+      const catchUp = { at: now(), ...preview, changes: preview.changes.slice(0, 50), added: preview.added.slice(0, 50), addedCount: preview.added.length };
+      await ddb.send(new UpdateCommand({ TableName: TABLE, Key: keys.feedSource(a.teamId), UpdateExpression: "SET catchUp = :c", ExpressionAttributeValues: { ":c": JSON.parse(JSON.stringify(catchUp)) } }));
+      return json(200, { feed: await view(a.teamId) });
+    } catch (e) { toHttp(e); }
+  });
+
+  /** Apply what changed while syncing was off, and go back to syncing every 30 minutes. */
+  r.on("POST", "/teams/{teamId}/feed/catchup/apply", async ({ caller, params }) => {
+    const a = await access(caller, params.teamId, true);
+    if (!(await lockFeed(a.teamId))) throw new HttpError(409, "The feed is syncing right now. Try again in a minute.", "feed_busy");
+    try {
+      await ddb.send(new UpdateCommand({ TableName: TABLE, Key: keys.feedSource(a.teamId), UpdateExpression: "REMOVE pausedSince, catchUp", ConditionExpression: "attribute_exists(PK)" }));
+      const run = await syncTeam(a.teamId, { trigger: "manual", by: caller.sub });
+      console.log(JSON.stringify({ msg: "feed caught up", teamId: a.teamId, by: caller.sub, ok: run.ok, changed: run.changed }));
+      return json(200, { run, feed: await view(a.teamId) });
+    } finally { await unlockFeed(a.teamId); }
+  });
+
+  /** The rules matched far fewer events, and an admin says that's right: apply it once. */
+  r.on("POST", "/teams/{teamId}/feed/attention/accept", async ({ caller, params }) => {
+    const a = await access(caller, params.teamId, true);
+    if (!(await lockFeed(a.teamId))) throw new HttpError(409, "The feed is syncing right now. Try again in a minute.", "feed_busy");
+    try {
+      await ddb.send(new UpdateCommand({ TableName: TABLE, Key: keys.feedSource(a.teamId), UpdateExpression: "SET attentionAck = :t REMOVE attention", ConditionExpression: "attribute_exists(attention)", ExpressionAttributeValues: { ":t": true } }))
+        .catch(() => { throw new HttpError(409, "The feed doesn't need attention any more.", "feed_ok"); });
+      const run = await syncTeam(a.teamId, { trigger: "manual", by: caller.sub });
+      console.log(JSON.stringify({ msg: "feed attention accepted", teamId: a.teamId, by: caller.sub, total: run.total }));
+      return json(200, { run, feed: await view(a.teamId) });
+    } finally { await unlockFeed(a.teamId); }
+  });
+
+  /** Needs your review: cancel or keep an event gone from the calendar, merge or split a possible duplicate, settle an override conflict. */
+  r.on("POST", "/teams/{teamId}/feed/review", async ({ caller, params, body }) => {
+    const a = await access(caller, params.teamId, true);
+    a.require("schedule");
+    const b = parseBody(reviewSchema, body);
+    const res = await settleReview(a.teamId, b, caller.sub);
+    console.log(JSON.stringify({ msg: "feed review", teamId: a.teamId, by: caller.sub, action: b.action, eid: b.eid }));
+    return json(200, { ...res, feed: await view(a.teamId) });
+  });
+
+  /** Override some of the calendar's fields on one event (null puts the calendar's value back). */
+  r.on("PUT", "/teams/{teamId}/events/{eid}/override", async ({ caller, params, body }) => {
+    const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.require("schedule");
+    a.requireFeature("calfeed");
+    const b = parseBody(overrideSchema, body);
+    await setOverrides(a.teamId, checkId(params.eid, "event"), b.ov as Partial<Record<Overridable, string | null>>, caller.sub);
+    return json(200, { eid: params.eid });
+  });
+
+  /** What the club's calendar and the team's admins changed on one event. */
+  r.on("GET", "/teams/{teamId}/events/{eid}/history", async ({ caller, params }) => {
+    const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.require("schedule");
+    const eid = checkId(params.eid, "event");
+    const rows = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `TEAM#${a.teamId}`, ":s": "FEED#CHG#" }, ScanIndexForward: false });
+    return json(200, { history: rows.filter((r) => r.eid === eid).slice(0, 30).map((r) => ({ at: r.at, text: r.text, reason: r.reason, by: r.by })) });
+  });
+
+  /** Club admins: save these rules as the club's starting point for one calendar system. */
+  r.on("PUT", "/clubs/{clubId}/feed-templates/{preset}", async ({ caller, params, body }) => {
+    const c = await loadClubAccess(caller, checkId(params.clubId, "club"));
+    const preset = params.preset as PresetId;
+    if (!PRESETS[preset]) throw notFound("Unknown calendar system.");
+    const { rules } = parseBody(templateSchema, body);
+    const { filter, ...rest } = rules;
+    await putItem({ ...keys.feedTemplate(c.clubId, preset), type: "FeedTemplate", preset, rules: { ...rest, filterMode: filter.mode, preset }, at: now(), by: caller.sub });
+    console.log(JSON.stringify({ msg: "feed template saved", clubId: c.clubId, preset, by: caller.sub }));
+    return json(200, { preset, at: now() });
+  });
+
+  r.on("DELETE", "/clubs/{clubId}/feed-templates/{preset}", async ({ caller, params }) => {
+    const c = await loadClubAccess(caller, checkId(params.clubId, "club"));
+    await deleteItem(keys.feedTemplate(c.clubId, String(params.preset)));
+    return json(204, undefined);
   });
 }
