@@ -7,6 +7,12 @@ export const keys = {
   club: (clubId: string) => ({ PK: `CLUB#${clubId}`, SK: "META" }),
   /** One practice date's attendance (Practice attendance feature). */
   attendance: (t: string, key: string) => ({ PK: `TEAM#${t}`, SK: `ATT#${key}` }),
+  /** The team's calendar feed: its link (encrypted), current rules version and last check (Calendar feed sync). */
+  feedSource: (t: string) => ({ PK: `TEAM#${t}`, SK: "FEED#SOURCE" }),
+  /** One version of the feed's import rules, kept so a change can be undone. */
+  feedRules: (t: string, v: number) => ({ PK: `TEAM#${t}`, SK: `FEED#RULES#${String(v).padStart(4, "0")}` }),
+  /** Recent Check feed times, to keep one team from fetching too often. */
+  feedChecks: (t: string) => ({ PK: `TEAM#${t}`, SK: "FEED#CHECKS" }),
   /** Site-owner settings for a club: active or not, its team limit, which features it may use. */
   clubControls: (clubId: string) => ({ PK: `CLUB#${clubId}`, SK: "CONTROLS" }),
   /** Who changed a club's controls, and how (site admin dashboard). */

@@ -10,7 +10,8 @@ import { AuthService } from './auth.service';
 import { APP_CONFIG } from './config';
 import type { Repeat } from './series';
 import type { Sheets } from './xlsx';
-import type { Agenda, Club, CommsHealth, CommsPage, EmailTemplate, MessageSettings, MyNotifications, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
+import type { FeedRules } from '@shared/feed-rules';
+import type { Agenda, Club, CommsHealth, CommsPage, EmailTemplate, FeedCheck, FeedView, MessageSettings, MyNotifications, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
   constructor(readonly status: number, body?: { message?: string; error?: string } | null) {
@@ -36,6 +37,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 };
 
 const enc = encodeURIComponent;
+/** The API leaves out what a feed that isn't connected doesn't have. */
+const withHistory = (v: FeedView): FeedView => ({ ...v, version: v.version ?? 0, rules: v.rules ?? null, history: v.history ?? [] });
 
 /** The Teem Hub REST API. Every method resolves with the response body or throws an ApiError. */
 @Injectable({ providedIn: 'root' })
@@ -67,6 +70,12 @@ export class ApiService {
     return this.call<ImportResult>('POST', `/clubs/${enc(clubId)}/import`, { sheets, apply, ...(teamId ? { teamId } : {}) });
   }
   /** Site owners: archive (read-only, out of families' lists) or restore a team. */
+  /** Calendar feed sync: the saved link (masked) and rules; check a feed; save; go back to old rules; disconnect. */
+  feed(teamId: string) { return this.call<FeedView>('GET', `/teams/${enc(teamId)}/feed`).then(withHistory); }
+  checkFeed(teamId: string, url?: string) { return this.call<FeedCheck>('POST', `/teams/${enc(teamId)}/feed/check`, url ? { url } : {}); }
+  saveFeed(teamId: string, body: { url?: string; rules: FeedRules; note?: string }) { return this.call<FeedView>('PUT', `/teams/${enc(teamId)}/feed`, body).then(withHistory); }
+  restoreFeedRules(teamId: string, v: number) { return this.call<FeedView>('POST', `/teams/${enc(teamId)}/feed/rules/${v}/restore`).then(withHistory); }
+  disconnectFeed(teamId: string) { return this.call<FeedView>('DELETE', `/teams/${enc(teamId)}/feed`).then(withHistory); }
   saveAttendance(teamId: string, key: string, marks: Record<string, PlayerMark | null>) { return this.call<{ key: string; marks: Record<string, PlayerMark> }>('PUT', `/teams/${enc(teamId)}/attendance/${enc(key)}`, { marks }); }
   setArchived(teamId: string, archived: boolean) { return this.call<{ archived: boolean }>('POST', `/teams/${enc(teamId)}/${archived ? 'archive' : 'restore'}`); }
   /** Site owners: delete a team and all its data. `confirm` must repeat the team id. */

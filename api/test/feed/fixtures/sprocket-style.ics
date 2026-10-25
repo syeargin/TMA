@@ -1,0 +1,324 @@
+BEGIN:VCALENDAR
+PRODID:-//github.com/rianjs/ical.net//NONSGML ical.net 5.2.2//EN
+VERSION:2.0
+X-WR-CALNAME:My Calendar
+X-WR-TIMEZONE:America/New_York
+BEGIN:VTIMEZONE
+TZID:America/New_York
+BEGIN:DAYLIGHT
+DTSTART:20070311T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU
+TZOFFSETFROM:-0500
+TZOFFSETTO:-0400
+TZNAME:EDT
+END:DAYLIGHT
+BEGIN:STANDARD
+DTSTART:20071104T020000
+RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU
+TZOFFSETFROM:-0400
+TZOFFSETTO:-0500
+TZNAME:EST
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:SprocketSports-1001
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Practice
+DTSTART;TZID=America/New_York:20260905T073000
+DTEND;TZID=America/New_York:20260905T100000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 1\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1002
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Practice
+DTSTART;TZID=America/New_York:20260912T073000
+DTEND;TZID=America/New_York:20260912T100000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 2\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1003
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Practice
+DTSTART;TZID=America/New_York:20260919T073000
+DTEND;TZID=America/New_York:20260919T100000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 3\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1004
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Practice
+DTSTART;TZID=America/New_York:20260926T073000
+DTEND;TZID=America/New_York:20260926T100000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 4\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1005
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Practice
+DTSTART;TZID=America/New_York:20261003T073000
+DTEND;TZID=America/New_York:20261003T100000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 5\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1006
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Practice
+DTSTART;TZID=America/New_York:20261010T073000
+DTEND;TZID=America/New_York:20261010T100000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 6\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1007
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Practice
+DTSTART;TZID=America/New_York:20261017T073000
+DTEND;TZID=America/New_York:20261017T100000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 7\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1008
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Practice
+DTSTART;TZID=America/New_York:20261024T073000
+DTEND;TZID=America/New_York:20261024T100000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 8\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1009
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Practice
+DTSTART;TZID=America/New_York:20261031T073000
+DTEND;TZID=America/New_York:20261031T100000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 1\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1010
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Practice
+DTSTART;TZID=America/New_York:20261107T073000
+DTEND;TZID=America/New_York:20261107T100000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 2\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1011
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Master Coaching - Practice
+DTSTART;TZID=America/New_York:20261102T173000
+DTEND;TZID=America/New_York:20261102T213000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 5\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1012
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Master Coaching - Practice
+DTSTART;TZID=America/New_York:20261109T173000
+DTEND;TZID=America/New_York:20261109T213000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 5\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1013
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Master Coaching - Practice
+DTSTART;TZID=America/New_York:20261116T173000
+DTEND;TZID=America/New_York:20261116T213000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 5\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1014
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Master Coaching - Practice
+DTSTART;TZID=America/New_York:20261123T173000
+DTEND;TZID=America/New_York:20261123T213000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 5\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1015
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Winter Showcase
+DTSTART;VALUE=DATE:20261212
+DTEND;VALUE=DATE:20261214
+LOCATION:
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1016
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Spring Qualifier
+DTSTART;VALUE=DATE:20270306
+DTEND;VALUE=DATE:20270308
+LOCATION:
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1017
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:14-1 Gold - Media Day
+DTSTART;TZID=America/New_York:20261017T100000
+DTEND;TZID=America/New_York:20261017T120000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1018
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:General Skills Clinic
+DTSTART;TZID=America/New_York:20260908T180000
+DTEND;TZID=America/New_York:20260908T193000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 2\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1019
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:General Skills Clinic
+DTSTART;TZID=America/New_York:20260915T180000
+DTEND;TZID=America/New_York:20260915T193000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 2\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1020
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:General Skills Clinic
+DTSTART;TZID=America/New_York:20260922T180000
+DTEND;TZID=America/New_York:20260922T193000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 2\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1021
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:General Skills Clinic
+DTSTART;TZID=America/New_York:20260929T180000
+DTEND;TZID=America/New_York:20260929T193000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 2\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+BEGIN:VEVENT
+UID:SprocketSports-1022
+DTSTAMP:20261025T120000Z
+SEQUENCE:638970000000000000
+STATUS:CONFIRMED
+SUMMARY:General Skills Clinic
+DTSTART;TZID=America/New_York:20261006T180000
+DTEND;TZID=America/New_York:20261006T193000
+LOCATION:Northside Fieldhouse \n200 Example Parkway\, Springfield\, GA 300
+ 00
+GEO:34.0;-84.3
+DESCRIPTION:Court: Court 2\nArrive 15 minutes early.
+ORGANIZER;CN=Northside Volleyball:mailto:office@example.com
+END:VEVENT
+END:VCALENDAR

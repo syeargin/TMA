@@ -610,3 +610,37 @@ label.agree input{width:18px;height:18px;margin-top:1px;flex:none}
 .att-stats span{display:inline-flex;align-items:center;justify-content:center}
 .att-sub{font-size:14px;margin:14px 0 2px}
 .att-miss{gap:10px}
+
+/* ---------- Calendar feed (Team info) ---------- */
+.feed-box{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0}
+.feed-box .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.feed-mask{word-break:break-all}
+.feed-danger{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.feed-link{display:flex;gap:8px;margin-top:4px}
+.feed-link input{flex:1;min-width:0}
+.feed-found{margin:14px 0 6px;border-top:1px solid var(--line);padding-top:12px}
+.feed-found .row{display:flex;align-items:center;gap:8px}
+.feed-found h4{margin:0;font-size:16px}
+.feed-detect{background:var(--surface-2);border-radius:8px;padding:8px 10px;margin:8px 0}
+.feed-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.feed-stats>div{border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column}
+.feed-stats b{font-family:var(--f-cond);font-size:24px;line-height:1.1}
+@media (max-width:460px){.feed-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.feed-warn{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 10px}
+.feed-left{margin:6px 0 0;padding-left:18px}
+.feed-rules{list-style:none;margin:0 0 8px;padding:0;border:1px solid var(--line-2);border-radius:10px}
+.feed-rules li{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line-2);font-size:14.5px}
+.feed-rules li:first-child{border-top:0}
+.feed-rules .n{color:var(--ink-3);font-weight:600;font-size:13px;width:14px}
+.feed-rules select{width:auto}
+.feed-ex,.feed-add{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.feed-add{margin:6px 0 10px}
+.feed-add input,.feed-add select{width:auto;min-width:0}
+.feed-ex{align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}
+.feed-ex .pill{margin-top:2px}
+.feed-panel .check{flex-direction:row;gap:10px;align-items:flex-start;font-weight:400;font-size:15px;color:var(--ink);padding:4px 0}
+.feed-panel .check input{margin-top:3px;width:18px;height:18px;flex:none}
+.feed-panel .check>span{display:flex;flex-direction:column;gap:2px}
+.feed-panel .group{margin:12px 0}
+.feed-panel details{margin-top:6px}
+.feed-panel summary{cursor:pointer;color:var(--ink);font-weight:600}
