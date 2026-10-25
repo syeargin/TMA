@@ -11,6 +11,7 @@
     <a class="btn sm" [routerLink]="['/teams', store.teamId(), 'communications']">Communications</a>
     <button class="btn sm" type="button" (click)="settingsOpen.set(true)">Team settings</button>
   }
+  @if (manageFeed) { <button class="btn sm" type="button" (click)="feedOpen.set(true)">Calendar feed</button> }
 </div>
 
 @if (!tasksView()) {
@@ -156,4 +157,8 @@
 
 @if (store.can('settings')) {
   <th-settings-form [open]="settingsOpen()" (closed)="settingsOpen.set(false)" />
+}
+
+@if (manageFeed) {
+  <th-calendar-feed [open]="feedOpen()" (closed)="feedOpen.set(false)" />
 }

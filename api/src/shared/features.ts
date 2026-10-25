@@ -11,6 +11,7 @@ export const FEATURES = {
   uniforms:  { label: "Uniform order", help: "Uniform items and each player's sizes.", role: null },
   tasks:     { label: "Coordinator tasks", help: "The coordinator's to-do list.", role: null },
   attendance: { label: "Practice attendance", help: "Coaches mark who came to each practice; families see their own player's attendance.", role: null },
+  calfeed:   { label: "Calendar feed sync", help: "Keeps the schedule in step with your club's calendar link (.ics). Off pauses syncing; imported events stay.", role: null },
   handbook:  { label: "Team handbook", help: "The kickoff-meeting sections and players' jobs in Team info. Who does what and the club's links stay.", role: null }
 } as const satisfies Record<string, { label: string; help: string; role: Role | null }>;
 

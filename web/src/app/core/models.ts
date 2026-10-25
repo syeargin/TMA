@@ -1,3 +1,4 @@
+import type { FeedEvent, FeedRules, FilterSuggestion, PresetId } from '@shared/feed-rules';
 import type { EmailStatus } from '@shared/messages';
 import type { ClubFeature, FeatureMap } from '@shared/features';
 import type { AttendanceRecord } from '@shared/attendance';
@@ -220,3 +221,20 @@ export interface TeamBundle {
   agenda: Record<string, Agenda>;
   [key: string]: unknown;
 }
+
+// ---------- Calendar feed sync ----------
+export type FeedHistory = { v: number; at: string; by: string; note?: string; summary: string };
+export type FeedView = {
+  connected: boolean;
+  source?: { host: string; masked: string; preset: PresetId; presetLabel: string; calendarName: string; savedAt: string; savedBy: string; lastCheck: { at: string; total: number; matched: number } | null };
+  version: number;
+  rules: FeedRules | null;
+  history: FeedHistory[];
+};
+export type FeedCheck = {
+  calendar: { name: string; prodid: string; zone: string; teamZone: string; total: number; from: string; to: string; warnings: string[] };
+  host: string; masked: string; preset: PresetId; presetLabel: string;
+  suggestions: FilterSuggestion[];
+  rules: FeedRules;
+  events: FeedEvent[];
+};

@@ -24,7 +24,7 @@ const VIEW_ONLY = new Set<Permission>(['contacts', 'allergies', 'fundView', 'led
 /** Permissions that belong to an optional feature: they don't apply while it's switched off. */
 const PERM_FEATURE: Partial<Record<Permission, Feature>> = {
   fundView: 'fund', ledger: 'fund', finance: 'fund', reimb: 'fund',
-  meals: 'meals', refjobs: 'refjobs', tasks: 'tasks', handbook: 'handbook', takeAttendance: 'attendance'
+  meals: 'meals', refjobs: 'refjobs', tasks: 'tasks', handbook: 'handbook', takeAttendance: 'attendance', calendarFeed: 'calfeed'
 };
 
 @Injectable()

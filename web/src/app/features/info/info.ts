@@ -6,6 +6,7 @@ import type { Handbook, Task, TaskStatus } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { Messages } from '../../shared/messages';
 import { Sheet } from '../../shared/sheet';
+import { CalendarFeed } from './calendar-feed';
 import { SettingsForm } from './settings-form';
 
 const STATUSES: TaskStatus[] = ['To do', 'In progress', 'Done', 'N/A'];
@@ -14,7 +15,7 @@ const TONE: Record<TaskStatus, string> = { 'To do': 'p-bad', 'In progress': 'p-w
 /** Team handbook, who does what, and the coordinator's task list; team settings for admins and coordinators. */
 @Component({
   selector: 'th-info',
-  imports: [ReactiveFormsModule, RouterLink, Sheet, Messages, SettingsForm],
+  imports: [ReactiveFormsModule, RouterLink, Sheet, Messages, SettingsForm, CalendarFeed],
   templateUrl: './info.html'
 })
 export class Info {
@@ -29,6 +30,9 @@ export class Info {
   get editHandbook() { return this.store.can('handbook'); }
   get manageTasks() { return this.store.can('tasks'); }
   readonly settingsOpen = signal(false);
+  readonly feedOpen = signal(false);
+  /** Calendar feed sync: admins and coordinators, while the feature is on. */
+  get manageFeed() { return this.store.can('calendarFeed'); }
 
   /** Role holders by name, from the team's accounts. */
   readonly whoDoesWhat = computed(() => {

@@ -31,6 +31,7 @@ export const PERMISSIONS = {
   finance:    { label: "Add, edit and confirm fund entries", roles: ["admin", "coordinator", "finance"] },
   roster:     { label: "Edit the roster; see and fix any family's travel or sizes", roles: ["admin", "coordinator"] },
   tasks:      { label: "Manage coordinator tasks", roles: ["admin", "coordinator"] },
+  calendarFeed: { label: "Connect the team's calendar feed and set its import rules", roles: ["admin", "coordinator"] },
   settings:   { label: "Change team settings", roles: ["admin", "coordinator"] },
   accounts:   { label: "Invite people and set their roles", roles: ["admin"] }
 } as const satisfies Record<string, { label: string; roles: readonly Role[] }>;

@@ -25,6 +25,14 @@ const { ddb, TABLE } = await import("../src/lib/db.js");
 const { keys } = await import("../src/lib/keys.js");
 const { PutCommand } = await import("@aws-sdk/lib-dynamodb");
 const { setMfaLookup } = await import("../src/lib/mfa.js");
+// Calendar feed sync: no internet here, so every calendar link reads a made-up Sprocket-style calendar
+// (a link with "google" in it reads the Google-style one instead).
+const { setFeedFetcher, normalizeFeedUrl } = await import("../src/lib/feed/fetch.js");
+setFeedFetcher(async (raw) => {
+  const u = normalizeFeedUrl(raw);
+  const file = raw.includes("google") ? "google-style.ics" : "sprocket-style.ics";
+  return { body: readFileSync(join(import.meta.dirname, "../test/feed/fixtures", file), "utf8"), host: u.hostname, finalHost: u.hostname };
+});
 
 const OWNER = "u-owner", MOM = "u-mom";
 const api = async (m: string, p: string, sub: string, b?: unknown, email = "") => {
