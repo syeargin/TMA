@@ -90,7 +90,7 @@ describe("the Communications page", () => {
   it("starts with everything off, and is for admins and coordinators", async () => {
     const r = await owner("GET", `/teams/${T}/comms`);
     expect(r.status).toBe(200);
-    expect(r.body.messages.map((m: any) => [m.id, m.settings.on])).toEqual(["weekly", "staffDigest", "packet", "availability", "dues", "payment", "announcement"].map((m) => [m, false]));
+    expect(r.body.messages.map((m: any) => [m.id, m.settings.on])).toEqual([...["weekly", "staffDigest", "packet", "availability", "dues", "payment", "announcement", "change"].map((m) => [m, false]), ["feedAlert", true]]);
     expect(r.body.upcoming).toEqual([]);
     expect(r.body.timeZone).toBe("America/New_York");
     expect((await call("GET", `/teams/${T}/comms`, "u-jo")).status).toBe(403);

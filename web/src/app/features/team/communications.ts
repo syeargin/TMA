@@ -55,7 +55,7 @@ export class Communications extends Page {
     return [
       { title: 'Every week', sub: 'A summary on the day and time you choose.', messages: pick(['weekly', 'staffDigest']) },
       { title: 'Reminders', sub: 'A set number of days before a tournament, an event or a due date.', messages: pick(['packet', 'availability', 'dues']) },
-      { title: 'When something happens', sub: 'Sent right away.', messages: pick(['payment', 'announcement']) }
+      { title: 'When something happens', sub: 'Sent right away.', messages: pick(['payment', 'announcement', 'change', 'feedAlert']) }
     ].filter((g) => g.messages.length);
   });
   readonly later = computed(() => (this.page()?.catalog ?? []).filter((m) => !m.live && !m.required));
@@ -151,7 +151,7 @@ export class Communications extends Page {
     try {
       const r = await this.api.previewComms(this.store.teamId(), m.id);
       const who = m.id === 'staffDigest' ? 'as a staff member with every included role would get it'
-        : m.id === 'payment' || m.id === 'announcement' ? 'with made-up details, in your team’s name'
+        : m.id === 'payment' || m.id === 'announcement' || m.id === 'change' || m.id === 'feedAlert' ? 'with made-up details, in your team’s name'
         : `as ${r.family || 'the first'}'s family would get it`;
       const emptyNote = m.id === 'availability' ? ` ${r.family || 'This family'} has already answered, so they wouldn’t get one.` : ' Nothing is scheduled that week, so with "Skip the week" on it wouldn’t be sent.';
       const note = `The next ${m.label.toLowerCase()} ${who}.${r.empty ? emptyNote : ''}`;

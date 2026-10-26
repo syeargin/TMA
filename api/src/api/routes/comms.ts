@@ -9,6 +9,8 @@ import { keys } from "../../lib/keys.js";
 import { loadTeam, recipients, type Member } from "../../lib/comms/content.js";
 import { commsKey, getComms, occurrences, prepare, scheduleText, sends, SETTABLE, zoneOf, type Planned } from "../../lib/comms/planner.js";
 import { audienceFor, targets } from "../../lib/comms/reminders.js";
+import { feedAlertAudience } from "../../lib/comms/feed-notices.js";
+import { feedSamples } from "../../lib/mail/feed-mail.js";
 import { readAnswer, readUnsub } from "../../lib/comms/tokens.js";
 import { addDays, shortDate } from "../../lib/comms/schedule.js";
 import { localParts } from "../../lib/comms/zoned.js";
@@ -81,6 +83,7 @@ function reachOf(t: Awaited<ReturnType<typeof loadTeam>>, msg: string, e: NonNul
   if (msg === "weekly" || msg === "staffDigest") return recipients(t, msg, e.audience).length;
   if (msg === "availability" || msg === "dues") return audienceFor(t, msg, { parent: e.audience.parent }).length;
   if (msg === "payment") return t.members.filter((m) => !m.notifyOff.includes(msg)).length;
+  if (msg === "feedAlert") return feedAlertAudience(t, e.audience).length;
   return audienceFor(t, msg, e.audience).length;
 }
 
@@ -153,13 +156,16 @@ export function commsRoutes(r: Router) {
       a.require("settings");
       const parsed = settable.safeParse(params.msg);
       if (!parsed.success) throw notFound("There's no message with that name.");
-      const msg = parsed.data as Planned | "payment" | "announcement";
+      const msg = parsed.data as Planned | "payment" | "announcement" | "change" | "feedAlert";
       const c = await getComms(a.teamId);
       const t = await loadTeam(a.teamId, a.clubId);
       let data: Record<string, unknown>;
       let empty = false, sendDate = "", family = "";
       const base = { teamName: t.teamName, teamId: t.teamId, clubName: t.club?.name, colors: t.club?.colors, siteUrl: siteUrl(), schedule: scheduleText(msg, c) };
-      if (msg === "payment" || msg === "announcement") {
+      if (msg === "change" || msg === "feedAlert") {
+        // Made-up changes in the team's name and colors, called what the team calls its club's calendar.
+        data = { ...feedSamples[msg](siteUrl()), ...base, source: t.club?.short || "the club" };
+      } else if (msg === "payment" || msg === "announcement") {
         // Made-up details in the team's name and colors: these go out when something happens.
         const latest = msg === "announcement" ? [...t.announcements].sort((x, y) => String(y.at ?? "").localeCompare(String(x.at ?? "")))[0] : undefined;
         data = { ...samples[msg](siteUrl()), ...base, ...(latest ? { text: String(latest.text ?? ""), pinned: !!latest.pinned } : {}) };
@@ -206,7 +212,10 @@ export function commsRoutes(r: Router) {
       const staff = roles.some((r) => r !== "parent");
       const c = await getComms(teamId);
       const parent = roles.includes("parent");
-      const forMe = SETTABLE.filter((msg) => (msg === "staffDigest" ? staff : msg === "availability" || msg === "dues" ? parent : true));
+      const feedAdmin = roles.includes("admin") || roles.includes("coordinator");
+      // The calendar feed's emails only matter on a team whose schedule comes from one.
+      const feed = !!(await getItem(keys.feedSource(teamId)))?.importedAt;
+      const forMe = SETTABLE.filter((msg) => (msg === "change" ? feed : msg === "feedAlert" ? feed && feedAdmin : msg === "staffDigest" ? staff : msg === "availability" || msg === "dues" ? parent : true));
       const options = forMe.map((msg) => ({
         id: msg, label: MESSAGES[msg].label, help: MESSAGES[msg].help,
         teamSends: sends(msg, c), schedule: scheduleText(msg, c)

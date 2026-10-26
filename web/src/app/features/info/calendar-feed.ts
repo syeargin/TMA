@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   applyRules, clock, describeFilter, describeRule, OVERRIDE_LABELS, type Overridable, type ReviewItem, FEED_KIND_LABELS, FEED_KINDS,
   type FeedFilter, type FeedKind, type FeedRules, type TypeRule
@@ -24,7 +25,7 @@ export { clock };
  */
 @Component({
   selector: 'th-calendar-feed',
-  imports: [FormsModule, Sheet, Messages],
+  imports: [FormsModule, RouterLink, Sheet, Messages],
   template: `
     <th-sheet heading="Calendar feed" [open]="open()" (closed)="closed.emit()">
       <div class="feed-panel">
@@ -48,6 +49,7 @@ export { clock };
                   <span class="small">Synced {{ ago(ls.at) }}@if (view()!.source!.nextSyncAt; as n) { · next around {{ clockAt(n) }} }</span>
                 </div>
                 <p class="small muted" style="margin:4px 0 0">{{ cadence() }}</p>
+                <p class="small muted" style="margin:4px 0 0">Families can get an email when {{ feedLabel() }} cancels or moves something in the next two weeks: <a [routerLink]="['/teams', store.teamId(), 'communications']">Cancelled or moved, under Communications</a>. Admins and coordinators get calendar feed alerts there too.</p>
                 @if (!ls.ok && !view()!.source!.attention) { <p class="small feed-warn">{{ ls.error }} Nothing on the schedule changed.@if (view()!.source!.failures > 1) { It has failed {{ view()!.source!.failures }} times in a row. }</p> }
               }
               <div class="form-actions" style="margin-top:10px">

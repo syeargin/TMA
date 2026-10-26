@@ -29,7 +29,7 @@ export const REMINDERS: ReminderMsg[] = ["packet", "availability", "dues"];
 export const SCHEDULED = [...WEEKLY, ...REMINDERS];
 export type Planned = (typeof SCHEDULED)[number];
 /** Messages a team sets up on the Communications page, in the order they're shown. */
-export const SETTABLE: MessageId[] = [...SCHEDULED, "payment", "announcement"];
+export const SETTABLE: MessageId[] = [...SCHEDULED, "payment", "announcement", "change", "feedAlert"];
 
 /** A send that's this late (the planner was down) still goes; later than that, it's skipped. */
 export const CATCH_UP_MS = 3 * 3600_000;

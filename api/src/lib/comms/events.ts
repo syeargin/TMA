@@ -18,18 +18,18 @@ import { shortDate } from "./schedule.js";
 import { signUnsub } from "./tokens.js";
 import { localParts } from "./zoned.js";
 
-const optedOut = (m: Member, msg: string) => m.notifyOff.includes(msg) || m.notifyOff.includes("all");
+export const optedOut = (m: Member, msg: string) => m.notifyOff.includes(msg) || m.notifyOff.includes("all");
 
 async function personName(sub: string): Promise<string> {
   const p = await getItem(keys.profile(sub));
   return [p?.firstName, p?.lastName].filter((x) => typeof x === "string" && x).join(" ");
 }
 
-function common(t: Team, c: TeamComms | null, msg: "payment" | "announcement") {
+export function common(t: Team, c: TeamComms | null, msg: "payment" | "announcement" | "change" | "feedAlert") {
   return { teamName: t.teamName, teamId: t.teamId, clubName: t.club?.name, colors: t.club?.colors, siteUrl: siteUrl(), schedule: scheduleText(msg, c) };
 }
 
-async function queueAll(t: Team, msg: "payment" | "announcement", people: { m: Member; data: Record<string, unknown> }[], key: string): Promise<number> {
+export async function queueAll(t: Team, msg: "payment" | "announcement" | "change" | "feedAlert", people: { m: Member; data: Record<string, unknown> }[], key: string): Promise<number> {
   const ids: string[] = [];
   for (const { m, data } of people) {
     const to = await emailOf(m);

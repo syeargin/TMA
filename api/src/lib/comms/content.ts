@@ -3,6 +3,7 @@
  * gets only what their role can already see on the site (the same permission table, shared/permissions),
  * and only for features the team has on.
  */
+import { reviewItems } from "../../shared/feed-rules.js";
 import { getControls } from "../club-controls.js";
 import { getClub, type Club } from "../clubs.js";
 import { queryAll } from "../../api/util.js";
@@ -86,7 +87,7 @@ function duesSoon(t: Team, sendDate: string): string | null {
   return due;
 }
 
-const itemView = (i: Item) => ({ date: shortDate(i.date), title: i.title, time: i.time, location: i.location, cancelled: i.cancelled, kind: i.kind });
+const itemView = (i: Item) => ({ date: shortDate(i.date), title: i.title, time: i.time, location: i.location, cancelled: i.cancelled, kind: i.kind, ...(i.changed && !i.cancelled ? { changed: i.changed } : {}) });
 
 export type WeeklyContent = {
   week: string;
@@ -131,6 +132,8 @@ export type StaffContent = {
   travelMissing: { date: string; title: string; families: string[] }[] | null;
   dues: { due: string; families: string[] } | null;
   tasks: { title: string; owner: string; status: string }[] | null;
+  /** Calendar feed sync: what the club's calendar changed this past week on things still coming up, and (for feed admins) what needs review. */
+  feed?: { changes: { date: string; title: string; text: string }[]; review: number } | null;
 };
 
 /** What's still open this week, by what this person's roles can see. A null section is one they don't get. */
@@ -168,11 +171,16 @@ export function staffContent(t: Team, m: Member, sendDate: string): StaffContent
       .sort((a, b) => Number(a.order ?? 999) - Number(b.order ?? 999))
       .map((k) => ({ title: str(k.title), owner: str(k.owner), status: str(k.status) || "To do" }));
   }
+  if (allowed(m, "schedule") && has(t, "calfeed") && t.events.some((e) => e.src)) {
+    const changes = t.items.filter((i) => i.changed && i.end >= sendDate).map((i) => ({ date: shortDate(i.date), title: i.title, text: i.cancelled ? "cancelled" : String(i.changed) }));
+    const review = allowed(m, "calendarFeed") ? reviewItems(t.events as Parameters<typeof reviewItems>[0], sendDate).length : 0;
+    out.feed = changes.length || review ? { changes, review } : null;
+  }
   return out;
 }
 
 export const staffIsEmpty = (c: StaffContent) =>
-  !(c.unanswered?.length || c.openMeals?.length || c.travelMissing?.length || c.dues || c.tasks?.length);
+  !(c.unanswered?.length || c.openMeals?.length || c.travelMissing?.length || c.dues || c.tasks?.length || c.feed);
 
 /** Who gets a message, with the version each gets. Opt-outs and the team's audience choices applied. */
 export function recipients(t: Team, msg: "weekly" | "staffDigest", audience: Record<string, boolean>): Member[] {

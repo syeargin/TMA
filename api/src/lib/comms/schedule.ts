@@ -43,6 +43,8 @@ export const timeText = (start?: unknown, end?: unknown) => (start ? String(star
 export interface Item {
   key: string; kind: string; title: string; date: string; end: string; time: string; location: string;
   note: string; travel: boolean; cancelled: boolean; eid?: string;
+  /** What the club's calendar changed on it in the last week (calendar feed sync), for the weekly email. */
+  changed?: string;
 }
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
@@ -58,6 +60,12 @@ function occurrence(e: Row, date: string): Partial<Item> {
   return out;
 }
 
+/** The calendar's latest change to a feed event, if it was in the last 7 days. */
+function recentChange(e: Row): string {
+  const c = (e.src as { change?: { at?: string; text?: string } } | undefined)?.change;
+  return c?.at && c.text && Date.now() - Date.parse(c.at) < 7 * 86400000 ? c.text : "";
+}
+
 export function buildItems(events: Row[], settings: Row | null): Item[] {
   const out: Item[] = [];
   const tournaments = events.filter((e) => e.kind === "tournament");
@@ -66,7 +74,8 @@ export function buildItems(events: Row[], settings: Row | null): Item[] {
     const eid = str(e.eid);
     const base = {
       kind: str(e.kind), title: str(e.title), time: timeText(e.time, e.endTime), location: str(e.location) || str(e.city),
-      note: e.kind === "tournament" ? "" : str(e.notes), travel: !!e.travel, eid
+      note: e.kind === "tournament" ? "" : str(e.notes), travel: !!e.travel, eid,
+      ...(recentChange(e) ? { changed: recentChange(e) } : {})
     };
     const r = e.repeat as { every: number; days: number[]; until: string; skipTournaments?: boolean } | undefined;
     // A one-time event is cancelled when its date is in its cancelled list (events from a calendar feed).

@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import type { FeedEvent, FeedRules } from '@shared/feed-rules';
 import { ApiService } from '../../core/api.service';
 import type { FeedCheck, FeedView } from '../../core/models';
@@ -51,7 +52,7 @@ function setup(view: FeedView) {
     teamId: signal('t14'), items: () => [{ kind: 'practice', date: '2030-01-14', cancelled: false }],
     you: () => ({ sub: 'me', roles: ['admin'] }), authorName: () => '', has: () => true, refresh: vi.fn(() => Promise.resolve()), club: () => ({ short: 'A5', name: 'A5 Volleyball' }), clubId: () => 'a5', setFeature: vi.fn(() => Promise.resolve(true))
   };
-  TestBed.configureTestingModule({ providers: [{ provide: ApiService, useValue: api }, { provide: TeamStore, useValue: store }, { provide: ToastService, useValue: { show: vi.fn() } }] });
+  TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: ApiService, useValue: api }, { provide: TeamStore, useValue: store }, { provide: ToastService, useValue: { show: vi.fn() } }] });
   const f = TestBed.createComponent(CalendarFeed);
   f.componentRef.setInput('open', true);
   return { f, api, el: f.nativeElement as HTMLElement };
