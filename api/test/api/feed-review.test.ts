@@ -224,7 +224,7 @@ describe("turning it off and back on", () => {
     feed[0] = { ...feed[0], start: "0900", end: "1100" };
     expect((await coord("PUT", `/teams/${T}/features`, { features: { calfeed: true } })).status).toBe(200);
     // Back on: nothing syncs until an admin has looked.
-    expect(await runFeedSync()).toMatchObject({ synced: 0, skipped: 1 });
+    expect(await runFeedSync({ due: false })).toMatchObject({ synced: 0, skipped: 1 });
     expect((await get(keys.event(T, eidFor("SprocketSports-100"))))!.time).toBe("7:30 AM");
     expect((await syncNow()).body.error).toBe("feed_catchup");
     const pre = (await coord("POST", `/teams/${T}/feed/catchup`)).body.feed.source.catchUp;
@@ -234,7 +234,7 @@ describe("turning it off and back on", () => {
     expect(r.body.feed.source).toMatchObject({ pausedSince: null, catchUp: null });
     expect((await get(keys.event(T, eidFor("SprocketSports-100"))))!.time).toBe("9:00 AM");
     expect(await ev("SprocketSports-102")).toMatchObject({ title: "Practice", court: "Aux gym" });
-    expect(await runFeedSync()).toMatchObject({ synced: 1 });
+    expect(await runFeedSync({ due: false })).toMatchObject({ synced: 1 });
   });
 });
 

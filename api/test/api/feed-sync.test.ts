@@ -140,7 +140,7 @@ describe("syncing", () => {
     expect(await ev("SprocketSports-101")).toMatchObject({ time: "8:00 AM", endTime: "10:30 AM", court: "Court 9", uniformColor: "Navy", notes: "Serve receive", src: { change: { text: expect.stringContaining("8:00 AM") } } });
     // The family's answer is still there.
     expect((await get(keys.family(T, "p1")))!.rsvp[eidFor("SprocketSports-101")].v).toBe("no");
-    const chg = (await ddb.send(new QueryCommand({ TableName: TABLE, KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `TEAM#${T}`, ":s": "FEED#CHG#" } }))).Items!;
+    const chg = (await ddb.send(new QueryCommand({ TableName: TABLE, KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `FEEDLOG#${T}`, ":s": "CHG#" } }))).Items!;
     expect(chg).toHaveLength(1);
     expect(chg[0]).toMatchObject({ eid: eidFor("SprocketSports-101"), reason: "feed", fields: { time: { was: "7:30 AM", now: "8:00 AM" } } });
     expect(r.body.feed.runs[0]).toMatchObject({ trigger: "manual", changed: 1 });
@@ -201,11 +201,11 @@ describe("syncing", () => {
 describe("the job and the switches", () => {
   it("syncs imported feeds whose team and club allow it", async () => {
     feed[0] = { ...feed[0], court: "7" };
-    expect(await runFeedSync()).toEqual({ teams: 1, synced: 1, skipped: 0, failed: 0 });
+    expect(await runFeedSync({ due: false })).toEqual({ teams: 1, synced: 1, skipped: 0, failed: 0, notDue: 0 });
     expect((await ev("SprocketSports-100"))!.court).toBe("Court 7");
     expect((await coord("PUT", `/teams/${T}/features`, { features: { calfeed: false } })).status).toBe(200);
     feed[0] = { ...feed[0], court: "8" };
-    expect(await runFeedSync()).toEqual({ teams: 1, synced: 0, skipped: 1, failed: 0 });
+    expect(await runFeedSync({ due: false })).toEqual({ teams: 1, synced: 0, skipped: 1, failed: 0, notDue: 0 });
     expect((await ev("SprocketSports-100"))!.court).toBe("Court 7");
     expect((await coord("POST", `/teams/${T}/feed/sync`)).status).toBe(409);
   });
@@ -217,14 +217,14 @@ describe("the job and the switches", () => {
     expect(await ev("SprocketSports-100")).toMatchObject({ court: "Court 3", src: { uid: "SprocketSports-100" } });
     expect((await owner("PUT", "/admin/clubs/fs", { features: { calfeed: false } })).status).toBe(200);
     expect((await coord("PUT", `/teams/${T}/features`, { features: { calfeed: true } })).status).toBe(409); // the club has it off
-    expect(await runFeedSync()).toMatchObject({ skipped: 1 });
+    expect(await runFeedSync({ due: false })).toMatchObject({ skipped: 1 });
     expect((await owner("PUT", "/admin/clubs/fs", { features: { calfeed: true } })).status).toBe(200);
     expect((await coord("PUT", `/teams/${T}/features`, { features: { calfeed: true } })).status).toBe(200);
     // Back on: the job waits for an admin to look over what changed (C3), then the edit made while off stays as an override.
-    expect(await runFeedSync()).toMatchObject({ synced: 0, skipped: 1 });
+    expect(await runFeedSync({ due: false })).toMatchObject({ synced: 0, skipped: 1 });
     expect((await coord("POST", `/teams/${T}/feed/catchup/apply`)).body.run).toMatchObject({ ok: true });
     expect(await ev("SprocketSports-100")).toMatchObject({ court: "Court 3", src: { ov: { court: "Court 3" }, conflict: { court: "Court 8" } } });
-    expect(await runFeedSync()).toMatchObject({ synced: 1 });
+    expect(await runFeedSync({ due: false })).toMatchObject({ synced: 1 });
   });
 
   it("disconnecting keeps the events as the team's own", async () => {
@@ -232,7 +232,7 @@ describe("the job and the switches", () => {
     const e = (await ev("SprocketSports-100"))!;
     expect(e.src).toBeUndefined();
     expect(e).toMatchObject({ title: "Practice", court: "Court 3" });
-    expect(await runFeedSync()).toMatchObject({ teams: 0 });
+    expect(await runFeedSync({ due: false })).toMatchObject({ teams: 0 });
   });
 });
 

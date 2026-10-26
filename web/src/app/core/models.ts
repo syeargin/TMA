@@ -235,6 +235,8 @@ export type FeedView = {
     host: string; masked: string; preset: PresetId; presetLabel: string; calendarName: string; savedAt: string; savedBy: string; lastCheck: { at: string; total: number; matched: number } | null;
     importedAt: string | null; importFrom: string | null; lastSync: Omit<FeedRun, 'changes'> | null; lastOkAt: string | null; failures: number; nextManualAt: string | null;
     attention: { at: string; was: number; now: number } | null; pausedSince: string | null;
+    /** When the job next syncs it, and how often it does right now (30 or 120 minutes). */
+    nextSyncAt?: string | null; everyMinutes?: number | null;
     catchUp: { at: string; changes: { eid: string; title: string; date: string; text: string }[]; added: { title: string; date: string }[]; addedCount: number; missing: number } | null;
   };
   runs?: FeedRun[];

@@ -10,8 +10,10 @@
  * A sync never deletes or cancels an event because it's gone from the feed: it counts the syncs it's
  * been missing for, and an admin decides (stage C3). Unchanged events aren't written at all.
  *
- * TEAM#t / FEED#SYNC#<at>         one row per sync run (kept 90 days)
- * TEAM#t / FEED#CHG#<at>#<eid>    one row per changed event (kept a year)
+ * FEEDLOG#t / SYNC#<at>          sync runs that did something or failed (kept 90 days)
+ * FEEDLOG#t / CHG#<at>#<eid>     one row per changed event (kept a year)
+ * Both live outside the team's partition, so loading a team never reads them. When each team syncs is
+ * lib/feed/schedule.ts.
  */
 import { createHash } from "node:crypto";
 import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
@@ -25,6 +27,7 @@ import { clubOfTeam } from "../clubs.js";
 import { getControls, isActive } from "../club-controls.js";
 import { addDays, FeedError, parseFeed } from "./ical.js";
 import { loadFeed } from "./fetch.js";
+import { isDue, soonDates } from "./schedule.js";
 import { openLink } from "./secret.js";
 import { applyRules, FEED_OWNED, feedFields, FEED_KIND_LABELS, OVERRIDABLE, OVERRIDE_LABELS, type EventSource, type FeedFields, type FeedRules, type Overridable } from "../../shared/feed-rules.js";
 import { effectiveFeatures, isOn, type FeatureMap } from "../../shared/features.js";
@@ -135,17 +138,19 @@ type Plan = {
   resets: string[];
   total: number;
   attention?: { was: number; now: number };
+  /** Days with feed events in the next month (for when to sync next). */
+  soon: string[];
 };
 
 /** Works out what a sync would do, without writing anything. */
-async function plan(teamId: string, src: Source, from: string, at: string, by: string): Promise<{ p: Plan; today: string }> {
+async function plan(teamId: string, src: Source, from: string, at: string, by: string, body?: string): Promise<{ p: Plan; today: string }> {
   const rules = await currentRules(teamId, src.version);
   const zone = zoneOf(await getComms(teamId));
   const today = localParts(new Date(), zone).date;
-  const got = await loadFeed(await openLink(src.link, teamId));
-  const parsed = parseFeed(got.body, { teamZone: zone, windowStart: addDays(today, -400), windowEnd: addDays(today, 550) });
+  const text = body ?? (await loadFeed(await openLink(src.link, teamId))).body;
+  const parsed = parseFeed(text, { teamZone: zone, windowStart: addDays(today, -400), windowEnd: addDays(today, 550) });
   const matched = applyRules(parsed.events, rules).matched.filter((m) => m.endDate >= from);
-  const p: Plan = { added: [], updates: [], missing: [], resets: [], total: matched.length };
+  const p: Plan = { added: [], updates: [], missing: [], resets: [], total: matched.length, soon: soonDates(matched, today, 30) };
   if (!src.attentionAck && needsAttention(Number(src.lastGoodTotal ?? 0) || undefined, matched.length)) {
     p.attention = { was: Number(src.lastGoodTotal), now: matched.length };
     return { p, today };
@@ -232,36 +237,57 @@ export async function syncTeam(teamId: string, opt: { trigger: SyncRun["trigger"
   const started = Date.now();
   const at = new Date().toISOString();
   const run: SyncRun = { at, ok: false, trigger: opt.trigger, added: 0, changed: 0, unchanged: 0, missing: 0, total: 0, ms: 0, changes: [] };
-  const src = (await getItem(keys.feedSource(teamId))) as Source | undefined;
+  let src = (await getItem(keys.feedSource(teamId))) as Source | undefined;
   if (!src) throw new FeedError("feed_missing", "This team has no calendar feed.");
+  if (!src.logsMoved) { await moveLogs(teamId); src = { ...src, logsMoved: true }; }
   const from = opt.importFrom ?? src.importFrom;
   if (!from) throw new FeedError("feed_not_imported", "Import the feed first.");
   let attention: Plan["attention"];
+  let quiet = false;
+  const keep: Row = {};
   try {
-    const { p } = await plan(teamId, src, from, at, opt.by);
-    run.total = p.total;
-    if (p.attention) {
-      attention = p.attention;
-      throw new FeedError("feed_attention", `The rules matched ${p.attention.now} events this time, down from ${p.attention.was}. The club may have renamed the team or changed systems, so syncing is paused until an admin checks the rules. Nothing on the schedule changed.`);
+    // A calendar that hasn't changed since the last full sync needs nothing read or written, as long
+    // as nothing is waiting on a sync to move along (events being counted as missing, a paused feed).
+    const canSkip = opt.trigger !== "import" && !!(src.lastSync as Row | undefined)?.ok && !src.attention && !src.attentionAck && !Number(src.missingNow ?? 0)
+      && !!src.fullAt && Date.now() - Date.parse(String(src.fullAt)) < 86400000;
+    const link = await openLink(src.link, teamId);
+    const got = await loadFeed(link, canSkip ? { etag: src.etag as string | undefined, lastModified: src.lastModified as string | undefined } : {});
+    const hash = got.notModified ? String(src.bodyHash ?? "") : bodyHash(got.body, src.version, from);
+    if (canSkip && (got.notModified || hash === src.bodyHash)) {
+      quiet = true;
+      run.total = run.unchanged = Number(src.lastGoodTotal ?? 0);
+      run.ok = true;
+      // Same calendar, but the site may have started sending validators: keep them for next time.
+      if (!got.notModified && (got.etag ?? null) !== (src.etag ?? null)) keep.etag = got.etag ?? null;
+      if (!got.notModified && (got.lastModified ?? null) !== (src.lastModified ?? null)) keep.lastModified = got.lastModified ?? null;
+    } else {
+      const body = got.notModified ? (await loadFeed(link)).body : got.body;
+      const { p } = await plan(teamId, src, from, at, opt.by, body);
+      run.total = p.total;
+      if (p.attention) {
+        attention = p.attention;
+        throw new FeedError("feed_attention", `The rules matched ${p.attention.now} events this time, down from ${p.attention.was}. The club may have renamed the team or changed systems, so syncing is paused until an admin checks the rules. Nothing on the schedule changed.`);
+      }
+      const chgRows: Row[] = [];
+      for (const u of p.updates) {
+        await writeChange(teamId, u.old, u.f, !!u.s.kindSet, u.s, at, opt.by);
+        if (u.text) {
+          run.changed++;
+          const reason = (u.old.src as EventSource).rulesV !== src.version ? "rules" : "feed";
+          chgRows.push({ ...keys.feedLog(teamId, `CHG#${at}#${u.old.eid}`), type: "FeedChange", eid: u.old.eid, at, title: u.f.title, date: u.f.date, text: u.text, fields: JSON.parse(JSON.stringify(u.fields)), reason, ttl: Math.floor(Date.now() / 1000) + 365 * DAY });
+          run.changes.push({ eid: u.old.eid, title: String(u.f.title), date: String(u.f.date), text: u.text });
+        } else run.unchanged++;
+      }
+      run.unchanged += p.total - p.added.length - p.updates.length;
+      for (const eid of p.resets) await setMissing(teamId, eid, 0);
+      for (const m of p.missing) await setMissing(teamId, m.eid, m.n, m.since);
+      run.missing = p.missing.length;
+      run.added = p.added.length;
+      await putMany(p.added);
+      await putMany(chgRows);
+      run.ok = true;
+      Object.assign(keep, { soon: p.soon, fullAt: at, bodyHash: hash, missingNow: p.missing.length, etag: got.etag ?? null, lastModified: got.lastModified ?? null });
     }
-    const chgRows: Row[] = [];
-    for (const u of p.updates) {
-      await writeChange(teamId, u.old, u.f, !!u.s.kindSet, u.s, at, opt.by);
-      if (u.text) {
-        run.changed++;
-        const reason = (u.old.src as EventSource).rulesV !== src.version ? "rules" : "feed";
-        chgRows.push({ PK: `TEAM#${teamId}`, SK: `FEED#CHG#${at}#${u.old.eid}`, type: "FeedChange", eid: u.old.eid, at, title: u.f.title, date: u.f.date, text: u.text, fields: JSON.parse(JSON.stringify(u.fields)), reason, ttl: Math.floor(Date.now() / 1000) + 365 * DAY });
-        run.changes.push({ eid: u.old.eid, title: String(u.f.title), date: String(u.f.date), text: u.text });
-      } else run.unchanged++;
-    }
-    run.unchanged += p.total - p.added.length - p.updates.length;
-    for (const eid of p.resets) await setMissing(teamId, eid, 0);
-    for (const m of p.missing) await setMissing(teamId, m.eid, m.n, m.since);
-    run.missing = p.missing.length;
-    run.added = p.added.length;
-    await putMany(p.added);
-    await putMany(chgRows);
-    run.ok = true;
   } catch (e) {
     run.error = e instanceof FeedError ? e.message : "Something went wrong reading the feed.";
     run.code = e instanceof FeedError ? e.code : "error";
@@ -269,18 +295,48 @@ export async function syncTeam(teamId: string, opt: { trigger: SyncRun["trigger"
   }
   run.ms = Date.now() - started;
   const { changes, ...summary } = run;
-  await putItem({ PK: `TEAM#${teamId}`, SK: `FEED#SYNC#${at}`, type: "FeedSync", ...summary, changes: changes.slice(0, 20), ttl: Math.floor(Date.now() / 1000) + 90 * DAY });
+  // Quiet runs of the job leave no row: the feed's "last synced" says enough.
+  const worthKeeping = !run.ok || run.trigger !== "job" || run.added > 0 || run.changed > 0 || (!quiet && run.missing > Number(src.missingNow ?? 0));
+  if (worthKeeping) await putItem({ ...keys.feedLog(teamId, `SYNC#${at}`), type: "FeedSync", ...summary, changes: changes.slice(0, 20), ttl: Math.floor(Date.now() / 1000) + 90 * DAY });
+  const extra = Object.entries(keep);
+  const sets = extra.map(([k], i) => `#k${i} = :k${i}`).join(", ");
+  const kNames = Object.fromEntries(extra.map(([k], i) => [`#k${i}`, k]));
+  const kValues = Object.fromEntries(extra.map(([, v], i) => [`:k${i}`, v]));
   const upd = run.ok
-    ? { e: "SET lastSync = :s, lastOkAt = :at, failures = :zero, lastGoodTotal = :n REMOVE attention, attentionAck", v: { ":s": summary, ":at": at, ":zero": 0, ":n": run.total } }
+    ? { e: `SET lastSync = :s, lastOkAt = :at, failures = :zero, lastGoodTotal = :n${sets ? `, ${sets}` : ""} REMOVE attention, attentionAck`, v: { ":s": summary, ":at": at, ":zero": 0, ":n": run.total, ...kValues }, n: kNames }
     : attention
-      ? { e: "SET lastSync = :s, attention = :a", v: { ":s": summary, ":a": { at: src.attention ? (src.attention as Row).at : at, ...attention } } }
-      : { e: "SET lastSync = :s ADD failures :one", v: { ":s": summary, ":one": 1 } };
+      ? { e: "SET lastSync = :s, attention = :a", v: { ":s": summary, ":a": { at: src.attention ? (src.attention as Row).at : at, ...attention } }, n: {} }
+      : { e: "SET lastSync = :s ADD failures :one", v: { ":s": summary, ":one": 1 }, n: {} };
   await ddb.send(new UpdateCommand({
     TableName: TABLE, Key: keys.feedSource(teamId), ConditionExpression: "attribute_exists(PK)",
-    UpdateExpression: upd.e, ExpressionAttributeValues: upd.v
+    UpdateExpression: upd.e, ExpressionAttributeValues: upd.v, ...(Object.keys(upd.n).length ? { ExpressionAttributeNames: upd.n } : {})
   })).catch((e) => console.error(JSON.stringify({ msg: "feed source not updated", teamId, error: String(e) })));
-  console.log(JSON.stringify({ msg: "feed synced", teamId, trigger: run.trigger, ok: run.ok, added: run.added, changed: run.changed, missing: run.missing, total: run.total, ms: run.ms, code: run.code }));
+  console.log(JSON.stringify({ msg: "feed synced", teamId, trigger: run.trigger, ok: run.ok, quiet, added: run.added, changed: run.changed, missing: run.missing, total: run.total, ms: run.ms, code: run.code }));
   return run;
+}
+
+/**
+ * Fingerprint of a calendar file for "has it changed?". Lines feeds rewrite on every fetch without
+ * anything changing (DTSTAMP, and SEQUENCE in Sprocket's) are left out; the rules version and the
+ * import date are in, so new rules always get a full sync.
+ */
+export function bodyHash(body: string, rulesVersion: number, from: string): string {
+  const lines = body.replace(/\r?\n[ \t]/g, "").split(/\r?\n/).filter((l) => !/^(DTSTAMP|SEQUENCE|LAST-MODIFIED|CREATED)[;:]/i.test(l));
+  return createHash("sha256").update(`${rulesVersion}|${from}|${lines.join("\n")}`).digest("base64url").slice(0, 22);
+}
+
+/** Sync logs written before they had their own partition move there once (C3 kept them in the team's). */
+async function moveLogs(teamId: string) {
+  const old = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":s": "FEED#" } });
+  const logs = old.filter((r) => String(r.SK).startsWith("FEED#SYNC#") || String(r.SK).startsWith("FEED#CHG#"));
+  const sync = logs.filter((r) => String(r.SK).startsWith("FEED#SYNC#")).sort((a, b) => String(b.SK).localeCompare(String(a.SK)));
+  // Every change row, and the sync rows that did something (or the latest few), move across.
+  const keepSync = sync.filter((r, i) => i < 8 || !r.ok || Number(r.added) || Number(r.changed));
+  const moved = [...logs.filter((r) => String(r.SK).startsWith("FEED#CHG#")), ...keepSync].map(({ PK: _p, SK, ...rest }) => ({ ...rest, ...keys.feedLog(teamId, String(SK).slice(5)) }));
+  await putMany(moved);
+  await deleteMany(logs.map((r) => ({ PK: String(r.PK), SK: String(r.SK) })));
+  await ddb.send(new UpdateCommand({ TableName: TABLE, Key: keys.feedSource(teamId), UpdateExpression: "SET logsMoved = :t", ConditionExpression: "attribute_exists(PK)", ExpressionAttributeValues: { ":t": true } })).catch(() => undefined);
+  if (logs.length) console.log(JSON.stringify({ msg: "feed logs moved", teamId, rows: logs.length, kept: moved.length }));
 }
 
 async function setMissing(teamId: string, eid: string, n: number, since?: string) {
@@ -316,7 +372,7 @@ async function writeChange(teamId: string, old: Row & { eid: string }, f: FeedFi
 // ---------- Overrides and review ----------
 
 const chgRow = (teamId: string, eid: string, e: Row, text: string, reason: string, by: string) => ({
-  PK: `TEAM#${teamId}`, SK: `FEED#CHG#${new Date().toISOString()}#${eid}`, type: "FeedChange", eid, at: new Date().toISOString(),
+  ...keys.feedLog(teamId, `CHG#${new Date().toISOString()}#${eid}`), type: "FeedChange", eid, at: new Date().toISOString(),
   title: e.title, date: e.date, text, reason, by, ttl: Math.floor(Date.now() / 1000) + 365 * DAY
 });
 
@@ -549,7 +605,8 @@ export async function disconnect(teamId: string) {
     await ddb.send(new UpdateCommand({ TableName: TABLE, Key: keys.event(teamId, e.eid), UpdateExpression: "REMOVE src", ConditionExpression: "attribute_exists(PK)" })).catch(() => undefined);
   }
   const items = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":s": "FEED#" }, ProjectionExpression: "PK, SK" });
-  await deleteMany(items.map((i) => ({ PK: String(i.PK), SK: String(i.SK) })));
+  const log = await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `FEEDLOG#${teamId}` }, ProjectionExpression: "PK, SK" });
+  await deleteMany([...items, ...log].map((i) => ({ PK: String(i.PK), SK: String(i.SK) })));
   return { kept: fromFeed.size };
 }
 
@@ -567,10 +624,13 @@ export async function feedActive(teamId: string, features?: FeatureMap): Promise
 
 // ---------- The scheduled job ----------
 
-/** Every 30 minutes (template.yaml FeedSyncFunction): syncs every imported feed whose team and club allow it. */
-export async function runFeedSync(opt: { concurrency?: number } = {}) {
+/**
+ * Every 10 minutes (template.yaml FeedSyncFunction): syncs the imported feeds that are due
+ * (lib/feed/schedule.ts) and whose team and club allow it. `due: false` syncs every feed now (tests).
+ */
+export async function runFeedSync(opt: { concurrency?: number; at?: Date; due?: boolean } = {}) {
   const sources = await queryAll({ IndexName: "GSI2", KeyConditionExpression: "GSI2PK = :g", ExpressionAttributeValues: { ":g": "FEEDS" } });
-  const out = { teams: sources.length, synced: 0, skipped: 0, failed: 0 };
+  const out = { teams: sources.length, synced: 0, skipped: 0, failed: 0, notDue: 0 };
   const queue = sources.map((s) => String(s.GSI2SK));
   const worker = async () => {
     for (let teamId = queue.shift(); teamId; teamId = queue.shift()) {
@@ -582,6 +642,7 @@ export async function runFeedSync(opt: { concurrency?: number } = {}) {
         const src = await getItem(keys.feedSource(teamId));
         // Back on after a pause: an admin looks over what changed first (Calendar feed › Catch up).
         if (src?.pausedSince) { out.skipped++; continue; }
+        if (opt.due !== false && !isDue({ teamId, at: opt.at ?? new Date(), zone: zoneOf(await getComms(teamId)), soon: (src?.soon as string[] | undefined) ?? [], lastAttemptAt: (src?.lastSync as Row | undefined)?.at as string | undefined })) { out.notDue++; continue; }
         if (!(await lock(teamId))) { out.skipped++; continue; }
         try {
           const run = await syncTeam(teamId, { trigger: "job", by: "feed" });

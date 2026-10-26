@@ -124,6 +124,14 @@ describe('calendar feed panel', () => {
     expect(text(el)).toContain('Practice: now 8:00 AM (was 7:30 AM)');
   });
 
+  it('says when it syncs next, and how often', async () => {
+    const next = new Date(Date.now() + 25 * 60000).toISOString();
+    const { el } = setup({ ...imported, source: { ...imported.source!, nextSyncAt: next, everyMinutes: 30 } });
+    await settle();
+    expect(text(el)).toContain(new Date(next).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
+    expect(text(el)).toContain('There’s something today or tomorrow, so it syncs every 30 minutes. Nothing syncs from 11 PM to 5 AM');
+  });
+
   it('syncs now, and says when it can again', async () => {
     const { api, el } = setup(imported);
     api.syncFeed.mockResolvedValue({ run: { ok: true, added: 0, changed: 0, missing: 0 }, feed: { ...imported, source: { ...imported.source!, nextManualAt: new Date(Date.now() + 299_000).toISOString() } } });

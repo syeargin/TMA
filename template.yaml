@@ -1027,7 +1027,8 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
-  # Calendar feed sync (C2): every 30 minutes, brings each team's imported calendar feed up to date.
+  # Calendar feed sync: runs every 10 minutes and syncs the teams that are due (lib/feed/schedule.ts):
+  # every 30 minutes with something today or tomorrow, every 2 hours otherwise, not 11 PM to 5 AM.
   # It reads the club's calendar over the internet (HTTPS only, never private addresses: lib/feed/fetch.ts).
   FeedSyncFunction:
     Type: AWS::Serverless::Function
@@ -1042,7 +1043,7 @@ Resources:
         EntryPoints: [src/jobs/feed-sync.ts]
         External: ["@aws-sdk/*"]
     Properties:
-      Description: Syncs each team's calendar feed (calendar feed sync) every 30 minutes.
+      Description: Syncs each team's calendar feed when it's due (every 30 minutes to 2 hours, not overnight).
       CodeUri: api/
       Handler: feed-sync.handler
       MemorySize: 512
@@ -1054,10 +1055,10 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
       Events:
-        Every30:
+        Every10:
           Type: Schedule
           Properties:
-            Schedule: rate(30 minutes)
+            Schedule: rate(10 minutes)
             Description: Team Hub calendar feed sync
 
   FeedSyncFunctionLogs:
@@ -1075,7 +1076,7 @@ Resources:
       MetricName: Errors
       Dimensions: [{ Name: FunctionName, Value: !Ref FeedSyncFunction }]
       Statistic: Sum
-      Period: 1800
+      Period: 3600
       EvaluationPeriods: 1
       Threshold: 0
       ComparisonOperator: GreaterThanThreshold

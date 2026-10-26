@@ -77,22 +77,30 @@ export async function readLimited(stream: Readable, max: number): Promise<Buffer
   return Buffer.concat(chunks);
 }
 
-function get(u: URL, signal: AbortSignal): Promise<IncomingMessage> {
+function get(u: URL, signal: AbortSignal, extra: Record<string, string> = {}): Promise<IncomingMessage> {
   const host = u.hostname.replace(/^\[|\]$/g, "");
   if (isIP(host) && blockedAddress(host)) return Promise.reject(new FeedError("feed_blocked", "That calendar link points to a private address, so Teem Hub can't read it."));
   return new Promise((resolve, reject) => {
     const req = request(u, {
       method: "GET", signal, lookup: safeLookup as never,
-      headers: { "User-Agent": UA, Accept: "text/calendar, text/plain;q=0.8, */*;q=0.5", "Accept-Encoding": "gzip, deflate" }
+      headers: { "User-Agent": UA, Accept: "text/calendar, text/plain;q=0.8, */*;q=0.5", "Accept-Encoding": "gzip, deflate", ...extra }
     }, resolve);
     req.on("error", reject);
     req.end();
   });
 }
 
-export type Fetched = { body: string; host: string; finalHost: string };
+export type Fetched = {
+  body: string; host: string; finalHost: string;
+  /** The site's validators, sent back next time so it can answer "not modified" without rebuilding the calendar. */
+  etag?: string; lastModified?: string;
+  /** The site answered 304: the calendar is the same as last time (body is empty). */
+  notModified?: boolean;
+};
+/** Validators from the last fetch (stored on the feed). */
+export type Validators = { etag?: string; lastModified?: string };
 
-export async function fetchFeed(raw: string): Promise<Fetched> {
+export async function fetchFeed(raw: string, last: Validators = {}): Promise<Fetched> {
   let u = normalizeFeedUrl(raw);
   const host = u.hostname;
   const ctl = new AbortController();
@@ -100,8 +108,12 @@ export async function fetchFeed(raw: string): Promise<Fetched> {
   try {
     for (let hop = 0; ; hop++) {
       let res: IncomingMessage;
-      try { res = await get(u, ctl.signal); } catch (e) { throw asFeedError(e, ctl.signal.aborted); }
+      const cond: Record<string, string> = {};
+      if (last.etag) cond["If-None-Match"] = last.etag;
+      if (last.lastModified) cond["If-Modified-Since"] = last.lastModified;
+      try { res = await get(u, ctl.signal, cond); } catch (e) { throw asFeedError(e, ctl.signal.aborted); }
       const status = res.statusCode ?? 0;
+      if (status === 304) { res.resume(); return { body: "", host, finalHost: u.hostname, notModified: true, ...last }; }
       if (status >= 300 && status < 400 && res.headers.location) {
         res.resume();
         if (hop >= FETCH_LIMITS.redirects) throw new FeedError("feed_unreachable", "That calendar link redirects too many times.");
@@ -119,18 +131,21 @@ export async function fetchFeed(raw: string): Promise<Fetched> {
       const stream: Readable = enc === "gzip" ? res.pipe(createGunzip()) : enc === "deflate" ? res.pipe(createInflate()) : res;
       let buf: Buffer;
       try { buf = await readLimited(stream, FETCH_LIMITS.bytes); } catch (e) { throw asFeedError(e, ctl.signal.aborted); }
-      return { body: buf.toString("utf8"), host, finalHost: u.hostname };
+      const etag = typeof res.headers.etag === "string" ? res.headers.etag.slice(0, 200) : undefined;
+      const lastModified = typeof res.headers["last-modified"] === "string" ? res.headers["last-modified"].slice(0, 100) : undefined;
+      return { body: buf.toString("utf8"), host, finalHost: u.hostname, ...(etag ? { etag } : {}), ...(lastModified ? { lastModified } : {}) };
     }
   } finally {
     clearTimeout(timer);
   }
 }
 
-let fetcher: (raw: string) => Promise<Fetched> = fetchFeed;
+type Fetcher = (raw: string, last?: Validators) => Promise<Fetched>;
+let fetcher: Fetcher = fetchFeed;
 /** Tests and the local preview read made-up calendars instead of the internet (like setMfaLookup). */
-export function setFeedFetcher(f: ((raw: string) => Promise<Fetched>) | null) { fetcher = f ?? fetchFeed; }
+export function setFeedFetcher(f: Fetcher | null) { fetcher = f ?? fetchFeed; }
 /** What routes call: fetchFeed, unless a test swapped it. */
-export const loadFeed = (raw: string) => fetcher(raw);
+export const loadFeed = (raw: string, last?: Validators) => fetcher(raw, last);
 
 function asFeedError(e: unknown, timedOut: boolean): FeedError {
   if (e instanceof FeedError) return e;
