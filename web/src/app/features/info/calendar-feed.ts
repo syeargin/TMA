@@ -28,7 +28,7 @@ export { clock };
   template: `
     <th-sheet heading="Calendar feed" [open]="open()" (closed)="closed.emit()">
       <div class="feed-panel">
-      <p class="muted small" style="margin-top:0">Bring the team's schedule in from your club's scheduling system. Teem Hub keeps it up to date every 30 minutes, and everything your team adds (availability, attendance, tournament details, notes) stays here.</p>
+      <p class="muted small" style="margin-top:0">Bring the team's schedule in from your club's scheduling system. Teem Hub keeps it up to date (every 30 minutes around practices and events, less often otherwise), and everything your team adds (availability, attendance, tournament details, notes) stays here.</p>
       <th-messages [error]="error()" />
 
       @if (loading()) { <p class="muted">Loading…</p> }
@@ -45,8 +45,9 @@ export { clock };
                   @if (view()!.source!.attention) { <span class="pill p-warn">Needs attention · syncing paused</span> }
                   @else if (view()!.source!.pausedSince) { <span class="pill p-warn">{{ store.has('calfeed') ? 'Catch up first' : 'Paused' }}</span> }
                   @else if (ls.ok) { <span class="pill p-ok">Healthy</span> } @else { <span class="pill p-bad">Last sync failed</span> }
-                  <span class="small">Synced {{ ago(ls.at) }} · it syncs on its own every 30 minutes</span>
+                  <span class="small">Synced {{ ago(ls.at) }}@if (view()!.source!.nextSyncAt; as n) { · next around {{ clockAt(n) }} }</span>
                 </div>
+                <p class="small muted" style="margin:4px 0 0">{{ cadence() }}</p>
                 @if (!ls.ok && !view()!.source!.attention) { <p class="small feed-warn">{{ ls.error }} Nothing on the schedule changed.@if (view()!.source!.failures > 1) { It has failed {{ view()!.source!.failures }} times in a row. }</p> }
               }
               <div class="form-actions" style="margin-top:10px">
@@ -71,7 +72,7 @@ export { clock };
                     <button class="btn primary" type="button" [disabled]="busy()" (click)="runImport()">{{ importing() ? 'Importing…' : 'Import onto the schedule' }}</button>
                     <button class="link-btn small" type="button" [disabled]="busy()" (click)="runCheck()">Check feed and edit rules first</button>
                   </div>
-                  <p class="small muted" style="margin:0">Families aren't notified about the import. After that, Teem Hub syncs every 30 minutes.</p>
+                  <p class="small muted" style="margin:0">Families aren't notified about the import. After that, Teem Hub syncs on its own: every 30 minutes when there's something today or tomorrow, every 2 hours otherwise, and not overnight.</p>
                 </fieldset>
               }
             }
@@ -456,6 +457,17 @@ export class CalendarFeed {
   }
 
   readonly feedLabel = computed(() => this.store.club()?.short || 'the club');
+  /** How often it syncs right now, in words. */
+  readonly cadence = computed(() => {
+    const m = this.view()?.source?.everyMinutes;
+    const why = m === 30 ? 'There’s something today or tomorrow, so it syncs every 30 minutes.' : m ? 'Nothing today or tomorrow, so it syncs every 2 hours.' : '';
+    return why ? `${why} Nothing syncs from 11 PM to 5 AM; Sync now works any time.` : '';
+  });
+  /** "Mon 7:40 AM", or just "7:40 AM" today. */
+  clockAt(at: string) {
+    const d = new Date(at), t = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return d.toDateString() === new Date().toDateString() ? t : `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${t}`;
+  }
   readonly clubName = computed(() => this.store.club()?.name || 'the club');
   saveTemplate = false;
   fieldLabel(f: Overridable) { return OVERRIDE_LABELS[f]; }
@@ -475,7 +487,7 @@ export class CalendarFeed {
     return this.act(() => this.api.reviewFeed(this.store.teamId(), { action, eid: r.eid, ...(r.kind === 'conflict' ? { field: r.field } : {}) }), done);
   }
   previewCatchUp() { return this.act(() => this.api.catchUpFeed(this.store.teamId()), '', false); }
-  applyCatchUp() { return this.act(() => this.api.applyCatchUp(this.store.teamId()), 'Caught up. Syncing every 30 minutes again.'); }
+  applyCatchUp() { return this.act(() => this.api.applyCatchUp(this.store.teamId()), 'Caught up. Syncing on its own again.'); }
   acceptDrop() { return this.act(() => this.api.acceptFeedDrop(this.store.teamId()), 'Synced with the new count'); }
   async keepOff() {
     await this.store.setFeature('calfeed', false);

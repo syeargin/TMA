@@ -13,6 +13,9 @@ export const keys = {
   feedRules: (t: string, v: number) => ({ PK: `TEAM#${t}`, SK: `FEED#RULES#${String(v).padStart(4, "0")}` }),
   /** A club's starting rules for one calendar system (club admins save them; teams' Check feed starts from them). */
   feedTemplate: (clubId: string, preset: string) => ({ PK: `CLUB#${clubId}`, SK: `FEEDTPL#${preset}` }),
+  /** A team's calendar feed log, kept out of the team's own data so loading the team never reads it:
+   * SYNC#<at> (sync runs that did something or failed, 90 days) and CHG#<at>#<eid> (event changes, a year). */
+  feedLog: (t: string, sk: string) => ({ PK: `FEEDLOG#${t}`, SK: sk }),
   /** Recent Check feed times, to keep one team from fetching too often. */
   feedChecks: (t: string) => ({ PK: `TEAM#${t}`, SK: "FEED#CHECKS" }),
   /** Site-owner settings for a club: active or not, its team limit, which features it may use. */

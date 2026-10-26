@@ -22,6 +22,7 @@ import { HttpError, json, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { checkId, date, deleteItem, getItem, now, putItem, queryAll } from "../util.js";
 import { TransactWriteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { intervalAt, nextDue } from "../../lib/feed/schedule.js";
 import { disconnect, importFeed, lockFeed, MANUAL_EVERY_MS, previewSync, setOverrides, settleReview, syncTeam, unlockFeed } from "../../lib/feed/sync.js";
 
 const kind = z.enum(FEED_KINDS);
@@ -110,14 +111,18 @@ async function view(teamId: string) {
   if (!src) return { connected: false as const };
   const all = await versions(teamId);
   const current = all.find((x) => x.v === src.version) ?? all[0];
-  const runs = src.importedAt ? await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `TEAM#${teamId}`, ":s": "FEED#SYNC#" }, ScanIndexForward: false, Limit: 8 }) : [];
+  const runs = src.importedAt ? await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `FEEDLOG#${teamId}`, ":s": "SYNC#" }, ScanIndexForward: false, Limit: 8 }) : [];
+  const zone = zoneOf(await getComms(teamId));
+  const due = { teamId, at: new Date(), zone, soon: (src.soon as string[] | undefined) ?? [], lastAttemptAt: (src.lastSync as Record<string, unknown> | undefined)?.at as string | undefined };
+  const next = src.importedAt && !src.pausedSince && !src.attention ? nextDue(due) : null;
   return {
     connected: true as const,
     source: {
       host: src.host, masked: src.masked, preset: src.preset, presetLabel: PRESETS[src.preset]?.label ?? "", calendarName: src.calendarName ?? "", savedAt: src.savedAt, savedBy: src.savedBy, lastCheck: src.lastCheck ?? null,
       importedAt: src.importedAt ?? null, importFrom: src.importFrom ?? null, lastSync: src.lastSync ?? null, lastOkAt: src.lastOkAt ?? null, failures: src.failures ?? 0,
       nextManualAt: src.manualAt ? new Date(Number(src.manualAt) + MANUAL_EVERY_MS).toISOString() : null,
-      attention: src.attention ?? null, pausedSince: src.pausedSince ?? null, catchUp: src.catchUp ?? null
+      attention: src.attention ?? null, pausedSince: src.pausedSince ?? null, catchUp: src.catchUp ?? null,
+      nextSyncAt: next ? next.toISOString() : null, everyMinutes: src.importedAt ? intervalAt(due) : null
     },
     review: src.importedAt ? await review(teamId) : [],
     version: current?.v ?? 0,
@@ -352,7 +357,7 @@ export function feedRoutes(r: Router) {
     const a = await loadAccess(caller, checkId(params.teamId, "team"));
     a.require("schedule");
     const eid = checkId(params.eid, "event");
-    const rows = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `TEAM#${a.teamId}`, ":s": "FEED#CHG#" }, ScanIndexForward: false });
+    const rows = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :s)", ExpressionAttributeValues: { ":p": `FEEDLOG#${a.teamId}`, ":s": "CHG#" }, ScanIndexForward: false });
     return json(200, { history: rows.filter((r) => r.eid === eid).slice(0, 30).map((r) => ({ at: r.at, text: r.text, reason: r.reason, by: r.by })) });
   });
 
