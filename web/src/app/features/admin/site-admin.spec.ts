@@ -11,9 +11,16 @@ describe('site admin dashboard', () => {
   ];
   const settle = async () => { await new Promise((r) => setTimeout(r, 0)); TestBed.tick(); };
 
+  const HELP = {
+    since: '2026-08-01', months: 3, searches: 40, misses: 10, minViews: 50, via: { browse: 5, search: 3, popular: 0 },
+    topics: [{ id: 'answer-availability', title: 'Answer In, Maybe or Out', role: 'parent', views: 8, thisMonth: 2, byRole: { parent: 6, staff: 1, admin: 0, none: 1 } }],
+    popular: { all: { ids: [], from: 'starter' }, parent: { ids: [], from: 'counts' }, staff: { ids: [], from: 'starter' }, admin: { ids: [], from: 'starter' } }
+  };
+
   function mount() {
     const call = vi.fn((method: string, path: string, body?: Record<string, unknown>) => {
       if (method === 'GET' && path === '/admin/clubs') return Promise.resolve({ clubs });
+      if (method === 'GET' && path === '/admin/help') return Promise.resolve(HELP);
       if (method === 'GET') return Promise.resolve({ history: [{ at: '2026-10-20T15:00:00Z', by: 'Sam Owner', changes: ['Team limit set to 8'], reason: '' }] });
       return Promise.resolve({ ...clubs[0], ...(body?.['features'] ? { features: {} } : {}), changed: true });
     });
@@ -57,5 +64,16 @@ describe('site admin dashboard', () => {
     f.detectChanges();
     expect(el.textContent).toContain('Say why the club is being made inactive');
     expect(call).not.toHaveBeenLastCalledWith('PUT', '/admin/clubs/a5', { status: 'inactive' });
+  });
+
+  it('shows the help guide counts under the clubs', async () => {
+    const { f, el, call } = mount();
+    await settle(); await settle(); f.detectChanges();
+    expect(call).toHaveBeenCalledWith('GET', '/admin/help');
+    const card = [...el.querySelectorAll('section.card')].find((s) => s.textContent?.includes('Help guide'))!;
+    expect(card.textContent).toContain('Answer In, Maybe or Out');
+    expect(card.textContent).toContain('25% of searches');
+    expect(card.textContent).toContain('counts for parents, and the starting picks for the rest');
+    expect(card.textContent).toContain('Browsing 5 · Search 3');
   });
 });

@@ -254,3 +254,11 @@ export type FeedCheck = {
   template?: { at: string; used: boolean } | null;
   events: FeedEvent[];
 };
+
+/** Site admin's help guide counts (GET /admin/help), over the last few months. */
+export interface AdminHelp {
+  since: string; months: number; searches: number; misses: number; minViews: number;
+  topics: { id: string; title: string; role: string; views: number; thisMonth: number; byRole: Record<string, number> }[];
+  via: Record<string, number>;
+  popular: Record<string, { ids: string[]; from: 'counts' | 'starter' }>;
+}

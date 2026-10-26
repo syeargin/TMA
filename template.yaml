@@ -481,6 +481,11 @@ Resources:
       DefaultRouteSettings:
         ThrottlingBurstLimit: 100
         ThrottlingRateLimit: 50
+      # The help guide's counts need no sign-in, so they get a much lower limit than the rest.
+      RouteSettings:
+        "POST /public/help/events":
+          ThrottlingBurstLimit: 20
+          ThrottlingRateLimit: 5
       AccessLogSettings:
         DestinationArn: !GetAtt ApiAccessLogs.Arn
         Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","time":"$context.requestTime","method":"$context.httpMethod","path":"$context.path","status":"$context.status","latencyMs":"$context.responseLatency","sub":"$context.authorizer.claims.sub","error":"$context.authorizer.error"}'
@@ -575,6 +580,22 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /public/answer
             Method: POST
+            Auth: { Authorizer: NONE }
+        # The help guide (/help) works without signing in. It sends counts only: which topic was
+        # opened and how, and whether a search found anything (routes/help.ts).
+        PublicHelpEvents:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /public/help/events
+            Method: POST
+            Auth: { Authorizer: NONE }
+        PublicHelpPopular:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /public/help/popular
+            Method: GET
             Auth: { Authorizer: NONE }
 
   ApiFunctionLogs:

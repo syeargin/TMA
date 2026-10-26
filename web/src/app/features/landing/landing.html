@@ -329,6 +329,7 @@
       <div class="lp-foot-links">
         <a href="#features" (click)="jump($event, 'features')">Features</a>
         <a href="#clubs" (click)="jump($event, 'clubs')">For clubs</a>
+        <a routerLink="/help">Help</a>
         <a routerLink="/privacy">Privacy</a>
         <a routerLink="/terms">Terms</a>
         @if (contact) { <a [href]="'mailto:' + contact">Contact</a> }

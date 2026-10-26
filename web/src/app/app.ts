@@ -14,7 +14,8 @@ import { ToastService } from './core/toast.service';
 /** Pages for signed-out people (a signed-in visitor goes to their teams). */
 const SIGNED_OUT_PAGES = new Set(['/signin', '/signup', '/verify', '/forgot', '/reset']);
 /** Pages anyone can see. */
-const PUBLIC_PAGES = new Set(['/', '/privacy', '/unconfigured']);
+const PUBLIC_PAGES = new Set(['/', '/privacy', '/unconfigured', '/help']);
+const isPublic = (path: string) => PUBLIC_PAGES.has(path) || path.startsWith('/help/');
 
 @Component({
   selector: 'th-root',
@@ -39,6 +40,7 @@ const PUBLIC_PAGES = new Set(['/', '/privacy', '/unconfigured']);
             </span>
           }
           @if (env !== 'prod') { <span class="env">{{ env }}</span> }
+          <a class="hdr-help" routerLink="/help" title="Help and how-to">Help</a>
           @if (auth.user(); as u) {
             <a class="who" routerLink="/teams" [title]="'Signed in as ' + u.email">
               <span><span class="w-l">Signed in</span><span class="w-n">{{ me.label() || u.email }}</span></span>
@@ -81,9 +83,9 @@ export class App {
     this.lastSub = user?.sub ?? '';
     const path = this.router.url.split(/[?#]/)[0];
     if (user && SIGNED_OUT_PAGES.has(path)) { await this.router.navigateByUrl('/teams'); return; }
-    if (!user && !PUBLIC_PAGES.has(path) && !SIGNED_OUT_PAGES.has(path)) { await this.router.navigateByUrl('/signin'); return; }
+    if (!user && !isPublic(path) && !SIGNED_OUT_PAGES.has(path)) { await this.router.navigateByUrl('/signin'); return; }
     // Signed in as someone else: start them on their own teams.
-    if (user && before && before !== user.sub && !PUBLIC_PAGES.has(path)) await this.router.navigateByUrl('/teams');
+    if (user && before && before !== user.sub && !isPublic(path)) await this.router.navigateByUrl('/teams');
   }
   readonly liveText: Record<LiveStatus, string> = { off: '', live: 'Live', connecting: 'Connecting…', reconnecting: 'Reconnecting…' };
 }

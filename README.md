@@ -207,6 +207,16 @@ A team feature ("Practice attendance", on by default; a site owner can switch it
 - **Families** see a card on Home with their own player's attendance and the dates they missed or were late. The team data a family's browser gets carries only their own player's marks; no other player's marks, notes or who took them.
 - **Stored** as one record per practice date, `TEAM#<t>` / `ATT#<practice key>` (live updates included). Two coaches marking at once each change only the players they marked. Deleting a player removes their marks; Download my data includes your own player's.
 
+### Help guide
+
+`/help` explains the site in short steps, by role (parents; coaches and coordinators; team admins and finance). It works without signing in, so families can read it before they join.
+- **Topics** live in code, in `api/src/shared/help.ts` (18 to start), so the site shows them and the API accepts counts only for them. To add or change one, edit that file; each topic has its steps, tips, the page "Take me there" opens, the team feature it needs, the team pages its contextual help shows on, and related topics. There's no editor in the site.
+- **Search** (`api/src/shared/help-search.ts`) runs in the browser as people type: every word has to match a topic's title, keywords, summary or steps (the start of a word is enough), and common other words map to the site's own ("rsvp" → In / Maybe / Out, "venmo" → payment, "hotel" → travel). Matches are highlighted.
+- **On team pages** the tabs have a **Help** button: the topics for the page you're on, yours first, leaving out features the team turned off. It loads on the first tap.
+- **Counts only:** opening a topic sends its id, the role group (from the filter or your teams) and how it was opened; a finished search sends only whether it found anything. No account, address or search words are kept. One row per month (`HELP#<yyyy-mm>`, kept 13 months), and the public route is throttled lower than the rest of the API. Each topic counts once per visit.
+- **Most used** shows starting picks for each role until that role has 50 views in the last 3 months, then its most-opened topics. **Site admin** shows the counts per topic and role, how topics were opened, and how many searches found nothing.
+- **Screenshots** (`web/public/help-img/`) come from the local preview's sample team: run the preview server (Local development), then `node web/scripts/help-shots.mjs [topic …]` after `npm run build`. Re-take them when a page they show changes.
+
 ### Calendar feed sync (stages C1 to C4)
 
 A team feature ("Calendar feed sync", on by default; team admins can turn it off in Team settings, and a site owner can switch it off per club). C1 reads a feed and saves the link and rules; C2 imports it onto the schedule and keeps it in step every 30 minutes; C3 adds the review list, overrides, the catch-up after a pause, the pause when the rules stop matching, and club templates. C4 tells families and the team's admins by email (texts follow when texting goes live). The design: "Teem Hub calendar feed sync: approach and decisions".
