@@ -28,6 +28,7 @@ import { getControls, isActive } from "../club-controls.js";
 import { addDays, FeedError, parseFeed } from "./ical.js";
 import { loadFeed } from "./fetch.js";
 import { isDue, soonDates } from "./schedule.js";
+import { alertAdmins, flushHeld, NOTICE_FIELDS, notifyChanges, type FeedNotice } from "../comms/feed-notices.js";
 import { openLink } from "./secret.js";
 import { applyRules, FEED_OWNED, feedFields, FEED_KIND_LABELS, OVERRIDABLE, OVERRIDE_LABELS, type EventSource, type FeedFields, type FeedRules, type Overridable } from "../../shared/feed-rules.js";
 import { effectiveFeatures, isOn, type FeatureMap } from "../../shared/features.js";
@@ -72,7 +73,12 @@ export function changeText(was: FeedFields, now: FeedFields, kindSet: boolean): 
   return out.length > 3 ? `${out.slice(0, 3).join("; ")} and more` : out.join("; ");
 }
 
+/** Failed syncs in a row before admins get an email (about 3 hours on a busy day). */
+export const FAILING_AFTER = 6;
+
 export type SyncRun = {
+  /** People emailed about cancelled or moved events by this run. */
+  emailed?: number;
   at: string; ok: boolean; trigger: "import" | "job" | "manual";
   added: number; changed: number; unchanged: number; missing: number; total: number;
   error?: string; code?: string; ms: number;
@@ -244,6 +250,8 @@ export async function syncTeam(teamId: string, opt: { trigger: SyncRun["trigger"
   if (!from) throw new FeedError("feed_not_imported", "Import the feed first.");
   let attention: Plan["attention"];
   let quiet = false;
+  const notices: FeedNotice[] = [];
+  const reviewNew: string[] = [];
   const keep: Row = {};
   try {
     // A calendar that hasn't changed since the last full sync needs nothing read or written, as long
@@ -271,9 +279,24 @@ export async function syncTeam(teamId: string, opt: { trigger: SyncRun["trigger"
       const chgRows: Row[] = [];
       for (const u of p.updates) {
         await writeChange(teamId, u.old, u.f, !!u.s.kindSet, u.s, at, opt.by);
+        const was = u.old.src as EventSource;
+        // An override the calendar has just changed under: on the review list.
+        for (const [k, v] of Object.entries(u.s.conflict ?? {})) if (was.conflict?.[k as Overridable] !== v) {
+          reviewNew.push(`${shortDate(String(u.f.date))} · ${u.f.title}: the calendar now has ${v || `no ${OVERRIDE_LABELS[k as Overridable]}`}; the team's override says ${u.s.ov?.[k as Overridable] || "nothing"}`);
+        }
         if (u.text) {
           run.changed++;
           const reason = (u.old.src as EventSource).rulesV !== src.version ? "rules" : "feed";
+          // Families hear about cancellations and new days, times, places and courts, not renames or new rules.
+          const touched = Object.keys(u.fields).filter((k) => (NOTICE_FIELDS as readonly string[]).includes(k) && !(k in (u.s.ov ?? {})));
+          if (reason === "feed" && touched.length) {
+            const eff = (k: Overridable) => (u.s.ov?.[k] ?? u.f[k]) || undefined;
+            // Worded from the fields families will see change, not the ones the team overrode or renames.
+            const before = { ...u.f } as FeedFields;
+            for (const k of touched) (before as Row)[k] = u.fields[k].was;
+            notices.push({ eid: u.old.eid, title: String(u.f.title), date: String(u.f.date), ...(u.fields.date ? { wasDate: String(u.fields.date.was ?? "") } : {}),
+              text: changeText(before, u.f, true) || u.text, cancelled: !!u.f.cancelled, fields: touched, time: eff("time"), endTime: eff("endTime"), location: eff("location"), court: eff("court") });
+          }
           chgRows.push({ ...keys.feedLog(teamId, `CHG#${at}#${u.old.eid}`), type: "FeedChange", eid: u.old.eid, at, title: u.f.title, date: u.f.date, text: u.text, fields: JSON.parse(JSON.stringify(u.fields)), reason, ttl: Math.floor(Date.now() / 1000) + 365 * DAY });
           run.changes.push({ eid: u.old.eid, title: String(u.f.title), date: String(u.f.date), text: u.text });
         } else run.unchanged++;
@@ -283,6 +306,11 @@ export async function syncTeam(teamId: string, opt: { trigger: SyncRun["trigger"
       for (const m of p.missing) await setMissing(teamId, m.eid, m.n, m.since);
       run.missing = p.missing.length;
       run.added = p.added.length;
+      for (const m of p.missing.filter((x) => x.n === 2)) {
+        const e = await getItem(keys.event(teamId, m.eid));
+        if (e) reviewNew.push(`${shortDate(String(e.date))} · ${e.title}: not on the club's calendar any more (cancel it or keep it)`);
+      }
+      for (const a of p.added.filter((x) => (x.src as EventSource).dupOf)) reviewNew.push(`${shortDate(String(a.date))} · ${a.title}: looks like a new copy of an event that disappeared (merge them or keep both)`);
       await putMany(p.added);
       await putMany(chgRows);
       run.ok = true;
@@ -311,6 +339,16 @@ export async function syncTeam(teamId: string, opt: { trigger: SyncRun["trigger"
     TableName: TABLE, Key: keys.feedSource(teamId), ConditionExpression: "attribute_exists(PK)",
     UpdateExpression: upd.e, ExpressionAttributeValues: upd.v, ...(Object.keys(upd.n).length ? { ExpressionAttributeNames: upd.n } : {})
   })).catch((e) => console.error(JSON.stringify({ msg: "feed source not updated", teamId, error: String(e) })));
+  // C4: tell families about changes coming up, and the team's admins about what needs them.
+  try {
+    const clubId = await clubOfTeam(teamId);
+    if (notices.length) run.emailed = (await notifyChanges(teamId, clubId, notices, `${teamId}:${at}`)).emailed;
+    if (reviewNew.length) await alertAdmins(teamId, clubId, { kind: "review", items: reviewNew }, `review:${teamId}:${at}`);
+    if (attention && !src.attention) await alertAdmins(teamId, clubId, { kind: "attention", items: [], detail: `The rules matched ${attention.now} events this time, down from ${attention.was}. The club may have renamed the team or changed systems.` }, `attention:${teamId}:${at}`);
+    if (!run.ok && !attention && Number(src.failures ?? 0) + 1 === FAILING_AFTER) {
+      await alertAdmins(teamId, clubId, { kind: "failing", items: [], detail: `The last ${FAILING_AFTER} tries failed: ${run.error ?? "the calendar couldn't be read"}` }, `failing:${teamId}:${String(src.lastOkAt ?? "")}`);
+    }
+  } catch (e) { console.error(JSON.stringify({ msg: "feed notices failed", teamId, error: String(e) })); }
   console.log(JSON.stringify({ msg: "feed synced", teamId, trigger: run.trigger, ok: run.ok, quiet, added: run.added, changed: run.changed, missing: run.missing, total: run.total, ms: run.ms, code: run.code }));
   return run;
 }
@@ -437,6 +475,8 @@ export async function settleReview(teamId: string, b: ReviewAction, by: string):
     case "cancel":
       await saveEvent(teamId, b.eid, { cancelled: [String(e.date)] }, [], { ...s, gone: true, change: { at: new Date().toISOString(), text: "cancelled" } }, by);
       await putItem(chgRow(teamId, b.eid, e, "cancelled: it's gone from the club's calendar", "review", by));
+      await notifyChanges(teamId, await clubOfTeam(teamId), [{ eid: b.eid, title: String(e.title), date: String(e.date), text: "cancelled", cancelled: true, fields: ["cancelled"] }], `review:${b.eid}:${String(e.date)}`)
+        .catch((err) => console.error(JSON.stringify({ msg: "feed notice failed", teamId, error: String(err) })));
       return { eid: b.eid };
     case "keep":
       await saveEvent(teamId, b.eid, {}, [], { ...s, keep: true }, by);
@@ -641,6 +681,7 @@ export async function runFeedSync(opt: { concurrency?: number; at?: Date; due?: 
         if (!isOn(effectiveFeatures(settings?.features as FeatureMap, controls.features), "calfeed")) { await markPaused(teamId); out.skipped++; continue; }
         const src = await getItem(keys.feedSource(teamId));
         // Back on after a pause: an admin looks over what changed first (Calendar feed › Catch up).
+        if (src?.noticesHeld) await flushHeld(teamId, clubId).catch((e) => console.error(JSON.stringify({ msg: "held notices failed", teamId, error: String(e) })));
         if (src?.pausedSince) { out.skipped++; continue; }
         if (opt.due !== false && !isDue({ teamId, at: opt.at ?? new Date(), zone: zoneOf(await getComms(teamId)), soon: (src?.soon as string[] | undefined) ?? [], lastAttemptAt: (src?.lastSync as Row | undefined)?.at as string | undefined })) { out.notDue++; continue; }
         if (!(await lock(teamId))) { out.skipped++; continue; }

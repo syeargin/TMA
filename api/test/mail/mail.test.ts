@@ -150,7 +150,7 @@ describe("templates for site owners", () => {
   it("lists, previews and test-sends to the owner only", async () => {
     const list = await owner("GET", "/admin/emails");
     expect(list.status).toBe(200);
-    expect(list.body.messages.filter((m: any) => m.live).map((m: any) => m.id)).toEqual(["invite", "clubInvite", "accountDeleted", "mfaReset", "weekly", "staffDigest", "packet", "availability", "dues", "payment", "announcement"]);
+    expect(list.body.messages.filter((m: any) => m.live).map((m: any) => m.id)).toEqual(["invite", "clubInvite", "accountDeleted", "mfaReset", "weekly", "staffDigest", "packet", "availability", "dues", "payment", "announcement", "change", "feedAlert"]);
     const prev = await owner("GET", "/admin/emails/invite/preview");
     expect(prev.body).toMatchObject({ subject: expect.stringContaining("invited you"), html: expect.stringContaining("<!doctype html>") });
     expect((await owner("GET", "/admin/emails/changeText/preview")).status).toBe(400);

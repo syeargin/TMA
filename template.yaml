@@ -1043,7 +1043,7 @@ Resources:
         EntryPoints: [src/jobs/feed-sync.ts]
         External: ["@aws-sdk/*"]
     Properties:
-      Description: Syncs each team's calendar feed when it's due (every 30 minutes to 2 hours, not overnight).
+      Description: Syncs each team's calendar feed when it's due (every 30 minutes to 2 hours, not overnight), and emails what changed.
       CodeUri: api/
       Handler: feed-sync.handler
       MemorySize: 512
@@ -1052,8 +1052,13 @@ Resources:
         Variables:
           APP_ENV: !Ref Env
           NODE_OPTIONS: --enable-source-maps
+          # "Cancelled or moved" and calendar feed alerts (C4) go through the email sender.
+          SITE_URL: !If [HasDomain, !Sub "https://${SiteDomain}", ""]
+          API_URL: !If [HasDomain, !Sub "https://${ApiDomain}", ""]
+          MAIL_SENDER_FUNCTION: !Ref MailSenderFunction
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref TeamHubTable }
+        - LambdaInvokePolicy: { FunctionName: !Ref MailSenderFunction }
       Events:
         Every10:
           Type: Schedule

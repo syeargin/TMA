@@ -7,6 +7,7 @@ import type { MessageId } from "../../shared/messages.js";
 import { box, button, esc, frame, h1, list, p, textPart } from "./frame.js";
 import { sampleStaff, sampleWeekly, staffDigest, weekly, type StaffData, type WeeklyData } from "./digests.js";
 import { announcement, availability, dues, packet, payment, samples, type AnnouncementData, type AvailabilityData, type DuesData, type PacketData, type PaymentData } from "./reminder-mail.js";
+import { change, feedAlert, feedSamples, type ChangeData, type FeedAlertData } from "./feed-mail.js";
 
 export type Rendered = { subject: string; fromName: string; html: string; text: string };
 
@@ -24,6 +25,7 @@ export type MailData = {
   invite: InviteData; clubInvite: ClubInviteData; accountDeleted: AccountDeletedData; mfaReset: MfaResetData;
   weekly: WeeklyData; staffDigest: StaffData;
   packet: PacketData; availability: AvailabilityData; dues: DuesData; payment: PaymentData; announcement: AnnouncementData;
+  change: ChangeData; feedAlert: FeedAlertData;
 };
 export type LiveMessage = keyof MailData;
 
@@ -178,7 +180,7 @@ function mfaReset(d: MfaResetData): Rendered {
   return { subject: "Your Teem Hub two-step sign-in was reset", fromName: "Teem Hub", html, text };
 }
 
-const RENDER: { [K in LiveMessage]: (d: MailData[K]) => Rendered } = { invite, clubInvite, accountDeleted, mfaReset, weekly, staffDigest, packet, availability, dues, payment, announcement };
+const RENDER: { [K in LiveMessage]: (d: MailData[K]) => Rendered } = { invite, clubInvite, accountDeleted, mfaReset, weekly, staffDigest, packet, availability, dues, payment, announcement, change, feedAlert };
 
 export function render<K extends LiveMessage>(msg: K, data: MailData[K]): Rendered {
   return RENDER[msg](data);
@@ -196,6 +198,7 @@ export function sample(msg: LiveMessage, siteUrl: string, email: string): MailDa
     case "mfaReset": return { firstName: "Jordan", clubName: "Test Club", siteUrl };
     case "weekly": return sampleWeekly(siteUrl);
     case "staffDigest": return sampleStaff(siteUrl);
+    case "change": case "feedAlert": return feedSamples[msg](siteUrl);
     default: return samples[msg](siteUrl);
   }
 }

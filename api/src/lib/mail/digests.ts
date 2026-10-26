@@ -50,7 +50,7 @@ export function weekly(d: WeeklyData): Rendered {
   }
   if (c.items.length) {
     parts.push(section("This week", table(c.items.map((i) => row(esc(i.date),
-      `<strong>${esc(i.title)}</strong>${i.time ? ` · ${esc(i.time)}` : ""}${i.cancelled ? ` ${pill("Cancelled", "#FDE7E4", "#8E1C13")}` : ""}` +
+      `<strong>${esc(i.title)}</strong>${i.time ? ` · ${esc(i.time)}` : ""}${i.cancelled ? ` ${pill("Cancelled", "#FDE7E4", "#8E1C13")}` : ""}${i.changed ? ` ${pill(`Changed: ${i.changed}`, "#FAEFD6", "#7A4E04")}` : ""}` +
       (i.location ? `<div style="color:${MUTED};font-size:13px">${esc(i.location)}</div>` : ""))))));
   } else if (!d.hideEmpty) {
     parts.push(section("This week", p("Nothing on the schedule.", true)));
@@ -70,7 +70,7 @@ export function weekly(d: WeeklyData): Rendered {
     `${c.week}${c.playerFirst ? ` for ${c.playerFirst}` : ""}`,
     "",
     ...(c.needs.length ? ["NEEDS YOUR ANSWER", ...c.needs.map((n) => `- ${n.date} · ${n.title}${n.time ? ` (${n.time})` : ""}`), `Answer at ${team}/schedule`, ""] : []),
-    ...(c.items.length ? ["THIS WEEK", ...c.items.map((i) => `- ${i.date} · ${i.title}${i.time ? ` · ${i.time}` : ""}${i.location ? ` · ${i.location}` : ""}${i.cancelled ? " (CANCELLED)" : ""}`), ""] : []),
+    ...(c.items.length ? ["THIS WEEK", ...c.items.map((i) => `- ${i.date} · ${i.title}${i.time ? ` · ${i.time}` : ""}${i.location ? ` · ${i.location}` : ""}${i.cancelled ? " (CANCELLED)" : ""}${i.changed ? ` (CHANGED: ${i.changed})` : ""}`), ""] : []),
     ...(c.meals.length ? ["YOUR SIGN-UPS", ...c.meals.map((m) => `- ${m.meal}${m.event ? ` · ${m.event}` : ""}`), ""] : []),
     ...(c.dues ? [`MONEY: ${c.dues.amount} in dues ${c.dues.late ? "was due" : "due"} ${c.dues.due}`, ""] : []),
     ...(c.pinned.length ? ["PINNED", ...c.pinned.map((t) => `- ${t}`), ""] : []),
@@ -109,6 +109,12 @@ export function staffDigest(d: StaffData): Rendered {
   if (c.tasks?.length) {
     parts.push(section("Open tasks", table(c.tasks.slice(0, 8).map((k) => row(esc(k.status), `${esc(k.title)}${k.owner ? ` <span style="color:${MUTED}">· ${esc(k.owner)}</span>` : ""}`)))));
     text.push("OPEN TASKS", ...c.tasks.slice(0, 8).map((k) => `- ${k.title}${k.owner ? ` (${k.owner})` : ""}`), "");
+  }
+  if (c.feed) {
+    const rows = c.feed.changes.slice(0, 8).map((x) => row(esc(x.date), `<strong>${esc(x.title)}</strong> · ${esc(x.text)}`));
+    parts.push(section("From the club's calendar", (rows.length ? table(rows) : "") +
+      (c.feed.review ? p(`<strong>${c.feed.review} ${c.feed.review === 1 ? "thing needs" : "things need"} review</strong> in Team info › Calendar feed.`) : "")));
+    text.push("FROM THE CLUB'S CALENDAR", ...c.feed.changes.slice(0, 8).map((x) => `- ${x.date} · ${x.title}: ${x.text}`), ...(c.feed.review ? [`${c.feed.review} to review in Team info > Calendar feed`] : []), "");
   }
   parts.push(button(team, "Open the team"));
   text.push(`Open the team: ${team}`, "", `Notification settings: ${base(d.siteUrl)}/account`, ...(d.unsubscribeUrl ? [`Stop the staff digest: ${d.unsubscribeUrl}`] : []));

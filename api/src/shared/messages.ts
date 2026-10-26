@@ -16,6 +16,8 @@ export const MESSAGES = {
   dues:            { channel: "email", label: "Dues reminder", help: "Before dues are due, to families who still owe.", required: false, live: true },
   payment:         { channel: "email", label: "Payment recorded", help: "Confirms a payment or a reimbursement when finance records it.", required: false, live: true },
   announcement:    { channel: "email", label: "Announcement emails", help: "Posts a coach or coordinator chooses to email, with \"Also email the team\".", required: false, live: true },
+  change:          { channel: "email", label: "Cancelled or moved", help: "When the club's calendar cancels a practice or event in the next two weeks, or changes its day, time, place or court.", required: false, live: true },
+  feedAlert:       { channel: "email", label: "Calendar feed alerts", help: "Tells team admins and coordinators when the club's calendar feed needs them: events to review, a feed that stopped matching, or one that can't be read.", required: false, live: true },
   changeText:      { channel: "text", label: "Cancelled or moved", help: "Last-minute changes.", required: false, live: false },
   gameDayText:     { channel: "text", label: "Game-day morning", help: "Arrival time and where to meet.", required: false, live: false },
   waveText:        { channel: "text", label: "Wave or court posted", help: "Tournament schedule posted.", required: false, live: false },
@@ -55,6 +57,8 @@ export type Choice = { key: string; label: string; on: boolean };
 
 export type MessageConfig = {
   timing: Timing;
+  /** On before a team chooses (most messages start off, so nothing new reaches families the day it ships). */
+  defaultOn?: boolean;
   /** Who gets it; each is on or off by default. */
   audience: Choice[];
   /** Rules that keep it relevant. */
@@ -121,11 +125,31 @@ export const CONFIG: Partial<Record<MessageId, MessageConfig>> = {
       { key: "staff", label: "Staff", on: true }
     ],
     rules: [{ key: "cap", label: "At most 2 announcement emails a week", on: true }]
+  },
+  change: {
+    timing: { kind: "event", when: "When the club's calendar cancels or moves something in the next two weeks." },
+    audience: [
+      { key: "parent", label: "Parents and guardians", on: true },
+      { key: "staff", label: "Staff who aren't parents", on: true }
+    ],
+    rules: [
+      { key: "court", label: "Include court changes", on: true },
+      { key: "overnight", label: "Hold changes found after 9 PM until 7 AM", on: true }
+    ]
+  },
+  feedAlert: {
+    timing: { kind: "event", when: "When the calendar feed needs a team admin or coordinator." },
+    defaultOn: true,
+    audience: [
+      { key: "admin", label: "Team admins", on: true },
+      { key: "coordinator", label: "Team coordinators", on: true }
+    ],
+    rules: []
   }
 };
 
 /** Messages that only make sense with a team feature on. */
-export const NEEDS_FEATURE: Partial<Record<MessageId, "fund">> = { dues: "fund", payment: "fund" };
+export const NEEDS_FEATURE: Partial<Record<MessageId, "fund" | "calfeed">> = { dues: "fund", payment: "fund", change: "calfeed", feedAlert: "calfeed" };
 
 export const CONFIGURABLE = Object.keys(CONFIG) as MessageId[];
 
@@ -151,7 +175,7 @@ export function effective(msg: MessageId, comms: TeamComms | null | undefined) {
   const t = c.timing;
   return {
     // Off until a team turns it on, so nothing new reaches families the day this ships.
-    on: mine.on ?? false,
+    on: mine.on ?? c.defaultOn ?? false,
     kind: t.kind,
     day: mine.day ?? (t.kind === "weekly" ? t.day : 0),
     time: mine.time ?? (t.kind === "event" ? "" : t.time),
