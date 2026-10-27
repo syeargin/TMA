@@ -13,7 +13,9 @@ describe('auth service: one stored sign-in shared by every tab', () => {
       signIn: vi.fn(), signOut: vi.fn().mockResolvedValue(undefined),
       getCurrentUser: vi.fn(), fetchUserAttributes: vi.fn()
     };
-    TestBed.configureTestingModule({ providers: [{ provide: APP_CONFIG, useValue: {} }, { provide: AMPLIFY_AUTH, useValue: amp }] });
+    // A stored sign-in, so the service asks Amplify (with none it doesn't load Amplify at all).
+    localStorage.setItem('CognitoIdentityServiceProvider.client.LastAuthUser', 'u1');
+    TestBed.configureTestingModule({ providers: [{ provide: APP_CONFIG, useValue: { userPoolClientId: 'client' } }, { provide: AMPLIFY_AUTH, useValue: () => Promise.resolve(amp) }] });
     auth = TestBed.inject(AuthService);
   });
 
@@ -69,5 +71,17 @@ describe('auth service: one stored sign-in shared by every tab', () => {
     expect(auth.user()).toBeUndefined();
     window.dispatchEvent(new StorageEvent('storage', { key: null })); // localStorage.clear() elsewhere
     expect(seen).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('auth service: loading Amplify only when needed', () => {
+  it("doesn't load Amplify to learn that nobody has signed in on this browser", async () => {
+    localStorage.clear();
+    const load = vi.fn();
+    TestBed.configureTestingModule({ providers: [{ provide: APP_CONFIG, useValue: { userPoolClientId: 'client' } }, { provide: AMPLIFY_AUTH, useValue: load }] });
+    const auth = TestBed.inject(AuthService);
+    expect(await auth.ensureUser()).toBeNull();
+    expect(auth.user()).toBeNull();
+    expect(load).not.toHaveBeenCalled();
   });
 });

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Screenshots for the help guide (web/public/help-img/*.jpg), taken from the local preview with its
+// Screenshots for the help guide (web/public/help-img/*.webp), taken from the local preview with its
 // sample team, so they never show anyone's real data. Run after building the site:
 //   (in api/)  npx vite-node scripts/preview-server.ts      moto must be running on :8000
 //   (in web/)  node scripts/help-shots.mjs [topic-id …]
 // Signs in with fake tokens (the preview server reads the user from them without checking).
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -52,6 +52,22 @@ const SHOTS = {
   "confirm-payment": { user: "owner", url: `${T}/fund`, clip: "main", top: 760 }
 };
 
+/** PNG → WebP, using the browser's own encoder (no image tools to install). */
+async function toWebp(browser, png) {
+  const page = await browser.newPage();
+  const url = await page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement("canvas");
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext("2d").drawImage(img, 0, 0);
+    return c.toDataURL("image/webp", 0.8);
+  }, png.toString("base64"));
+  await page.close();
+  return Buffer.from(url.split(",")[1], "base64");
+}
+
 async function signIn(ctx, u) {
   const keys = {
     [`CognitoIdentityServiceProvider.${CLIENT}.LastAuthUser`]: u.sub,
@@ -92,7 +108,8 @@ for (const [id, s] of Object.entries(SHOTS)) {
       if (b2) clip = { ...clip, height: Math.min(b2.y + b2.height - clip.y, 900) };
     }
     // A dialog sits in the viewport; anything else may need the page taller than the window.
-    await page.screenshot({ path: join(OUT, `${id}.jpg`), type: "jpeg", quality: 78, clip, fullPage: !s.clip.startsWith("dialog") });
+    const png = await page.screenshot({ type: "png", clip, fullPage: !s.clip.startsWith("dialog") });
+    writeFileSync(join(OUT, `${id}.webp`), await toWebp(browser, png));
     console.log(`✓ ${id}`);
   } catch (e) {
     failed++;

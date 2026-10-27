@@ -72,7 +72,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "The invite works only for the address it was sent to, and it expires. If it ran out, ask the coach or team coordinator to send a new one.",
       "Can't find the email? Check spam or promotions, then ask your coordinator to use **Email again** on the Members tab."
     ],
-    shot: { file: "join-team.jpg", alt: "The Your teams page after joining, with the team listed" },
+    shot: { file: "join-team.webp", alt: "The Your teams page after joining, with the team listed" },
     go: { label: "Create your account", path: "/signup" },
     places: ["home", "email"], related: ["change-emails", "answer-availability"]
   },
@@ -90,7 +90,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "The counts next to each date (“8 in · 1 maybe · 2 out”) show the whole team. Tap them to see who answered.",
       "More than one player on the team? Each one has their own buttons."
     ],
-    shot: { file: "answer-availability.jpg", alt: "A practice on the schedule with the In, Maybe and Out buttons" },
+    shot: { file: "answer-availability.webp", alt: "A practice on the schedule with the In, Maybe and Out buttons" },
     go: { label: "Open the schedule", path: "schedule" },
     places: ["schedule", "home", "email"], related: ["add-to-calendar", "see-answers"]
   },
@@ -108,7 +108,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "What you add is a copy: if the coach changes or cancels a date later, your calendar won't update. The Teem Hub schedule is always the latest.",
       "Using Outlook on a computer? Choose **Download .ics (Outlook desktop)** and open the file."
     ],
-    shot: { file: "add-to-calendar.jpg", alt: "The Add to calendar menu with Apple, Google and Outlook choices" },
+    shot: { file: "add-to-calendar.webp", alt: "The Add to calendar menu with Apple, Google and Outlook choices" },
     go: { label: "Open the schedule", path: "schedule" },
     places: ["schedule", "tournament"], related: ["answer-availability", "game-day-sheet"]
   },
@@ -123,7 +123,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Tap an address to open directions, or a code to copy it."
     ],
     tips: ["The coach updates the sheet as the club posts courts and waves, so check it the night before."],
-    shot: { file: "game-day-sheet.jpg", alt: "A tournament's game-day sheet with arrival, court and uniform" },
+    shot: { file: "game-day-sheet.webp", alt: "A tournament's game-day sheet with arrival, court and uniform" },
     go: { label: "Open tournaments", path: "tournaments" },
     places: ["tournaments", "tournament"], related: ["travel-plans", "meal-signup", "add-to-calendar"]
   },
@@ -139,7 +139,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "To change them later, tap **Update** with your player's name."
     ],
     tips: ["Travel shows only for tournaments the coach marked as travel tournaments."],
-    shot: { file: "travel-plans.jpg", alt: "A tournament's Travel section with the team hotel and families' plans" },
+    shot: { file: "travel-plans.webp", alt: "A tournament's Travel section with the team hotel and families' plans" },
     go: { label: "Open tournaments", path: "tournaments" },
     feature: "travel", places: ["tournament:travel", "tournament"], related: ["game-day-sheet", "meal-signup"]
   },
@@ -153,7 +153,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Changed plans? Tap **Release** on your meal so another family can take it."
     ],
     tips: ["The food coordinator sees who has every meal, and the weekly email lists meals still open."],
-    shot: { file: "meal-signup.jpg", alt: "A tournament's meals with one open meal and the We'll take it button" },
+    shot: { file: "meal-signup.webp", alt: "A tournament's meals with one open meal and the We'll take it button" },
     go: { label: "Open tournaments", path: "tournaments" },
     feature: "meals", places: ["tournament:meals", "tournament"], related: ["game-day-sheet", "travel-plans"]
   },
@@ -168,7 +168,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "It shows under **Waiting to be confirmed** until finance marks it received. Then it's in your entries and your dues balance updates."
     ],
     tips: ["Bought something for the team? Use **Request reimbursement** on the same tab."],
-    shot: { file: "record-payment.jpg", alt: "The Team Fund tab with the Record a payment button and your dues" },
+    shot: { file: "record-payment.webp", alt: "The Team Fund tab with the Record a payment button and your dues" },
     go: { label: "Open the team fund", path: "fund" },
     feature: "fund", places: ["fund"], related: ["confirm-payment", "change-emails"]
   },
@@ -185,7 +185,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Invites and account notices always go, so you can sign in and keep your account safe.",
       "“Your team hasn't turned this on yet” means the team doesn't send that email at all."
     ],
-    shot: { file: "change-emails.jpg", alt: "Your account page with the Emails from your teams checkboxes" },
+    shot: { file: "change-emails.webp", alt: "Your account page with the Emails from your teams checkboxes" },
     go: { label: "Open your account", path: "/account" },
     places: ["account", "email"], related: ["communications", "join-team"]
   },
@@ -203,7 +203,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Save. Every date appears on the schedule for families to answer."
     ],
     tips: ["Practice uniform colors come from **Team info › Team settings**."],
-    shot: { file: "add-practice.jpg", alt: "The Add practice form with the Repeat options" },
+    shot: { file: "add-practice.webp", alt: "The Add practice form with the Repeat options" },
     go: { label: "Open the schedule", path: "schedule" },
     places: ["schedule"], related: ["change-series", "take-attendance"]
   },
@@ -221,7 +221,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Changes to the whole series skip dates you changed one at a time.",
       "If the team's schedule comes from the club's calendar, changes there sync in on their own."
     ],
-    shot: { file: "change-series.jpg", alt: "A practice's menu with Cancel this date and the Edit choices" },
+    shot: { file: "change-series.webp", alt: "A practice's menu with Cancel this date and the Edit choices" },
     go: { label: "Open the schedule", path: "schedule" },
     places: ["schedule"], related: ["add-practice", "post-announcement"]
   },
@@ -236,7 +236,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Tap **Rest present** to mark everyone left as present, then save."
     ],
     tips: ["Each player's percentage is on the **Roster** tab. Families see only their own player's."],
-    shot: { file: "take-attendance.jpg", alt: "The attendance sheet with Present, Late and Excused for each player" },
+    shot: { file: "take-attendance.webp", alt: "The attendance sheet with Present, Late and Excused for each player" },
     go: { label: "Open the schedule", path: "schedule" },
     feature: "attendance", places: ["schedule", "roster"], related: ["see-answers", "add-practice"]
   },
@@ -251,7 +251,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "To nudge everyone at once, turn on the **Availability reminder** under Communications."
     ],
     tips: ["The weekly **Staff digest** also lists who hasn't answered."],
-    shot: { file: "see-answers.jpg", alt: "A date's availability list showing each player's answer" },
+    shot: { file: "see-answers.webp", alt: "A date's availability list showing each player's answer" },
     go: { label: "Open the schedule", path: "schedule" },
     places: ["schedule", "home"], related: ["answer-availability", "communications"]
   },
@@ -266,7 +266,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Tap **Post**. Pin it if it should stay at the top."
     ],
     tips: ["**Also email the team** shows when the team has **Announcement emails** turned on in Communications."],
-    shot: { file: "post-announcement.jpg", alt: "The Post an announcement sheet with Also email the team" },
+    shot: { file: "post-announcement.webp", alt: "The Post an announcement sheet with Also email the team" },
     go: { label: "Open Home", path: "" },
     places: ["home"], related: ["communications", "change-series"]
   },
@@ -281,7 +281,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Two groups working courts separately? Tap **Edit A/B groups** and put each player in A or B."
     ],
     tips: ["Families see their own jobs in the tournament packet email before the tournament."],
-    shot: { file: "ref-jobs.jpg", alt: "A tournament's ref jobs with Fill by rotation" },
+    shot: { file: "ref-jobs.webp", alt: "A tournament's ref jobs with Fill by rotation" },
     go: { label: "Open tournaments", path: "tournaments" },
     feature: "refjobs", places: ["tournament:ref", "tournament"], related: ["game-day-sheet", "communications"]
   },
@@ -297,7 +297,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Didn't get it? Tap **Email again** next to that invite."
     ],
     tips: ["Only team admins can invite people and set roles."],
-    shot: { file: "invite-families.jpg", alt: "The Members tab with Invite someone and Pending invites" },
+    shot: { file: "invite-families.webp", alt: "The Members tab with Invite someone and Pending invites" },
     go: { label: "Open Members", path: "members" },
     places: ["members", "roster"], related: ["join-team", "team-features"]
   },
@@ -313,7 +313,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "Tick it again to bring it back. Everything is still there."
     ],
     tips: ["A feature that says “Not included for your club” can only be turned on by a site owner."],
-    shot: { file: "team-features.jpg", alt: "Team settings with the Features checkboxes" },
+    shot: { file: "team-features.webp", alt: "Team settings with the Features checkboxes" },
     go: { label: "Open Team info", path: "info" },
     places: ["info"], related: ["communications", "invite-families"]
   },
@@ -329,7 +329,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "**Upcoming** shows what's going out next; **Delivery health** shows emails that bounced."
     ],
     tips: ["Going on a break? Pause the team's emails until a date. Invites and account notices still go."],
-    shot: { file: "communications.jpg", alt: "The Communications page with each email's switch and schedule" },
+    shot: { file: "communications.webp", alt: "The Communications page with each email's switch and schedule" },
     go: { label: "Open Communications", path: "communications" },
     places: ["communications", "info"], related: ["change-emails", "post-announcement"]
   },
@@ -344,7 +344,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       "**Dues by family** shows what each family has paid and still owes. The **Ledger** lists every entry."
     ],
     tips: ["Families get a **Payment recorded** email when you confirm, if the team has it on."],
-    shot: { file: "confirm-payment.jpg", alt: "The Team Fund tab with payments waiting and dues by family" },
+    shot: { file: "confirm-payment.webp", alt: "The Team Fund tab with payments waiting and dues by family" },
     go: { label: "Open the team fund", path: "fund" },
     feature: "fund", places: ["fund"], related: ["record-payment", "communications"]
   }

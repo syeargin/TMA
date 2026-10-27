@@ -1,18 +1,20 @@
 import { DestroyRef, Injectable, InjectionToken, inject, signal } from '@angular/core';
-import { Amplify } from 'aws-amplify';
-import {
-  autoSignIn, confirmResetPassword, confirmSignIn, confirmSignUp, fetchAuthSession, fetchMFAPreference, fetchUserAttributes,
-  getCurrentUser, resendSignUpCode, resetPassword, setUpTOTP, signIn, signOut, signUp, updateMFAPreference, verifyTOTPSetup
-} from 'aws-amplify/auth';
 import { Subject } from 'rxjs';
+import type { AmplifyAuth } from './amplify-auth';
 import { APP_CONFIG } from './config';
 
-const AMPLIFY_DEFAULT = {
-  autoSignIn, confirmResetPassword, confirmSignIn, confirmSignUp, fetchAuthSession, fetchMFAPreference, fetchUserAttributes,
-  getCurrentUser, resendSignUpCode, resetPassword, setUpTOTP, signIn, signOut, signUp, updateMFAPreference, verifyTOTPSetup
-};
-/** Amplify's sign-in functions, swappable in tests. */
-export const AMPLIFY_AUTH = new InjectionToken<typeof AMPLIFY_DEFAULT>('Amplify auth', { providedIn: 'root', factory: () => AMPLIFY_DEFAULT });
+/**
+ * Loads Amplify's sign-in functions (swappable in tests). They're about a quarter of the site's code,
+ * so they load on first use rather than with every page.
+ */
+export const AMPLIFY_AUTH = new InjectionToken<() => Promise<AmplifyAuth>>('Amplify auth', {
+  providedIn: 'root',
+  factory: () => {
+    const cfg = inject(APP_CONFIG);
+    let loading: Promise<AmplifyAuth> | null = null;
+    return () => (loading ??= import('./amplify-auth').then((m) => m.configureAmplify(cfg.userPoolId, cfg.userPoolClientId)));
+  }
+});
 
 /** Amplify keeps the sign-in in localStorage under these keys, shared by every tab of the site. */
 const TOKEN_KEY = /^CognitoIdentityServiceProvider\./;
@@ -26,7 +28,7 @@ const norm = (email: string) => String(email || '').trim().toLowerCase();
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly cfg = inject(APP_CONFIG);
-  private readonly amp = inject(AMPLIFY_AUTH);
+  private readonly loadAmp = inject(AMPLIFY_AUTH);
   readonly configured = !!(this.cfg.userPoolId && this.cfg.userPoolClientId);
 
   /** undefined = not checked yet; null = signed out. */
@@ -48,28 +50,19 @@ export class AuthService {
       window.addEventListener('storage', onStorage);
       inject(DestroyRef).onDestroy(() => window.removeEventListener('storage', onStorage));
     }
-    if (!this.configured) return;
-    Amplify.configure({
-      Auth: {
-        Cognito: {
-          userPoolId: this.cfg.userPoolId!,
-          userPoolClientId: this.cfg.userPoolClientId!,
-          loginWith: { email: true },
-          signUpVerificationMethod: 'code',
-          passwordFormat: { minLength: 10, requireLowercase: true, requireUppercase: true, requireNumbers: true, requireSpecialCharacters: false }
-        }
-      }
-    });
   }
 
   /** The signed-in user, checking with Cognito once and then remembering. */
   async ensureUser(): Promise<SignedInUser | null> {
     const known = this.user();
     if (known !== undefined) return known;
+    // Nobody has signed in on this browser: no need to load Amplify to find that out.
+    if (this.nothingStored()) { this.user.set(null); return null; }
     let found: SignedInUser | null = null;
     try {
-      await this.amp.getCurrentUser();
-      const attrs = await this.amp.fetchUserAttributes();
+      const amp = await this.loadAmp();
+      await amp.getCurrentUser();
+      const attrs = await amp.fetchUserAttributes();
       found = { email: attrs.email ?? '', sub: attrs.sub ?? '' };
     } catch (e) {
       // Only "nobody is signed in" is remembered. Anything else (a network blip) is checked again
@@ -80,26 +73,38 @@ export class AuthService {
     return found;
   }
 
+  /** True when this browser holds no Cognito sign-in for this site (Amplify's LastAuthUser key). */
+  private nothingStored(): boolean {
+    try {
+      return !localStorage.getItem(`CognitoIdentityServiceProvider.${this.cfg.userPoolClientId}.LastAuthUser`);
+    } catch {
+      return false; // can't tell: ask Amplify
+    }
+  }
+
+  /** Amplify's functions, loaded the first time they're needed. */
+  private amp(): Promise<AmplifyAuth> { return this.loadAmp(); }
+
   /** The access token for API and WebSocket calls (Amplify refreshes it when needed). */
   async accessToken(forceRefresh = false): Promise<string | undefined> {
-    const { tokens } = await this.amp.fetchAuthSession({ forceRefresh });
+    const { tokens } = await (await this.amp()).fetchAuthSession({ forceRefresh });
     return tokens?.accessToken?.toString();
   }
 
   async createAccount(email: string, password: string) {
-    const res = await this.amp.signUp({ username: norm(email), password, options: { userAttributes: { email: norm(email) }, autoSignIn: true } });
+    const res = await (await this.amp()).signUp({ username: norm(email), password, options: { userAttributes: { email: norm(email) }, autoSignIn: true } });
     return res.nextStep.signUpStep;
   }
 
   async verifyEmail(email: string, code: string): Promise<'SIGNED_IN' | 'SIGN_IN'> {
-    const res = await this.amp.confirmSignUp({ username: norm(email), confirmationCode: code.trim() });
+    const res = await (await this.amp()).confirmSignUp({ username: norm(email), confirmationCode: code.trim() });
     if (res.nextStep.signUpStep === 'COMPLETE_AUTO_SIGN_IN') {
-      try { await this.amp.autoSignIn(); this.user.set(undefined); return 'SIGNED_IN'; } catch { return 'SIGN_IN'; }
+      try { await (await this.amp()).autoSignIn(); this.user.set(undefined); return 'SIGNED_IN'; } catch { return 'SIGN_IN'; }
     }
     return 'SIGN_IN';
   }
 
-  resendCode(email: string) { return this.amp.resendSignUpCode({ username: norm(email) }); }
+  async resendCode(email: string) { return (await this.amp()).resendSignUpCode({ username: norm(email) }); }
 
   /**
    * Signs in. If this browser already holds a sign-in (another tab signed in, or this page's check
@@ -108,7 +113,7 @@ export class AuthService {
    */
   async logIn(email: string, password: string) {
     try {
-      const res = await this.amp.signIn({ username: norm(email), password });
+      const res = await (await this.amp()).signIn({ username: norm(email), password });
       this.user.set(undefined);
       return res.nextStep.signInStep;
     } catch (e) {
@@ -116,22 +121,22 @@ export class AuthService {
       this.user.set(undefined);
       const current = await this.ensureUser();
       if (current && norm(current.email) === norm(email)) return 'DONE' as const;
-      await this.amp.signOut();
+      await (await this.amp()).signOut();
       this.user.set(undefined);
-      const res = await this.amp.signIn({ username: norm(email), password });
+      const res = await (await this.amp()).signIn({ username: norm(email), password });
       return res.nextStep.signInStep;
     }
   }
 
   /** The 6-digit code from the authenticator app, when sign-in asks for it. */
   async confirmCode(code: string) {
-    const res = await this.amp.confirmSignIn({ challengeResponse: code.replace(/\s+/g, '') });
+    const res = await (await this.amp()).confirmSignIn({ challengeResponse: code.replace(/\s+/g, '') });
     this.user.set(undefined);
     return res.nextStep.signInStep;
   }
 
   async logOut(everywhere = false) {
-    await this.amp.signOut({ global: everywhere });
+    await (await this.amp()).signOut({ global: everywhere });
     this.user.set(null);
   }
 
@@ -139,29 +144,29 @@ export class AuthService {
 
   /** Whether this person has an authenticator app turned on. */
   async twoStepOn(): Promise<boolean> {
-    const pref = await this.amp.fetchMFAPreference();
+    const pref = await (await this.amp()).fetchMFAPreference();
     return !!pref.enabled?.includes('TOTP');
   }
 
   /** Starts setup: the key to scan (as an otpauth:// link) or type into the app. */
   async startTwoStep(appName: string, accountName: string): Promise<{ secret: string; uri: string }> {
-    const details = await this.amp.setUpTOTP();
+    const details = await (await this.amp()).setUpTOTP();
     return { secret: details.sharedSecret, uri: details.getSetupUri(appName, accountName).toString() };
   }
 
   /** Confirms the app with one code and turns it on; Cognito then asks for a code at every sign-in. */
   async finishTwoStep(code: string) {
-    await this.amp.verifyTOTPSetup({ code: code.replace(/\s+/g, '') });
-    await this.amp.updateMFAPreference({ totp: 'PREFERRED' });
+    await (await this.amp()).verifyTOTPSetup({ code: code.replace(/\s+/g, '') });
+    await (await this.amp()).updateMFAPreference({ totp: 'PREFERRED' });
   }
 
   async turnOffTwoStep() {
-    await this.amp.updateMFAPreference({ totp: 'DISABLED' });
+    await (await this.amp()).updateMFAPreference({ totp: 'DISABLED' });
   }
 
-  async startReset(email: string) { await this.amp.resetPassword({ username: norm(email) }); }
+  async startReset(email: string) { await (await this.amp()).resetPassword({ username: norm(email) }); }
 
-  finishReset(email: string, code: string, newPassword: string) {
-    return this.amp.confirmResetPassword({ username: norm(email), confirmationCode: code.trim(), newPassword });
+  async finishReset(email: string, code: string, newPassword: string) {
+    return (await this.amp()).confirmResetPassword({ username: norm(email), confirmationCode: code.trim(), newPassword });
   }
 }

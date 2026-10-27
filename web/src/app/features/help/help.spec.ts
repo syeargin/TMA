@@ -89,7 +89,7 @@ describe('help guide', () => {
     expect(el.querySelector('h2')!.textContent).toBe('Add a practice or a repeating series');
     expect(el.querySelectorAll('.help-steps li').length).toBe(5);
     expect(el.querySelector('.help-steps b')!.textContent).toBe('Schedule');
-    expect(el.querySelector('img')!.getAttribute('src')).toBe('/help-img/add-practice.jpg');
+    expect(el.querySelector('img')!.getAttribute('src')).toBe('/help-img/add-practice.webp');
     expect(el.querySelector('a.btn')!.getAttribute('href')).toBe('/teams/test-13/schedule');
     expect(text(el)).toContain('Related');
     expect(helpEvent).toHaveBeenCalledTimes(1);

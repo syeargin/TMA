@@ -390,9 +390,9 @@ web/src/main.ts                   reads /config.json (written by the deploy), th
 web/src/app/app.ts                shell: header, Live pill, env badge
 web/src/app/app.routes.ts         /, /teams/:id (Home), …/schedule, …/tournaments[/:eid[/gameday|ref|meals|travel|agenda]], …/fund, …/roster[/uniforms],
                                   …/info[/tasks], …/members, sign-in screens
-                                  (team sections load on demand)
+                                  (every page loads on demand; only the shell is in the first download)
 web/src/app/core/                 services shared by every screen
-  auth.service.ts                   Cognito sign-in through Amplify
+  auth.service.ts                   Cognito sign-in through Amplify (amplify-auth.ts, loaded on first use)
   api.service.ts                    typed REST calls; interceptor adds the access token (API calls only)
   live-client.ts / live.service.ts  WebSocket live updates (framework-free client + Angular wrapper)
   guards.ts, flash.service.ts       signed-in/out routing, one-time messages between screens
@@ -407,6 +407,15 @@ web/src/app/shared/               small UI pieces and the role checkbox helpers
 ```
 
 The site imports the API's role table directly (`@shared/permissions` → `api/src/shared/permissions.ts`), so the buttons a person sees always match what the API allows.
+
+### Keeping downloads small
+
+A first visit downloads about 175–300 KB (compressed), depending on the page. Repeat visits fetch almost nothing, because built files are cached for a year and only change with a deploy.
+- **Pages load on demand.** `app.routes.ts` imports no page directly, so the landing page, help and sign-in screens don't carry the team pages' code or the forms library.
+- **The sign-in library (Amplify, about 37 KB) loads on first use.** `AuthService` first checks this browser's storage for a Cognito sign-in for this site. With none, it knows the visitor is signed out without loading Amplify, so signed-out visitors to `/`, `/help`, `/privacy` and the sign-in screens never download it.
+- **Fonts:** six weights (Barlow 400/600/700, Barlow Condensed 600/700, Big Shoulders Display 800), listed in `angular.json`. Use the fontsource `<weight>.css` files, not `latin-<weight>.css` and `latin-ext-<weight>.css`. The subset files have no `unicode-range`, so browsers download both. The combined files fetch accented-letter subsets only for pages that need them. Before adding a weight, check whether an existing one will do: each costs about 20 KB.
+- **The budget** in `angular.json` warns above 450 kB of JavaScript and CSS in the first download (about 386 kB now).
+- **Help screenshots** are WebP, made by `web/scripts/help-shots.mjs` with the browser's own encoder.
 
 ## Repeating events and month view
 
