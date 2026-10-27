@@ -26,26 +26,12 @@
               }
             ],
             "styles": [
-              "node_modules/@fontsource/barlow/latin-400.css",
-              "node_modules/@fontsource/barlow/latin-ext-400.css",
-              "node_modules/@fontsource/barlow/latin-500.css",
-              "node_modules/@fontsource/barlow/latin-ext-500.css",
-              "node_modules/@fontsource/barlow/latin-600.css",
-              "node_modules/@fontsource/barlow/latin-ext-600.css",
-              "node_modules/@fontsource/barlow/latin-700.css",
-              "node_modules/@fontsource/barlow/latin-ext-700.css",
-              "node_modules/@fontsource/barlow-condensed/latin-500.css",
-              "node_modules/@fontsource/barlow-condensed/latin-ext-500.css",
-              "node_modules/@fontsource/barlow-condensed/latin-600.css",
-              "node_modules/@fontsource/barlow-condensed/latin-ext-600.css",
-              "node_modules/@fontsource/barlow-condensed/latin-700.css",
-              "node_modules/@fontsource/barlow-condensed/latin-ext-700.css",
-              "node_modules/@fontsource/big-shoulders-display/latin-700.css",
-              "node_modules/@fontsource/big-shoulders-display/latin-ext-700.css",
-              "node_modules/@fontsource/big-shoulders-display/latin-800.css",
-              "node_modules/@fontsource/big-shoulders-display/latin-ext-800.css",
-              "node_modules/@fontsource/big-shoulders-display/latin-900.css",
-              "node_modules/@fontsource/big-shoulders-display/latin-ext-900.css",
+              "node_modules/@fontsource/barlow/400.css",
+              "node_modules/@fontsource/barlow/600.css",
+              "node_modules/@fontsource/barlow/700.css",
+              "node_modules/@fontsource/barlow-condensed/600.css",
+              "node_modules/@fontsource/barlow-condensed/700.css",
+              "node_modules/@fontsource/big-shoulders-display/800.css",
               "src/styles.css"
             ],
             "outputPath": {
@@ -58,7 +44,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "720kB",
+                  "maximumWarning": "450kB",
                   "maximumError": "1MB"
                 },
                 {

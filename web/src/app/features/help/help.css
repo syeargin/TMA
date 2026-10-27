@@ -4,7 +4,7 @@ main.help{max-width:860px;display:flex;flex-direction:column;gap:14px}
 .help-hero p{margin:6px 0 12px}
 .help-hero p a{margin-left:8px}
 .help-hero .chips{margin-top:10px}
-.help-hero .chip .you{font-weight:500;opacity:.8}
+.help-hero .chip .you{font-weight:400;opacity:.8}
 .help mark{background:var(--accent-soft);color:inherit;border-radius:3px;padding:0 1px}
 .help-crumbs{color:var(--ink-3)}
 .help-crumbs a{color:var(--ink-2)}
