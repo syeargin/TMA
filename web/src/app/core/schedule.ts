@@ -125,3 +125,17 @@ export function countsFor(players: Player[], family: Record<string, FamilyRecord
 
 export const upcoming = (items: ScheduleItem[], from: string) => items.filter((i) => i.end >= from);
 export const within = (items: ScheduleItem[], from: string, days: number) => items.filter((i) => i.end >= from && i.date <= addDays(from, days));
+
+/**
+ * Practices from `from` on with no start time (one-off practices from a spreadsheet's Schedule tab can
+ * leave it blank). A series counts once, at its first such date. Soonest first.
+ */
+export function untimedPractices(items: readonly ScheduleItem[], from: string): ScheduleItem[] {
+  const seen = new Set<string>(), out: ScheduleItem[] = [];
+  for (const i of [...items].sort((a, b) => a.date.localeCompare(b.date))) {
+    if (i.kind !== 'practice' || i.cancelled || i.date < from || i.time?.trim()) continue;
+    const id = i.series?.id ?? i.key;
+    if (!seen.has(id)) { seen.add(id); out.push(i); }
+  }
+  return out;
+}
