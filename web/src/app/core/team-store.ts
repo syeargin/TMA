@@ -10,7 +10,7 @@ import type { Agenda, Announcement, Handbook, Settings, Task, LedgerEntry, Meal,
 import { duesFor, fundStats } from './money';
 import { fullName } from './me.service';
 import type { PatternSuggestion } from './series';
-import { ScheduleItem, buildItems, countsFor, rsvpOf } from './schedule';
+import { ScheduleItem, buildItems, countsFor, rsvpOf, untimedPractices } from './schedule';
 import { summarize, type AttendanceRecord, type PlayerMark, type Summary } from '@shared/attendance';
 import { today } from './dates';
 import { ToastService } from './toast.service';
@@ -73,6 +73,11 @@ export class TeamStore implements OnDestroy {
   readonly announcements = computed<Announcement[]>(() => [...(this.bundle()?.announcements ?? [])].sort((a, b) =>
     Number(!!b.pinned) - Number(!!a.pinned) || String(b.at ?? '').localeCompare(String(a.at ?? ''))));
   readonly items = computed(() => buildItems(this.events(), this.settings()));
+  /**
+   * Practices coming up that have no start time (one-off practices from a spreadsheet's Schedule tab can
+   * leave it blank). A series counts once, at its first date without a time. Soonest first.
+   */
+  readonly practicesWithoutTime = computed(() => untimedPractices(this.items(), today()));
   /** Practice attendance records (staff: everyone's; a family: their own player's marks). */
   readonly attendance = computed<AttendanceRecord[]>(() => this.bundle()?.attendance ?? []);
   /** Practices that still count toward attendance: cancelled ones don't. */

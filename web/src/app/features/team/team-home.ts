@@ -13,7 +13,7 @@ import { AddToCalendar } from '../../shared/add-to-calendar';
 import { MapLink } from '../../shared/map-link';
 import { KindPill, RsvpButtons, RsvpCounts, RsvpStatus } from '../schedule/rsvp';
 
-interface Todo { title: string; sub: string; link: string | string[]; tone?: 'warn' | 'ok' }
+interface Todo { title: string; sub: string; link: string | string[]; query?: Record<string, string>; tone?: 'warn' | 'ok' }
 interface Contact { name: string; role: string; phone?: string }
 
 @Component({
@@ -101,8 +101,21 @@ export class TeamHome {
     if (this.store.can('settings') && !this.store.duesCents() && this.store.has('fund')) {
       out.push({ title: 'Set team dues', sub: 'Dues, coaches, checklist and uniform items live in team settings', link: 'info', tone: 'ok' });
     }
-    if (this.store.can('schedule') && !this.store.settings()?.practices?.length) {
+    // Only when the team has no practices at all: imported and newer teams keep them as practice series
+    // on the schedule, not in the old weekly "practice times" setting.
+    if (this.store.can('schedule') && !this.store.settings()?.practices?.length && !this.store.items().some((i) => i.kind === 'practice')) {
       out.push({ title: 'Add practice times', sub: 'Weekly practices fill the schedule for the season', link: 'schedule', tone: 'ok' });
+    }
+    if (this.store.can('schedule')) {
+      const untimed = this.store.practicesWithoutTime();
+      if (untimed.length) {
+        const first = untimed[0];
+        out.push({
+          title: `${untimed.length} practice${untimed.length > 1 ? 's need' : ' needs'} a time`,
+          sub: `Starting with ${fmt(first.date, { weekday: 'short', month: 'short', day: 'numeric' })} · ${first.title}${first.series ? ' (repeats)' : ''}`,
+          link: 'schedule', query: { edit: first.key }, tone: 'warn'
+        });
+      }
     }
     if (this.store.can('accounts')) {
       const unlinked = this.store.members().filter((m) => m.roles.includes('parent') && !m.pid);

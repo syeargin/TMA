@@ -434,6 +434,9 @@ A first visit downloads about 175–300 KB (compressed), depending on the page. 
   - **Whole series** changes every date except ones changed on their own. If a change drops dates families have already answered, the form says how many before saving.
 - **The old Practice times sheet is retired.** The first time someone who can edit the schedule opens a team that still has weekly practice times, `POST /teams/{t}/practices/convert` turns each one into a weekly practice series with id `pr-<practice id>`. Answers were already keyed `pr-<id>-<date>`, so they carry over untouched, and cancelled dates move onto the series. It runs once; the settings update is conditional, so two coaches can't convert twice.
 - Spreadsheet import does the same. Practices rows (with optional **Repeats**, **Court** and **Uniform color**) become practice series, matched to saved ones by name. A team still on practice times is converted first. The Schedule tab also takes **Practice** rows for one-off practices, and the Lists and Defaults tabs take **Practice uniform colors**. Colors used on practices are added to the team's list.
+- **Reminders on Home (For you), for people who can edit the schedule:**
+  - **Add practice times** shows only when the team has no practices at all. It used to look at the old practice-times setting, which imported and converted teams leave empty, so it showed even with a full schedule.
+  - **"N practices need a time"** lists upcoming practices with no start time; one-off **Practice** rows on the Schedule tab can leave it blank. A series counts once. Tapping it opens the Schedule with the first one's edit form already open (`/teams/{t}/schedule?edit=<schedule key>`): the whole series when the series has no time, otherwise that date. The Schedule then shows a banner with **Set the time** for the next one until none are left (`untimedPractices` in `core/schedule.ts`).
 
 ### Addresses and map links
 

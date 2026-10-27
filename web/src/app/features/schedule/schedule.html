@@ -13,6 +13,14 @@
   }
 </div>
 
+@if (untimed().length && !eventOpen()) {
+  <div class="banner warn" role="status">
+    <span class="grow"><b>{{ untimed().length === 1 ? '1 practice needs' : untimed().length + ' practices need' }} a time.</b>
+      Next: {{ fmt(untimed()[0].date, { weekday: 'short', month: 'short', day: 'numeric' }) }} · {{ untimed()[0].title }}@if (untimed()[0].series) { (repeats) }</span>
+    <button class="btn sm primary" type="button" (click)="nextUntimed()">Set the time</button>
+  </div>
+}
+
 @for (p of patterns(); track p.eids[0]) {
   <div class="banner series-tip" role="status">
     <span class="pill p-series" aria-hidden="true">↻</span>

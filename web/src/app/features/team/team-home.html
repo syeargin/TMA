@@ -116,7 +116,7 @@
       <div class="card-h"><h2>For you</h2><span class="muted small">{{ store.you().roles.length ? '' : 'No roles yet' }}</span></div>
       <div class="card-b stack" style="gap:8px">
         @for (t of todos(); track t.title) {
-          <a class="todo" [routerLink]="t.link">
+          <a class="todo" [routerLink]="t.link" [queryParams]="t.query">
             <span class="dot" [class.warn]="t.tone === 'warn'" [class.ok]="t.tone === 'ok'"></span>
             <span class="t"><b>{{ t.title }}</b><span class="muted small">{{ t.sub }}</span></span>
             <span class="go" aria-hidden="true">›</span>

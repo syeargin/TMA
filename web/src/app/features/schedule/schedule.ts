@@ -1,6 +1,6 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { addDays, fmt, fmtRange, iso, pd, today } from '../../core/dates';
 import { PatternSuggestion, describe, findPatterns, shortLabel } from '../../core/series';
 import type { EventKind, TeamEvent } from '../../core/models';
@@ -67,9 +67,25 @@ export class Schedule {
   feedGone(it: ScheduleItem): boolean { return (it.event?.src?.missing ?? 0) >= 2 && this.store.can('schedule'); }
 
   readonly pid = this.store.myPid;
+  /** ?edit=<schedule key> opens that date's edit form (the "practices need a time" reminder links here). */
+  readonly editKey = input<string | undefined>(undefined, { alias: 'edit' });
+  private readonly router = inject(Router);
+  /** Upcoming practices with no start time, for the banner that steps through them. */
+  readonly untimed = computed(() => (this.store.can('schedule') ? this.store.practicesWithoutTime() : []));
 
   constructor() {
     effect(() => { const v = this.view(); try { localStorage.setItem(VIEW_KEY, v); } catch { /* private mode */ } });
+    effect(() => {
+      const key = this.editKey();
+      const items = this.store.items();
+      if (!key || !items.length) return;
+      untracked(() => {
+        const it = items.find((i) => i.key === key);
+        if (it && this.store.can('schedule')) this.fixTime(it);
+        // Drop ?edit= so closing the form (or reloading) doesn't open it again.
+        void this.router.navigate([], { queryParams: { edit: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      });
+    });
   }
 
   private matches(i: ScheduleItem): boolean {
@@ -154,6 +170,19 @@ export class Schedule {
   }
 
   add(kind: EventKind) { this.editing.set(null); this.editMode.set('series'); this.editAt.set(''); this.newKind.set(kind); this.eventOpen.set(true); }
+  /**
+   * Opens a practice that needs a time: the whole series when the series itself has none, otherwise just
+   * that date. Dates further out than the list shows switch it to the rest of the season.
+   */
+  fixTime(it: ScheduleItem) {
+    if (it.date > addDays(today(), 56)) this.range.set('season');
+    if (this.view() === 'month') { this.monthStart.set(it.date.slice(0, 7) + '-01'); this.selectedDay.set(it.date); }
+    this.edit(it, it.series && !it.event?.time?.trim() ? 'series' : 'date');
+  }
+
+  /** The banner's "Set the next one". */
+  nextUntimed() { const it = this.untimed()[0]; if (it) this.fixTime(it); }
+
   edit(it: ScheduleItem, mode: EditMode = 'series') {
     if (!it.event) return;
     this.editing.set(it.event);

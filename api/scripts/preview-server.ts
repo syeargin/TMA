@@ -156,6 +156,8 @@ await api("PUT", "/teams/test-13/events/e1/meals/m2", OWNER, { day: "2026-11-14"
 await api("PUT", "/teams/test-13/events/e1/meals/m3", OWNER, { day: "2026-11-15", meal: "Breakfast", time: "7:00 AM", plan: "Bagels and yogurt" });
 await api("PUT", "/teams/test-13/family/p2", OWNER, { travel: { e1: { mode: "Driving", hotel: "Riverside Suites", arrive: "Fri evening" } } });
 for (const [pid, v] of [["p1", "yes"], ["p2", "yes"], ["p4", "maybe"], ["p5", "no"], ["p6", "yes"]]) await api("PUT", `/teams/test-13/family/${pid}`, OWNER, { rsvp: { "skills-2026-10-26": v, "pr-wed-2026-10-28": v, "skills-2026-11-02": v } });
+// A one-off practice with no time (as a spreadsheet's Schedule tab can leave it), for the "needs a time" reminder.
+await api("PUT", "/teams/test-13/events/extra1", OWNER, { kind: "practice", title: "Extra serving practice", date: "2026-11-07", location: "Test Gym" });
 await api("POST", "/teams/test-13/payments", MOM, { kind: "in", cat: "Dues", pid: "p1", amountCents: 15000, date: "2026-10-24", desc: "Second half of dues (Venmo)" });
 
 setMfaLookup();

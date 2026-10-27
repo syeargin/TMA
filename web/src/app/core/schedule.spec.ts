@@ -1,6 +1,6 @@
 import { addDays, daysUntil, fmtRange, tmin } from './dates';
 import type { Settings, TeamEvent } from './models';
-import { buildItems, countsFor, courtLabel, practiceKey, rsvpOf, takesRsvp } from './schedule';
+import { buildItems, countsFor, courtLabel, practiceKey, rsvpOf, takesRsvp, untimedPractices } from './schedule';
 
 describe('dates', () => {
   it('adds days across months and years', () => {
@@ -135,5 +135,27 @@ describe('practice events', () => {
     expect(courtLabel('12b')).toBe('Court 12b');
     expect(courtLabel('Courts 3–4')).toBe('Courts 3–4');
     expect(courtLabel('')).toBe('');
+  });
+});
+
+describe('practices that need a time', () => {
+  const settings = { practices: [] } as unknown as Settings;
+  const events: TeamEvent[] = [
+    { eid: 's1', kind: 'practice', title: 'Skills', date: '2026-11-02', location: 'Gym', repeat: { every: 1, days: [1], until: '2026-11-30', skipTournaments: true } } as TeamEvent,
+    { eid: 's2', kind: 'practice', title: 'Wednesday practice', date: '2026-11-04', time: '6:30 PM', repeat: { every: 1, days: [3], until: '2026-11-25', skipTournaments: true } } as TeamEvent,
+    { eid: 'p1', kind: 'practice', title: 'Extra practice', date: '2026-11-07' },
+    { eid: 'p0', kind: 'practice', title: 'Old practice', date: '2026-10-20' },
+    { eid: 'p2', kind: 'practice', title: 'Timed practice', date: '2026-11-08', time: '9:00 AM' },
+    { eid: 'e1', kind: 'event', title: 'Team dinner', date: '2026-11-05' }
+  ];
+  it('lists upcoming practices with no time, a series once, soonest first', () => {
+    const out = untimedPractices(buildItems(events, settings), '2026-10-27');
+    expect(out.map((i) => i.title)).toEqual(['Skills', 'Extra practice']);
+    expect(out[0].date).toBe('2026-11-02');
+    expect(out[0].series?.id).toBe('s1');
+  });
+  it('skips cancelled dates', () => {
+    const cancelled = events.map((e) => (e.eid === 'p1' ? { ...e, cancelled: ['2026-11-07'] } : e));
+    expect(untimedPractices(buildItems(cancelled, settings), '2026-10-27').map((i) => i.title)).toEqual(['Skills']);
   });
 });
