@@ -17,6 +17,7 @@ import { exportRoutes } from "./routes/exports.js";
 import { importRoutes } from "./routes/imports.js";
 import { mailRoutes } from "./routes/mail.js";
 import { commsRoutes, publicRoutes } from "./routes/comms.js";
+import { helpAdminRoutes, helpPublicRoutes } from "./routes/help.js";
 import { assertClubWritable, assertTeamWritable } from "./context.js";
 import { ID } from "./util.js";
 
@@ -37,10 +38,12 @@ importRoutes(router);
 exportRoutes(router);
 mailRoutes(router);
 commsRoutes(router);
+helpAdminRoutes(router);
 
 /** Routes that need no sign-in (template.yaml gives them no authorizer). */
 export const publicRouter = new Router();
 publicRoutes(publicRouter);
+helpPublicRoutes(publicRouter);
 
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyStructuredResultV2> {
   const method = event.requestContext.http.method;

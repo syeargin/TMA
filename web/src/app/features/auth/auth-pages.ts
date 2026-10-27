@@ -57,6 +57,7 @@ abstract class AuthPage extends Page {
     </form>
     <div class="links">
       <a class="link" routerLink="/forgot">Forgot password?</a>
+      <a class="link" routerLink="/help">Help</a>
       <a class="link" routerLink="/privacy">Privacy</a>
       <a class="link" routerLink="/terms">Terms</a>
       <span>New here? <a class="link" routerLink="/signup">Create your account</a></span>

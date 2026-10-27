@@ -1,4 +1,4 @@
-import { Component, DestroyRef, effect, inject, input, untracked } from '@angular/core';
+import { Component, DestroyRef, effect, inject, input, signal, untracked, type Type } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { FlashService } from '../core/flash.service';
@@ -8,11 +8,13 @@ import { TeamStore } from '../core/team-store';
 import { Router } from '@angular/router';
 import { AvailabilitySheet } from '../features/schedule/availability-sheet';
 import { AttendanceSheet } from '../features/schedule/attendance-sheet';
+import { NgComponentOutlet } from '@angular/common';
+import { HelpSheetState } from '../features/help/help-sheet-state';
 
 /** /teams/:teamId — loads the team once for all its tabs and keeps it live. */
 @Component({
   selector: 'th-team-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, AvailabilitySheet, AttendanceSheet],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, AvailabilitySheet, AttendanceSheet, NgComponentOutlet],
   providers: [TeamStore],
   template: `
     <nav class="tabs" aria-label="Team sections">
@@ -29,6 +31,7 @@ import { AttendanceSheet } from '../features/schedule/attendance-sheet';
         @if (store.can('accounts')) {
           <a class="tab" routerLink="members" routerLinkActive="active" ariaCurrentWhenActive="page">Members</a>
         }
+        <button class="tab help-tab" type="button" aria-haspopup="dialog" (click)="openHelp()"><span class="help-q" aria-hidden="true">?</span> Help</button>
       </div>
     </nav>
     <main (focusout)="store.applyHeldIfIdle()">
@@ -41,6 +44,7 @@ import { AttendanceSheet } from '../features/schedule/attendance-sheet';
         <router-outlet />
         <th-availability-sheet />
         <th-attendance-sheet />
+        @if (helpSheet(); as c) { <ng-container *ngComponentOutlet="c" /> }
       } @else if (store.loadError()) {
         <div class="banner"><p><b>This team didn't load.</b> {{ store.loadError() }}</p><a class="btn sm" routerLink="/teams">Your teams</a></div>
       } @else {
@@ -51,6 +55,13 @@ import { AttendanceSheet } from '../features/schedule/attendance-sheet';
     </main>`
 })
 export class TeamShell {
+  private readonly helpState = inject(HelpSheetState);
+  /** The help sheet's component, loaded on the first tap of Help. */
+  readonly helpSheet = signal<Type<unknown> | null>(null);
+  async openHelp() {
+    if (!this.helpSheet()) this.helpSheet.set((await import('../features/help/help-sheet')).HelpSheet);
+    this.helpState.open.set(true);
+  }
   readonly teamId = input.required<string>();
   readonly store = inject(TeamStore);
   private readonly header = inject(HeaderService);

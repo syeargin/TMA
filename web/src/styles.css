@@ -657,3 +657,20 @@ label.agree input{width:18px;height:18px;margin-top:1px;flex:none}
 .feed-ov{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px;margin:4px 0}
 .feed-hist{margin:8px 0 0}
 .feed-hist li{margin:4px 0}
+
+/* Help guide: the header link and the Help button on team tabs (the pages' own styles are in features/help/help.css) */
+.hdr-help{color:var(--hdr-ink);font-weight:600;font-size:14px;padding:8px 10px;border-radius:999px;text-decoration:none}
+.hdr-help:hover{background:rgba(255,255,255,.1)}
+.help-search input{width:100%;min-height:48px;font-size:16px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink)}
+.help-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.help-list li{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-top:1px solid var(--line-2)}
+.help-list li:first-child{border-top:0}
+.help-list a{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;text-decoration:none;color:var(--ink)}
+.help-list a:hover b{text-decoration:underline}
+.help-list .pill{margin-top:2px}
+.help-list.numbered{counter-reset:h}
+.help-list.numbered li::before{counter-increment:h;content:counter(h);font-family:var(--f-cond);font-weight:700;font-size:20px;color:var(--accent-text);width:22px;flex:none;line-height:1.2}
+.help-tab{appearance:none;background:none;border-top:0;border-left:0;border-right:0;cursor:pointer;margin-left:auto;display:inline-flex;align-items:center;gap:6px}
+.help-q{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;border:1.5px solid currentColor;font-size:12px;line-height:1}
+th-help-sheet{display:contents}
+th-help-sheet .help-search{margin-bottom:6px}

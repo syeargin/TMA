@@ -1,0 +1,25 @@
+/* The help guide's pages (/help and /help/:topic). Loaded with them, not on every page. */
+main.help{max-width:860px;display:flex;flex-direction:column;gap:14px}
+.help-hero h2{font-family:var(--f-display);font-weight:800;font-size:34px;text-transform:uppercase;line-height:1}
+.help-hero p{margin:6px 0 12px}
+.help-hero p a{margin-left:8px}
+.help-hero .chips{margin-top:10px}
+.help-hero .chip .you{font-weight:500;opacity:.8}
+.help mark{background:var(--accent-soft);color:inherit;border-radius:3px;padding:0 1px}
+.help-crumbs{color:var(--ink-3)}
+.help-crumbs a{color:var(--ink-2)}
+.help-article h2{font-family:var(--f-display);font-weight:800;font-size:30px;text-transform:uppercase;line-height:1.05;margin:10px 0 6px}
+.help-article .lead{font-size:17px;color:var(--ink-2);margin:0 0 10px}
+.help-article .card-b{padding-top:16px}
+.help-body{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin:10px 0}
+@media (min-width:760px){.help-body{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:start}}
+.help-steps{margin:0;padding-left:0;list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:10px}
+.help-steps li{display:flex;gap:10px;line-height:1.45}
+.help-steps li::before{counter-increment:s;content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;background:var(--btn);color:var(--btn-ink);font-weight:700;font-size:13.5px;display:grid;place-items:center;margin-top:-1px}
+.help-shot{margin:0}
+.help-shot img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.help-shot figcaption{margin-top:6px}
+.help-tips{background:var(--surface-2);border:1px solid var(--line-2);border-radius:10px;padding:10px 14px;margin:8px 0 14px}
+.help-tips h3{font-family:var(--f-cond);font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);margin-bottom:4px}
+.help-tips ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.help-foot{text-align:center}

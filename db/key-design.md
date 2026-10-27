@@ -21,6 +21,7 @@ Both indexes project `ALL`. Billing is on-demand. Streams carry new and old imag
 | `USER#<uid>` | The API, for that user | Profile |
 | `CONN#<connectionId>` | WebSocket functions | One open live-update socket: who it is and which team it follows |
 | `TEAMCONN#<teamId>` | WebSocket functions | The sockets following a team, read by the stream fan-out |
+| `HELP#<yyyy-mm>` | The API (no sign-in) | Help guide counts for one month: topic views by role, how topics were opened, searches. Counts only; kept 13 months (`ttl`) |
 
 All writes go through the API, which checks the caller's membership (`TEAM#<t>` / `MEMBER#<sub>`) before touching the table. That lets family records and payments live in the team partition, keyed by player and payment id, so a single query loads a whole team. (An earlier draft kept them in `USER#` partitions so IAM leading-key conditions could guard direct browser writes; with the API in front, that's no longer needed.)
 
@@ -34,6 +35,7 @@ All writes go through the API, which checks the caller's membership (`TEAM#<t>` 
 | Club admin | `CLUB#<c>` | `ADMIN#<uid>` | `USER#<uid>` / `CLUB#<c>` | |
 | Club admin invite | `INVITE#<email>` | `CLUB#<c>` | `CLUB#<c>` / `INVITE#<email>` | |
 | Site owner | `PLATFORM` | `ADMIN#<uid>` | | |
+| Help guide count (`n`) | `HELP#<yyyy-mm>` | `VIEW#<role>#<topic>`, `OPEN#<via>`, `SEARCH`, `MISS` | | |
 | Team's club | `TEAM#<t>` | `META#CLUB` (`clubId`) | | |
 | Settings | `TEAM#<t>` | `META#SETTINGS` | | |
 | Handbook | `TEAM#<t>` | `META#HANDBOOK` | | |

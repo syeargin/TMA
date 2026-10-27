@@ -125,6 +125,9 @@ export class ApiService {
   myNotifications() { return this.call<{ teams: MyNotifications[] }>('GET', '/me/notifications'); }
   saveMyNotifications(teamId: string, off: string[]) { return this.call('PUT', `/me/notifications/${enc(teamId)}`, { off }); }
   answerFromEmail(t: string, peek: boolean) { return this.call<{ teamId: string; teamName: string; player: string; title: string; date: string; time: string; answer: 'yes' | 'maybe' | 'no'; current: string; recorded: boolean }>('POST', '/public/answer', { t, peek }); }
+  /** Help guide counts (no sign-in): a topic opened, or a search that finished. Never throws. */
+  helpEvent(e: { kind: 'view' | 'search'; topic?: string; role?: string; via?: string; found?: boolean }) { return this.call<void>('POST', '/public/help/events', e).catch(() => undefined); }
+  helpPopular() { return this.call<{ popular: Record<string, { ids: string[]; from: 'counts' | 'starter' }>; minViews: number }>('GET', '/public/help/popular'); }
   unsubscribe(t: string, undo = false) { return this.call<{ teamName: string; message: string; off: boolean }>('POST', '/public/unsubscribe', { t, undo }); }
   team(teamId: string) { return this.call<TeamBundle>('GET', `/teams/${enc(teamId)}`); }
   invites(teamId: string) { return this.call<{ invites: Invite[] }>('GET', `/teams/${enc(teamId)}/invites`); }

@@ -5,6 +5,7 @@ import { CLUB_FEATURE_KEYS, CLUB_FEATURES, clubAllows, type ClubFeature } from '
 import { ApiService } from '../../core/api.service';
 import { HeaderService } from '../../core/header.service';
 import type { AdminClub, ClubHistory } from '../../core/models';
+import { HelpStats } from './help-stats';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
 
@@ -16,7 +17,7 @@ type Draft = { status: 'active' | 'inactive'; reason: string; limited: boolean; 
  */
 @Component({
   selector: 'th-site-admin',
-  imports: [DatePipe, Messages, RouterLink],
+  imports: [DatePipe, Messages, RouterLink, HelpStats],
   template: `
   <main>
     <div class="sec-h">
@@ -97,6 +98,7 @@ type Draft = { status: 'active' | 'inactive'; reason: string; limited: boolean; 
           </div>
         </div>
       </section>
+      <th-help-stats />
     } @else if (!error()) {
       <p class="muted">Loading…</p>
     }

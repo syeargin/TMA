@@ -36,6 +36,9 @@ export const routes: Routes = [
     path: 'clubs/:clubId', canActivate: [signedInGuard, privacyGuard], title: T('Club'),
     loadComponent: () => import('./features/club/club-admin').then((m) => m.ClubAdminPage)
   },
+  // The help guide: open to everyone, signed in or not.
+  { path: 'help', title: T('Help'), loadComponent: () => import('./features/help/help-home').then((m) => m.HelpHome) },
+  { path: 'help/:topic', title: T('Help'), loadComponent: () => import('./features/help/help-topic').then((m) => m.HelpTopic) },
   {
     path: '', component: Narrow,
     children: [

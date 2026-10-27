@@ -144,11 +144,24 @@ await api("PUT", "/admin/clubs/riverside", OWNER, { status: "inactive", reason: 
 
 // Everyone but Gloria (u-gran) has accepted the privacy notice, so she shows the consent page.
 const { PRIVACY_VERSION } = await import("../src/shared/privacy.js");
-for (const sub of [OWNER, MOM, "u-dad"]) await api("PUT", "/me/privacy", sub, { version: PRIVACY_VERSION });
+for (const sub of [OWNER, MOM, "u-dad", "u-kim"]) await api("PUT", "/me/privacy", sub, { version: PRIVACY_VERSION });
+// Help guide screenshots (web/scripts/help-shots.mjs): a filled-in game-day sheet and hotel, meals,
+// travel plans, answers for the skills session, and a dues payment waiting for finance.
+await api("PUT", "/teams/test-13/events/e1", OWNER, { kind: "tournament", title: "Fall Classic", date: "2026-11-14", endDate: "2026-11-15", city: "Columbus, OH", travel: true,
+  location: "Test Sportsplex", address: "100 Main St, Columbus, OH", arrival: "7:15 AM", start: "8:00 AM", waves: "Morning wave", meet: "Court 6, by the east doors", uniforms: "Navy jerseys, black shorts", teamCode: "T13BLUE",
+  hotel: "Riverside Suites", hotelAddress: "20 River Rd, Columbus, OH", hotelCode: "TEST13", hotelBy: "Oct 30",
+  checklist: ["Knee pads", "Water bottle", "Snacks for between matches"] });
+await api("PUT", "/teams/test-13/events/e1/meals/m1", OWNER, { day: "2026-11-14", meal: "Lunch", time: "12:30 PM", plan: "Sandwiches and fruit for 12" });
+await api("PUT", "/teams/test-13/events/e1/meals/m2", OWNER, { day: "2026-11-14", meal: "Dinner", time: "6:30 PM", plan: "Pasta night at the hotel", claimedBy: "p2" });
+await api("PUT", "/teams/test-13/events/e1/meals/m3", OWNER, { day: "2026-11-15", meal: "Breakfast", time: "7:00 AM", plan: "Bagels and yogurt" });
+await api("PUT", "/teams/test-13/family/p2", OWNER, { travel: { e1: { mode: "Driving", hotel: "Riverside Suites", arrive: "Fri evening" } } });
+for (const [pid, v] of [["p1", "yes"], ["p2", "yes"], ["p4", "maybe"], ["p5", "no"], ["p6", "yes"]]) await api("PUT", `/teams/test-13/family/${pid}`, OWNER, { rsvp: { "skills-2026-10-26": v, "pr-wed-2026-10-28": v, "skills-2026-11-02": v } });
+await api("POST", "/teams/test-13/payments", MOM, { kind: "in", cat: "Dues", pid: "p1", amountCents: 15000, date: "2026-10-24", desc: "Second half of dues (Venmo)" });
+
 setMfaLookup();
 
 const DIST = join(import.meta.dirname, "../../web/dist");
-const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".woff": "font/woff" };
+const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon", ".woff2": "font/woff2", ".woff": "font/woff" };
 // The site's CSP from template.yaml (R6), enforced here too so problems show up locally. Reports go to
 // the real report handler and print below. Plain http locally, so no upgrade-insecure-requests.
 // @ts-expect-error plain .mjs helper shared with CI
