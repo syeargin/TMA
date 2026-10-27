@@ -88,6 +88,10 @@ export class TeamHome {
         out.push({ title: `${open.length} team meal${open.length > 1 ? 's' : ''} need a family`, sub: `Starting with ${first.title}`, link: ['tournaments', first.eid, 'meals'], tone: 'warn' });
       }
     }
+    // A parent made a tournament's scorekeeper: straight to its matches.
+    for (const e of this.store.keeperOf()) {
+      out.push({ title: `Enter scores for ${e.title}`, sub: `You're the scorekeeper · ${fmtRange(e.date, e.endDate)}`, link: ['tournaments', e.eid, 'matches'], tone: 'warn' });
+    }
     if (this.store.can('refjobs')) {
       const nt = this.store.tournaments().find((e) => (e.endDate || e.date) >= t0);
       if (nt && !Object.keys(this.store.refjobs()[nt.eid]?.assign ?? {}).length && this.store.players().length) {

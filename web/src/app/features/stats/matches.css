@@ -1,0 +1,64 @@
+/* Match tracker (tournament › Matches), the Stats tab and the share sheet. Loaded with those pages. */
+th-matches,th-stats{display:flex;flex-direction:column;gap:16px}
+.mt-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:10px;margin:4px 0 12px}
+.mt-tile{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--line-2);border-radius:12px;background:var(--surface-2);min-width:0}
+.mt-big{font-family:var(--f-cond);font-weight:700;font-size:32px;line-height:1.05}
+.mt-big span{font-size:15px;color:var(--ink-3);font-weight:600}
+.mt-table td{vertical-align:middle}
+.mt-table .mt-act{white-space:nowrap;text-align:right}
+.mt-next{background:var(--warn-soft)}
+.mt-set{display:inline-block;border-radius:6px;padding:1px 7px;margin:1px 4px 1px 0;font-weight:600;font-size:13px;background:var(--sunken);color:var(--ink)}
+.mt-set.w{background:var(--ok-soft);color:var(--ok)}
+.mt-set.l{background:var(--bad-soft);color:var(--bad)}
+.mt-res{display:inline-flex;align-items:center;border-radius:999px;padding:2px 10px;font-weight:700;font-size:12.5px;white-space:nowrap}
+.mt-res.w{background:var(--ok);color:#fff}
+.mt-res.l{background:var(--bad);color:#fff}
+.mt-res.t{background:var(--sunken);color:var(--ink-2);font-weight:600}
+.mt-form{display:flex;flex-direction:column;gap:12px}
+.mt-form .g-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mt-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.mt-seg button,.mt-out button{min-height:44px;border:1px solid var(--line);background:var(--surface);border-radius:10px;font:600 14px var(--f-body);color:var(--ink);cursor:pointer}
+.mt-seg button[aria-pressed=true]{background:var(--btn);border-color:var(--btn);color:var(--btn-ink)}
+.mt-out{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mt-out button.w[aria-pressed=true]{background:var(--ok);border-color:var(--ok);color:#fff}
+.mt-out button.l[aria-pressed=true]{background:var(--bad);border-color:var(--bad);color:#fff}
+.mt-setrow{display:grid;grid-template-columns:52px 1fr 14px 1fr 56px;gap:8px;align-items:center;margin-bottom:6px}
+.mt-setrow.label span{text-align:center}
+.mt-score{min-height:46px;text-align:center;font-size:19px;font-weight:700;padding:0;width:100%}
+.mt-won{font-size:12px;font-weight:700;border-radius:999px;padding:2px 6px;text-align:center}
+.mt-won.w{background:var(--ok-soft);color:var(--ok)}
+.mt-won.l{background:var(--bad-soft);color:var(--bad)}
+.mt-opt{display:flex;flex-direction:row;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line-2);border-radius:10px;cursor:pointer;font-weight:400}
+.mt-opt input{width:20px;height:20px;margin:0;flex:none}
+.share-prev{display:flex;justify-content:center}
+.share-prev img{width:270px;height:auto;border-radius:12px;box-shadow:0 8px 24px rgba(16,27,46,.25)}
+.share-wait{width:270px;height:338px;display:grid;place-items:center;border:1px dashed var(--line);border-radius:12px}
+.share-act{width:100%;justify-content:flex-start}
+.st-form{display:flex;gap:4px;flex-wrap:wrap}
+.st-form span{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;font-weight:700;font-size:12.5px;color:#fff}
+.st-form .w{background:var(--ok)}
+.st-form .l{background:var(--bad)}
+.st-bar{height:10px;border-radius:999px;background:var(--bad-soft);overflow:hidden;min-width:100px}
+.st-bar i{display:block;height:100%;background:var(--ok)}
+.st-rec{display:inline-block;min-width:44px;text-align:center;border-radius:999px;padding:2px 9px;font-weight:700;font-size:13px}
+.st-rec.up{background:var(--ok-soft);color:var(--ok)}
+.st-rec.even{background:var(--sunken);color:var(--ink)}
+.st-rec.down{background:var(--bad-soft);color:var(--bad)}
+.st-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px;align-items:start}
+th-matches,th-stats,th-matches>*,th-stats>*{min-width:0}
+.mt-tiles{grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr))}
+.mt-meta{display:none}
+/* Phones: each match is a small card instead of a wide table row. */
+@media (max-width:640px){
+  .mt-table thead{display:none}
+  .mt-table,.mt-table tbody{display:block}
+  .mt-table tr{display:grid;grid-template-columns:22px minmax(0,1fr) auto;grid-template-areas:"n opp res" "n sets act";gap:4px 10px;padding:10px 0;border-bottom:1px solid var(--line-2)}
+  .mt-table td{display:block;padding:0;border:0}
+  .mt-table .c-hide{display:none}
+  .mt-table .c-n{grid-area:n}
+  .mt-table .c-opp{grid-area:opp}
+  .mt-table .c-sets{grid-area:sets}
+  .mt-table .c-res{grid-area:res;text-align:right}
+  .mt-table .mt-act{grid-area:act;align-self:center}
+  .mt-meta{display:block}
+}

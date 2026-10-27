@@ -18,6 +18,7 @@ import { importRoutes } from "./routes/imports.js";
 import { mailRoutes } from "./routes/mail.js";
 import { commsRoutes, publicRoutes } from "./routes/comms.js";
 import { helpAdminRoutes, helpPublicRoutes } from "./routes/help.js";
+import { matchRoutes } from "./routes/matches.js";
 import { assertClubWritable, assertTeamWritable } from "./context.js";
 import { ID } from "./util.js";
 
@@ -39,6 +40,7 @@ exportRoutes(router);
 mailRoutes(router);
 commsRoutes(router);
 helpAdminRoutes(router);
+matchRoutes(router);
 
 /** Routes that need no sign-in (template.yaml gives them no authorizer). */
 export const publicRouter = new Router();

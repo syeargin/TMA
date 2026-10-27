@@ -10,6 +10,7 @@ import type { Agenda, Announcement, Handbook, Settings, Task, LedgerEntry, Meal,
 import { duesFor, fundStats } from './money';
 import { fullName } from './me.service';
 import type { PatternSuggestion } from './series';
+import type { MatchDoc } from '@shared/matches';
 import { ScheduleItem, buildItems, countsFor, rsvpOf, untimedPractices } from './schedule';
 import { summarize, type AttendanceRecord, type PlayerMark, type Summary } from '@shared/attendance';
 import { today } from './dates';
@@ -25,7 +26,7 @@ const VIEW_ONLY = new Set<Permission>(['contacts', 'allergies', 'fundView', 'led
 /** Permissions that belong to an optional feature: they don't apply while it's switched off. */
 const PERM_FEATURE: Partial<Record<Permission, Feature>> = {
   fundView: 'fund', ledger: 'fund', finance: 'fund', reimb: 'fund',
-  meals: 'meals', refjobs: 'refjobs', tasks: 'tasks', handbook: 'handbook', takeAttendance: 'attendance', calendarFeed: 'calfeed'
+  meals: 'meals', refjobs: 'refjobs', scores: 'matches', tasks: 'tasks', handbook: 'handbook', takeAttendance: 'attendance', calendarFeed: 'calfeed'
 };
 
 @Injectable()
@@ -105,6 +106,19 @@ export class TeamStore implements OnDestroy {
   /** Whether your family shares its contact details with the other families. */
   readonly sharingContacts = computed(() => { const pid = this.myPid(); return !!pid && this.family()[pid]?.shareContacts === true; });
   readonly refjobs = computed(() => this.bundle()?.refjobs ?? {});
+  /** Match tracker per tournament. */
+  readonly matches = computed<Record<string, MatchDoc>>(() => this.bundle()?.matches ?? {});
+  /** Whether you can enter scores at this tournament: staff, or its scorekeeper. */
+  canScore(eid: string): boolean {
+    if (this.readOnly() || !this.has('matches')) return false;
+    return this.can('scores') || (!!this.matches()[eid]?.scorekeeper && this.matches()[eid]?.scorekeeper === (this.you() as { sub?: string }).sub);
+  }
+  /** Tournaments where you're the scorekeeper and something is still to play (for "For you"). */
+  readonly keeperOf = computed(() => {
+    const sub = (this.you() as { sub?: string }).sub;
+    if (!sub || !this.has('matches')) return [];
+    return this.tournaments().filter((e) => this.matches()[e.eid]?.scorekeeper === sub && (e.endDate || e.date) >= today());
+  });
   readonly agenda = computed(() => this.bundle()?.agenda ?? {});
   /** Tournaments, soonest first. */
   readonly tournaments = computed(() => this.events().filter((e) => e.kind === 'tournament').sort((a, b) => a.date.localeCompare(b.date)));
@@ -290,6 +304,10 @@ export class TeamStore implements OnDestroy {
 
   event(eid: string) { return this.events().find((e) => e.eid === eid) ?? null; }
   travelOf(pid: string, eid: string): Travel | null { return this.family()[pid]?.travel?.[eid] ?? null; }
+  saveMatch(eid: string, mid: string, m: Parameters<ApiService['saveMatch']>[3]) { return this.save('Match saved', (t) => this.api.saveMatch(t, eid, mid, m)); }
+  clearMatch(eid: string, mid: string) { return this.save('Match cleared', (t) => this.api.clearMatch(t, eid, mid)); }
+  setMatchSlots(eid: string, date: string, slots: number, done: string) { return this.save(done, (t) => this.api.setMatchSlots(t, eid, date, slots)); }
+  setScorekeeper(eid: string, sub: string | null) { return this.save(sub ? 'Scorekeeper set' : 'Scorekeeper removed', (t) => this.api.setScorekeeper(t, eid, sub)); }
   saveRefJobs(eid: string, assign: RefAssign, done = '') { return this.save(done, (t) => this.api.saveRefJobs(t, eid, assign)); }
   setRefGroups(groups: Record<string, 'A' | 'B'>) { return this.save('Groups saved', (t) => this.api.setRefGroups(t, groups)); }
   saveAgenda(eid: string, agenda: Agenda, done: string) { return this.save(done, (t) => this.api.saveAgenda(t, eid, agenda)); }

@@ -54,7 +54,7 @@ describe("the site admin dashboard", () => {
     expect((await boss("PUT", "/admin/clubs/cc", { teamLimit: 9 })).status).toBe(403);
     const r = await owner("GET", "/admin/clubs");
     expect(r.body.clubs.find((c: any) => c.clubId === "cc")).toMatchObject({ name: "Control Club", status: "active", teamLimit: null, activeTeams: 1, archivedTeams: 0, admins: 1, teams: [{ teamId: "cc-1", name: "CC-1" }] });
-    expect(r.body.features.map((f: any) => f.id)).toEqual(["fund", "meals", "travel", "refjobs", "uniforms", "tasks", "attendance", "calfeed", "handbook", "email", "texts"]);
+    expect(r.body.features.map((f: any) => f.id)).toEqual(["fund", "meals", "travel", "refjobs", "matches", "uniforms", "tasks", "attendance", "calfeed", "handbook", "email", "texts"]);
   });
 
   it("records every change, with who and why", async () => {

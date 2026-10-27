@@ -1,5 +1,6 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { record, tournamentDays, tournamentView } from '@shared/matches';
 import { daysUntil, fmtRange, today } from '../../core/dates';
 import type { ScheduleItem } from '../../core/schedule';
 import { TeamStore } from '../../core/team-store';
@@ -11,16 +12,17 @@ import { AddToCalendar } from '../../shared/add-to-calendar';
 import { Agenda } from './agenda';
 import { GameDay } from './game-day';
 import { Meals } from './meals';
+import { Matches } from './matches';
 import { RefJobs } from './ref-jobs';
 import { TravelPlans } from './travel';
 
-type Section = 'gameday' | 'ref' | 'meals' | 'travel' | 'agenda';
-const LABELS: Record<Section, string> = { gameday: 'Game day', ref: 'Ref jobs', meals: 'Meals', travel: 'Travel', agenda: 'Agenda' };
+type Section = 'gameday' | 'matches' | 'ref' | 'meals' | 'travel' | 'agenda';
+const LABELS: Record<Section, string> = { gameday: 'Game day', matches: 'Matches', ref: 'Ref jobs', meals: 'Meals', travel: 'Travel', agenda: 'Agenda' };
 
 /** /teams/:id/tournaments/:eid[/:section] */
 @Component({
   selector: 'th-tournament',
-  imports: [MapLink, RouterLink, AddToCalendar, RsvpButtons, RsvpCounts, EventForm, GameDay, RefJobs, Meals, TravelPlans, Agenda],
+  imports: [MapLink, RouterLink, AddToCalendar, RsvpButtons, RsvpCounts, EventForm, GameDay, Matches, RefJobs, Meals, TravelPlans, Agenda],
   template: `
     <a class="link-btn small" [routerLink]="['/teams', store.teamId(), 'tournaments']" style="display:inline-block;margin-bottom:10px">‹ All tournaments</a>
     @if (event(); as e) {
@@ -29,6 +31,7 @@ const LABELS: Record<Section, string> = { gameday: 'Game day', ref: 'Ref jobs', 
           <div class="row" style="margin-bottom:8px">
             <span class="pill" [class.p-travel]="e.travel" [class.p-local]="!e.travel">{{ e.travel ? 'Travel' : 'Local' }}</span>
             @if (e.division) { <span class="pill dim">{{ e.division }}</span> }
+            @if (record(); as r) { <a class="pill p-local thead-rec" [routerLink]="['/teams', store.teamId(), 'tournaments', e.eid, 'matches']" [attr.aria-label]="'Record ' + r + ', see matches'">{{ r }} record</a> }
           </div>
           <h2>{{ e.title }}</h2>
           <div class="meta" style="margin-top:8px">
@@ -57,6 +60,7 @@ const LABELS: Record<Section, string> = { gameday: 'Game day', ref: 'Ref jobs', 
         <th-add-to-calendar [item]="item()!" [path]="'/teams/' + store.teamId() + '/tournaments/' + e.eid" />
       </div>
       @switch (current()) {
+        @case ('matches') { <th-matches [event]="e" /> }
         @case ('ref') { <th-ref-jobs [event]="e" /> }
         @case ('meals') { <th-meals [event]="e" /> }
         @case ('travel') { <th-travel [event]="e" /> }
@@ -79,12 +83,19 @@ export class Tournament {
   readonly editing = signal(false);
 
   readonly event = computed(() => this.store.event(this.eid()));
+  /** The record so far, once a match has a result. */
+  readonly record = computed(() => {
+    const e = this.event();
+    if (!e || !this.store.has('matches')) return '';
+    const t = tournamentView(this.store.matches()[e.eid], tournamentDays(e.date, e.endDate)).totals;
+    return t.played ? record(t) : '';
+  });
   readonly item = computed(() => this.store.items().find((i) => i.key === this.eid()) ?? null as ScheduleItem | null);
   readonly sections = computed<Section[]>(() => {
     const s = this.store;
     const travel = !!this.event()?.travel && s.has('travel');
-    return (['gameday', 'ref', 'meals', 'travel', 'agenda'] as Section[]).filter((x) =>
-      x === 'gameday' || (x === 'ref' && s.has('refjobs')) || (x === 'meals' && s.has('meals')) || ((x === 'travel' || x === 'agenda') && travel));
+    return (['gameday', 'matches', 'ref', 'meals', 'travel', 'agenda'] as Section[]).filter((x) =>
+      x === 'gameday' || (x === 'matches' && s.has('matches')) || (x === 'ref' && s.has('refjobs')) || (x === 'meals' && s.has('meals')) || ((x === 'travel' || x === 'agenda') && travel));
   });
   readonly current = computed<Section>(() => {
     const s = (this.section() || 'gameday') as Section;

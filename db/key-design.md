@@ -43,6 +43,7 @@ All writes go through the API, which checks the caller's membership (`TEAM#<t>` 
 | Player contacts | `TEAM#<t>` | `PLAYER#<pid>#CONTACTS` | | |
 | Event / tournament | `TEAM#<t>` | `EVENT#<eid>` | | `TEAM#<t>#CAL` / `<date>#<eid>` |
 | Ref jobs | `TEAM#<t>` | `EVENT#<eid>#REFJOBS` | | |
+| Match tracker (matches by `<date>-<n>`, rows per day, scorekeeper) | `TEAM#<t>` | `EVENT#<eid>#MATCHES` | | |
 | Agenda | `TEAM#<t>` | `EVENT#<eid>#AGENDA` | | |
 | Meal slot | `TEAM#<t>` | `EVENT#<eid>#MEAL#<mid>` | | |
 | Ledger entry | `TEAM#<t>` | `LEDGER#<lid>` | | `TEAM#<t>#LEDGER` / `<date>#<lid>` |

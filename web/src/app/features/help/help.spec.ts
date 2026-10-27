@@ -47,7 +47,7 @@ describe('help guide', () => {
     expect(text(el.querySelector('.help-most .card-h') as HTMLElement)).toContain('by parents');
     const most = [...el.querySelectorAll('.help-most li b')].map((b) => b.textContent);
     expect(most).toEqual(STARTER_PICKS.parent.map((id) => topicById(id)!.title));
-    expect(el.querySelectorAll('section.card:not(.help-most) li')).toHaveLength(8);
+    expect(el.querySelectorAll('section.card:not(.help-most) li')).toHaveLength(9);
 
     (el.querySelector('.chips button') as HTMLButtonElement).click(); // Everyone
     f.detectChanges();
