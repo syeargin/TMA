@@ -197,7 +197,7 @@ await api("POST", "/teams/test-13/payments", MOM, { kind: "in", cat: "Dues", pid
 setMfaLookup();
 
 const DIST = join(import.meta.dirname, "../../web/dist");
-const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon", ".woff2": "font/woff2", ".woff": "font/woff" };
+const TYPES: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json", ".woff2": "font/woff2", ".woff": "font/woff" };
 // The site's CSP from template.yaml (R6), enforced here too so problems show up locally. Reports go to
 // the real report handler and print below. Plain http locally, so no upgrade-insecure-requests.
 // @ts-expect-error plain .mjs helper shared with CI

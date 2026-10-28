@@ -431,6 +431,27 @@ web/src/app/shared/               small UI pieces and the role checkbox helpers
 
 The site imports the API's role table directly (`@shared/permissions` → `api/src/shared/permissions.ts`), so the buttons a person sees always match what the API allows.
 
+### Branding (Teem Hub brand kit)
+
+The logos come from the brand kit (October 2026; navy `#15294D`, red `#C8323E`). The SVG masters are in `web/public/brand/`, and the PNGs there are rendered from them.
+- **Header:**
+  - On site pages (help, sign-in screens, Your teams, privacy), the white horizontal logo (`logo-white.svg`) sits on navy.
+  - On team and club pages, the white TH mark (`mark-white.svg`) appears before the team's own name, in the club's colors.
+  - The theme keeps headers dark (a light club color is darkened until white text reads), so the white logo always shows. `logo-navy.svg` and `mark-navy.svg` are kept for light surfaces.
+- **Footer** on every page except the landing page: the full-color logo (white in dark mode), Help, Privacy, Terms and © Teem Hub Inc. The landing page's own nav and footer use the white logo.
+- **Favicon:** the white mark on a navy tile, so it shows in light and dark tab bars.
+  - `favicon.svg`, plus `favicon.ico` (16/32/48) for browsers that don't use SVG.
+  - `apple-touch-icon.png` (180, opaque) for iPhone home screens.
+  - `manifest.webmanifest` with 192, 512 and maskable icons and the navy theme color for Android. The deploy uploads the manifest with its content type.
+- **Link previews:** `og:image` (`brand/og-image.png`, 1200×630) and the title and description tags in `index.html`.
+- **Shared results:**
+  - Pictures keep the club's colors and end with a Teem Hub band: navy, a red top edge, the white logo and teemhub.net.
+  - Text ends with "— Shared from Teem Hub · teemhub.net". Files are named `<title>-teem-hub.png`.
+- **Emails** (`lib/mail/frame.ts`):
+  - A navy header with the white logo, then a strip in the club's color. The full-color logo is in the footer.
+  - Emails use PNGs (`brand/email-logo-*.png` on `SITE_URL`) because Gmail and Outlook don't show SVG, with "Teem Hub" as alt text.
+- **Elsewhere:** calendar entries end with "From Teem Hub: <link>". The spreadsheet templates' Read me tab has the logo; rebuild the templates with `python3 docs/templates/build-templates.py`.
+
 ### Keeping downloads small
 
 A first visit downloads about 175–300 KB (compressed), depending on the page. Repeat visits fetch almost nothing, because built files are cached for a year and only change with a deploy.

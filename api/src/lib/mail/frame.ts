@@ -1,5 +1,6 @@
 /**
- * The shared email frame: header in the team's (or club's) colors, body, footer. Table layout with
+ * The shared email frame: a Teem Hub header (navy, the white logo) with a strip in the team's (or
+ * club's) color, body, footer with the full-color logo. Table layout with
  * inline styles, so Gmail, Outlook and Apple Mail all show it the same way. Every template goes
  * through here, so the footer and its required lines change in one place.
  */
@@ -14,11 +15,16 @@ export const FONT = "Barlow, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 export const INK = "#101B2E";
 export const MUTED = "#47546C";
 const LINE = "#E6EAF1";
+const NAVY = "#15294D";
+
+/** Where the logo images are served from: the site (PNGs, because Gmail and Outlook don't show SVG). */
+const siteBase = () => String(process.env.SITE_URL || "https://teemhub.net").replace(/\/$/, "");
+export const logoUrls = () => ({ white: `${siteBase()}/brand/email-logo-white.png`, color: `${siteBase()}/brand/email-logo-color.png` });
 
 export type Frame = {
   /** Short line shown next to the subject in the inbox. */
   preheader: string;
-  /** Under "Teem Hub" in the header: the team or club, or "Your account". */
+  /** Next to the logo in the header: the team or club, or "Your account". */
   context: string;
   colors?: { primary?: string; accent?: string };
   /** Already-escaped body HTML. */
@@ -30,6 +36,7 @@ export type Frame = {
 export function frame(f: Frame): string {
   const primary = color(f.colors?.primary, "#15294D");
   const accent = color(f.colors?.accent, "#C8323E");
+  const logos = logoUrls();
   const footer = f.footer.map((l) => `<p style="margin:0 0 6px;font-family:${FONT};font-size:12.5px;line-height:1.5;color:${MUTED}">${l}</p>`).join("");
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Teem Hub</title></head>
@@ -37,12 +44,15 @@ export function frame(f: Frame): string {
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(f.preheader)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#EDF0F5"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#FFFFFF;border:1px solid #D5DBE5;border-radius:12px;border-collapse:separate;overflow:hidden">
-<tr><td style="background:${primary};border-bottom:4px solid ${accent};padding:20px 28px">
-<div style="font-family:${FONT};font-weight:800;font-size:26px;line-height:1;letter-spacing:.02em;text-transform:uppercase;color:#F4F6FA">Teem Hub</div>
-<div style="font-family:${FONT};font-weight:600;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:#C3CDDF;margin-top:6px">${esc(f.context)}</div>
+<tr><td style="background:${NAVY};border-bottom:3px solid #C8323E;padding:16px 28px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="vertical-align:middle"><img src="${esc(logos.white)}" width="120" height="42" alt="Teem Hub" style="display:block;border:0;outline:none;font-family:${FONT};font-weight:800;font-size:22px;color:#F4F6FA"></td>
+<td align="right" style="vertical-align:middle;font-family:${FONT};font-weight:600;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:#C3CDDF">${esc(f.context)}</td>
+</tr></table>
 </td></tr>
+<tr><td style="background:${primary};height:6px;line-height:6px;font-size:0;border-bottom:1px solid ${accent}">&nbsp;</td></tr>
 <tr><td style="padding:28px 28px 30px;font-family:${FONT};font-size:15px;line-height:1.55;color:${INK}">${f.body}</td></tr>
-<tr><td style="padding:18px 28px 22px;background:#F6F8FB;border-top:1px solid ${LINE}">${footer}</td></tr>
+<tr><td style="padding:18px 28px 22px;background:#F6F8FB;border-top:1px solid ${LINE}"><img src="${esc(logos.color)}" width="100" height="35" alt="Teem Hub" style="display:block;border:0;margin:0 0 10px;font-family:${FONT};font-weight:800;font-size:15px;color:${NAVY}">${footer}</td></tr>
 </table>
 </td></tr></table>
 </body></html>`;
