@@ -80,7 +80,7 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     clubId: access.clubId,
     settings: null as unknown, handbook: null as unknown,
     players: [] as Record<string, unknown>[], events: [] as unknown[], meals: [] as unknown[],
-    refjobs: {} as Record<string, unknown>, agenda: {} as Record<string, unknown>,
+    refjobs: {} as Record<string, unknown>, matches: {} as Record<string, unknown>, agenda: {} as Record<string, unknown>,
     family: {} as Record<string, unknown>, ledger: [] as unknown[], payments: [] as unknown[],
     announcements: [] as unknown[], tasks: [] as unknown[], members: [] as unknown[],
     /** Practice attendance: every player's marks for staff who take it, only their own player's for a family. */
@@ -122,10 +122,11 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
       out.players.push(p);
     }
     else if (sk.startsWith("EVENT#")) {
-      const parts = sk.split("#"); // EVENT, eid, [REFJOBS|AGENDA|MEAL, mid]
+      const parts = sk.split("#"); // EVENT, eid, [REFJOBS|MATCHES|AGENDA|MEAL, mid]
       const eid = parts[1];
       if (parts.length === 2) out.events.push({ eid, ...c });
       else if (parts[2] === "REFJOBS") out.refjobs[eid] = c;
+      else if (parts[2] === "MATCHES") out.matches[eid] = c;
       else if (parts[2] === "AGENDA") out.agenda[eid] = c;
       else if (parts[2] === "MEAL") out.meals.push({ eid, mid: parts[3], ...c });
     }
@@ -171,6 +172,7 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
   if (!access.has("fund")) { out.ledger = []; out.payments = []; }
   if (!access.has("meals")) out.meals = [];
   if (!access.has("refjobs")) out.refjobs = {};
+  if (!access.has("matches")) out.matches = {};
   if (!access.has("tasks")) out.tasks = [];
   if (!access.has("handbook")) out.handbook = null;
   if (!access.has("travel")) out.agenda = {};

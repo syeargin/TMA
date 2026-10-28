@@ -1,3 +1,4 @@
+import type { MatchDoc } from '@shared/matches';
 import type { EventSource, FeedEvent, FeedRules, FilterSuggestion, PresetId, ReviewItem } from '@shared/feed-rules';
 import type { EmailStatus } from '@shared/messages';
 import type { ClubFeature, FeatureMap } from '@shared/features';
@@ -222,6 +223,8 @@ export interface TeamBundle {
   tasks: Task[];
   payments: Payment[];
   refjobs: Record<string, RefJobs>;
+  /** Match tracker per tournament (shared/matches.ts). */
+  matches?: Record<string, MatchDoc>;
   agenda: Record<string, Agenda>;
   [key: string]: unknown;
 }

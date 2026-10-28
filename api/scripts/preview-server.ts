@@ -160,6 +160,40 @@ for (const [pid, v] of [["p1", "yes"], ["p2", "yes"], ["p4", "maybe"], ["p5", "n
 await api("PUT", "/teams/test-13/events/extra1", OWNER, { kind: "practice", title: "Extra serving practice", date: "2026-11-07", location: "Test Gym" });
 await api("POST", "/teams/test-13/payments", MOM, { kind: "in", cat: "Dues", pid: "p1", amountCents: 15000, date: "2026-10-24", desc: "Second half of dues (Venmo)" });
 
+// Match tracker and Stats: three finished tournaments with scores, and Mia as the Fall Classic's
+// scorekeeper (nothing entered there yet).
+{
+  const tourneys: [string, string, string, string | undefined, [string, string, string, number, [number, number][]][]][] = [
+    ["t-ld", "Labor Day Open", "2026-09-06", undefined, [
+      ["8:00 AM", "3", "Lakeside 13 Gold", 3, [[25, 20], [25, 22]]], ["10:00 AM", "3", "Northside Elite 13", 3, [[18, 25], [21, 25]]],
+      ["12:00 PM", "5", "River City 13", 3, [[25, 23], [19, 25], [12, 15]]], ["2:00 PM", "5", "Metro VBC 13 Red", 3, [[22, 25], [25, 21], [15, 13]]],
+      ["4:00 PM", "5", "Hillcrest 13 Navy", 3, [[20, 25], [23, 25]]]]],
+    ["t-ok", "October Kickoff", "2026-10-17", "2026-10-18", [
+      ["8:00 AM", "2", "Westfield 13 Blue", 2, [[25, 17], [25, 19]]], ["9:00 AM", "2", "Lakeside 13 Gold", 2, [[25, 23], [26, 24]]],
+      ["11:00 AM", "4", "Summit 13", 2, [[19, 25], [25, 21]]], ["9:00 AM", "1", "River City 13", 3, [[25, 21], [25, 18]]],
+      ["11:00 AM", "1", "Northside Elite 13", 3, [[23, 25], [25, 22], [9, 15]]], ["1:00 PM", "1", "Valley 13 Black", 3, [[25, 16], [25, 20]]],
+      ["3:00 PM", "1", "Crestview 13", 3, [[25, 22], [21, 25], [15, 12]]]]],
+    ["t-hc", "Harvest Cup", "2026-10-24", "2026-10-25", [
+      ["8:00 AM", "6", "Metro VBC 13 Red", 3, [[25, 21], [23, 25], [15, 11]]], ["10:00 AM", "6", "Pinecrest 13", 3, [[25, 18], [25, 20]]],
+      ["12:00 PM", "4", "Hillcrest 13 Navy", 3, [[19, 25], [22, 25]]], ["9:00 AM", "2", "Westfield 13 Blue", 3, [[25, 23], [25, 22]]],
+      ["11:00 AM", "2", "Summit 13", 3, [[21, 25], [25, 19], [13, 15]]]]]
+  ];
+  for (const [eid, title, date, endDate, ms] of tourneys) {
+    await api("PUT", `/teams/test-13/events/${eid}`, OWNER, { kind: "tournament", title, date, ...(endDate ? { endDate } : {}), city: "Columbus, OH" });
+    const days = endDate ? [date, endDate] : [date];
+    let i = 0;
+    for (const [time, court, opponent, format, sets] of ms) {
+      // October Kickoff: 3 matches Saturday, 4 Sunday; the others 3 then the rest.
+      const day = days.length === 1 ? days[0] : i < 3 ? days[0] : days[1];
+      const n = days.length === 1 ? i + 1 : i < 3 ? i + 1 : i - 2;
+      if (n > 3) await api("PUT", `/teams/test-13/events/${eid}/matchslots`, OWNER, { date: day, slots: n });
+      const res = sets.filter(([a, b]) => a > b).length > sets.length / 2 ? "W" : sets.filter(([a, b]) => a > b).length * 2 === sets.length ? "L" : "";
+      await api("PUT", `/teams/test-13/events/${eid}/matches/${day}-${n}`, OWNER, { time, court, opponent, format, sets: sets.map(([us, them]) => ({ us, them })), result: res });
+      i++;
+    }
+  }
+  await api("PUT", "/teams/test-13/events/e1/scorekeeper", OWNER, { sub: MOM });
+}
 setMfaLookup();
 
 const DIST = join(import.meta.dirname, "../../web/dist");

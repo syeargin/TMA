@@ -2,7 +2,7 @@
 // Used by the fan-out to tell browsers what to reload.
 
 export type Collection =
-  | "settings" | "handbook" | "players" | "events" | "refjobs" | "agenda" | "meals"
+  | "settings" | "handbook" | "players" | "events" | "refjobs" | "matches" | "agenda" | "meals"
   | "family" | "payments" | "ledger" | "announcements" | "tasks" | "members" | "invites" | "attendance";
 
 export function describeChange(pk: string, sk: string): { teamId: string; collection: Collection } | null {
@@ -15,6 +15,7 @@ export function describeChange(pk: string, sk: string): { teamId: string; collec
   if (sk.startsWith("EVENT#")) {
     const part = sk.split("#")[2];
     if (part === "REFJOBS") return { teamId, collection: "refjobs" };
+    if (part === "MATCHES") return { teamId, collection: "matches" };
     if (part === "AGENDA") return { teamId, collection: "agenda" };
     if (part === "MEAL") return { teamId, collection: "meals" };
     return { teamId, collection: "events" };

@@ -23,6 +23,9 @@ import { HelpSheetState } from '../features/help/help-sheet-state';
         <a class="tab" routerLink="." routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Home</a>
         <a class="tab" routerLink="schedule" routerLinkActive="active" ariaCurrentWhenActive="page">Schedule</a>
         <a class="tab" routerLink="tournaments" routerLinkActive="active" ariaCurrentWhenActive="page">Tournaments</a>
+        @if (store.has('matches')) {
+          <a class="tab" routerLink="stats" routerLinkActive="active" ariaCurrentWhenActive="page">Stats</a>
+        }
         @if (store.has('fund')) {
           <a class="tab" routerLink="fund" routerLinkActive="active" ariaCurrentWhenActive="page">Team Fund</a>
         }

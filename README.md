@@ -210,12 +210,35 @@ A team feature ("Practice attendance", on by default; a site owner can switch it
 ### Help guide
 
 `/help` explains the site in short steps, by role (parents; coaches and coordinators; team admins and finance). It works without signing in, so families can read it before they join.
-- **Topics** live in code, in `api/src/shared/help.ts` (18 to start), so the site shows them and the API accepts counts only for them. To add or change one, edit that file; each topic has its steps, tips, the page "Take me there" opens, the team feature it needs, the team pages its contextual help shows on, and related topics. There's no editor in the site.
+- **Topics** live in code, in `api/src/shared/help.ts` (20 so far), so the site shows them and the API accepts counts only for them. To add or change one, edit that file; each topic has its steps, tips, the page "Take me there" opens, the team feature it needs, the team pages its contextual help shows on, and related topics. There's no editor in the site.
 - **Search** (`api/src/shared/help-search.ts`) runs in the browser as people type: every word has to match a topic's title, keywords, summary or steps (the start of a word is enough), and common other words map to the site's own ("rsvp" → In / Maybe / Out, "venmo" → payment, "hotel" → travel). Matches are highlighted.
 - **On team pages** the tabs have a **Help** button: the topics for the page you're on, yours first, leaving out features the team turned off. It loads on the first tap.
 - **Counts only:** opening a topic sends its id, the role group (from the filter or your teams) and how it was opened; a finished search sends only whether it found anything. No account, address or search words are kept. One row per month (`HELP#<yyyy-mm>`, kept 13 months), and the public route is throttled lower than the rest of the API. Each topic counts once per visit.
 - **Most used** shows starting picks for each role until that role has 50 views in the last 3 months, then its most-opened topics. **Site admin** shows the counts per topic and role, how topics were opened, and how many searches found nothing.
 - **Screenshots** (`web/public/help-img/`) come from the local preview's sample team: run the preview server (Local development), then `node web/scripts/help-shots.mjs [topic …]` after `npm run build`. Re-take them when a page they show changes.
+
+### Match tracker and Stats
+
+A team feature ("Match tracker and stats", on by default).
+- **Matches** is a tournament section, after Game day.
+  - Each tournament day starts with 3 match rows. **Add match** adds one; **Remove** takes away an empty last row.
+  - A match has a time, court, opponent, number of sets (2 sets, best of 3 or best of 5), each set's score (us–them) and Win or Loss.
+  - The outcome fills in from the sets and can be changed. A 2-set match that splits 1–1 needs Win or Loss picked; there is no tie.
+  - The **Tournament summary** adds up matches, sets and points, with a line per day. The tournament's header shows the record once a match has a result.
+- **Who enters scores:** coaches, coordinators and team admins (the `scores` permission). Staff can also choose one parent per tournament as its **scorekeeper**, who can enter and fix scores and add a match row for that tournament only. The scorekeeper sees a banner on the Matches tab and "Enter scores for …" under **For you** on Home. Everyone else sees the results, live.
+- **Stats** is a team tab. It shows the season record (matches, sets, points, tournaments, the last 10 results), each tournament, each set number's record, and opponents met more than once. **Last 30 days** narrows it down.
+- **Sharing:**
+  - **Share** (a tournament) and **Share season** draw a 1080×1350 picture in the browser and write the same results as text.
+  - On phones, the share button sends both to the phone's own share sheet (Web Share API). Copy and Download work everywhere.
+  - Only finished matches are included, and never player names, times or courts.
+  - The preview is a `data:` URL because the CSP allows images from `'self'` and `data:` only.
+- **Rules and totals** live in `api/src/shared/matches.ts`, used by the API's checks and the site's totals.
+  - Scores are whole numbers from 0 to 99.
+  - A set can't end tied, there can't be a set after the match was won, and the result has to agree with the sets.
+- **Stored** as `TEAM#<t>` / `EVENT#<eid>#MATCHES`: `{ matches: { "<date>-<n>": Match }, slots: { "<date>": n }, scorekeeper }`.
+  - Each match is saved on its own (`PUT /teams/{t}/events/{eid}/matches/{date}-{n}`, `DELETE` to clear it), so two people entering different matches don't overwrite each other.
+  - The other routes are `PUT …/matchslots` and `PUT …/scorekeeper`.
+  - Live updates send the `matches` collection.
 
 ### Calendar feed sync (stages C1 to C4)
 

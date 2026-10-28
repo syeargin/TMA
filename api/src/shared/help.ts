@@ -32,7 +32,7 @@ export function helpRolesFor(roles: readonly string[]): HelpRole[] {
  * Where a topic's contextual help (the "?" button on a team) shows it: the team page, and for a
  * tournament its section ("tournament" alone is the game-day sheet).
  */
-export type HelpPlace = "home" | "schedule" | "tournaments" | "tournament" | "tournament:ref" | "tournament:meals" | "tournament:travel"
+export type HelpPlace = "home" | "schedule" | "tournaments" | "tournament" | "tournament:ref" | "tournament:meals" | "tournament:travel" | "tournament:matches" | "stats"
   | "fund" | "roster" | "info" | "members" | "communications" | "account" | "email";
 
 export type HelpTopic = {
@@ -173,6 +173,20 @@ export const HELP_TOPICS: HelpTopic[] = [
     feature: "fund", places: ["fund"], related: ["confirm-payment", "change-emails"]
   },
   {
+    id: "follow-results", role: "parent", title: "Follow match results and share them",
+    summary: "See every score as it's entered, the team's season record on Stats, and share a results picture.",
+    keywords: ["results", "scores", "score", "record", "stats", "standings", "wins", "losses", "share", "instagram", "picture", "season", "how did we do"],
+    steps: [
+      "Open the **Tournaments** tab, tap the tournament, then **Matches**. Each match shows the opponent, the set scores and the result as coaches enter them.",
+      "The **Tournament summary** adds up matches, sets and points, with a line for each day.",
+      "Open the **Stats** tab for the season: the record, the last 10 matches, each tournament, and how the team does in each set.",
+      "Tap **Share** (or **Share season**) to send a results picture and text to Messages, WhatsApp, Instagram or email. On a computer, copy the text or download the picture."
+    ],
+    tips: ["Shared results never include player names, times or courts."],
+    go: { label: "Open Stats", path: "stats" },
+    feature: "matches", places: ["tournament:matches", "stats", "tournament"], related: ["enter-scores", "game-day-sheet"]
+  },
+  {
     id: "change-emails", role: "parent", title: "Change which emails you get",
     summary: "Turn each kind of team email on or off for yourself, team by team.",
     keywords: ["email", "emails", "notifications", "unsubscribe", "stop", "too many", "spam", "weekly", "reminder", "settings", "opt out"],
@@ -286,6 +300,21 @@ export const HELP_TOPICS: HelpTopic[] = [
     feature: "refjobs", places: ["tournament:ref", "tournament"], related: ["game-day-sheet", "communications"]
   },
   {
+    id: "enter-scores", role: "staff", title: "Enter match scores, and choose a scorekeeper",
+    summary: "Fill in each match's time, court, opponent and set scores; add matches; let one parent enter scores too.",
+    keywords: ["score", "scores", "match", "matches", "results", "set", "sets", "win", "loss", "opponent", "court", "pool play", "bracket", "scorekeeper", "stats", "record"],
+    steps: [
+      "Open the tournament from **Tournaments**, then **Matches**. Each day starts with 3 match rows.",
+      "Tap **Enter score** on a match. Fill in the time, court and opponent, pick **2 sets**, **Best of 3** or **Best of 5**, and type each set's score (us–them).",
+      "The outcome fills in from the sets. Change it if the score sheet says otherwise; a 2-set match that ends 1–1 needs you to pick **Win** or **Loss**. Tap **Save match**.",
+      "More matches that day (crossover, bracket)? Tap **Add match**. **Remove** takes away an empty last row.",
+      "To let a parent in the stands enter scores, tap **Choose a parent** next to Scorekeeper and pick them. They can enter scores for that tournament only, and see it under **For you** on Home."
+    ],
+    tips: ["Everything you enter adds up on the **Stats** tab for the whole season."],
+    go: { label: "Open tournaments", path: "tournaments" },
+    feature: "matches", places: ["tournament:matches", "stats", "tournament"], related: ["follow-results", "ref-jobs"]
+  },
+  {
     id: "invite-families", role: "staff", title: "Invite families, and send invites that are waiting",
     summary: "Invite people one at a time or from a spreadsheet, then email the invites that haven't gone out yet.",
     keywords: ["invite", "add parent", "add family", "add coach", "members", "import", "spreadsheet", "excel", "upload", "resend", "pending", "roles", "access"],
@@ -357,7 +386,7 @@ export const POPULAR_MIN_VIEWS = 50;
 export const STARTER_PICKS: Record<HelpRole | "all", string[]> = {
   all: ["answer-availability", "add-to-calendar", "game-day-sheet", "join-team", "add-practice"],
   parent: ["answer-availability", "add-to-calendar", "game-day-sheet", "record-payment", "join-team"],
-  staff: ["add-practice", "change-series", "see-answers", "post-announcement", "invite-families"],
+  staff: ["add-practice", "change-series", "see-answers", "enter-scores", "post-announcement"],
   admin: ["communications", "confirm-payment", "team-features", "invite-families", "post-announcement"]
 };
 

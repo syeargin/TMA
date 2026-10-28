@@ -19,10 +19,10 @@ const view = (topic: string, role = "parent", via = "browse") => anon("POST", "/
 const month = new Date().toISOString().slice(0, 7);
 
 describe("help guide content", () => {
-  it("has 18 topics with unique ids, steps and working links between them", () => {
-    expect(HELP_TOPICS).toHaveLength(18);
+  it("has 20 topics with unique ids, steps and working links between them", () => {
+    expect(HELP_TOPICS).toHaveLength(20);
     const ids = new Set(HELP_TOPICS.map((t) => t.id));
-    expect(ids.size).toBe(18);
+    expect(ids.size).toBe(20);
     for (const t of HELP_TOPICS) {
       expect(t.id).toMatch(/^[a-z][a-z-]+$/);
       expect(t.steps.length).toBeGreaterThanOrEqual(2);
@@ -32,7 +32,7 @@ describe("help guide content", () => {
       for (const s of [...t.steps, ...(t.tips ?? [])]) expect(s.split("**").length % 2, s).toBe(1);
     }
     for (const list of Object.values(STARTER_PICKS)) for (const id of list) expect(ids.has(id)).toBe(true);
-    expect(HELP_TOPICS.filter((t) => t.role === "parent")).toHaveLength(8);
+    expect(HELP_TOPICS.filter((t) => t.role === "parent")).toHaveLength(9);
   });
 
   it("maps team roles to the guide's three groups", () => {
@@ -118,7 +118,7 @@ describe("help counts", () => {
     const r = await call("GET", "/admin/help", "u-owner", undefined, "owner@example.com");
     expect(r.status).toBe(200);
     expect(r.body.topics[0]).toMatchObject({ id: "answer-availability", views: 2, thisMonth: 2, byRole: { parent: 1, staff: 1, admin: 0, none: 0 } });
-    expect(r.body.topics).toHaveLength(18);
+    expect(r.body.topics).toHaveLength(20);
     expect(r.body).toMatchObject({ searches: 2, misses: 1, via: { browse: 1, search: 1, popular: 0 }, months: 3 });
   });
 });

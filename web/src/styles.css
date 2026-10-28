@@ -674,3 +674,4 @@ label.agree input{width:18px;height:18px;margin-top:1px;flex:none}
 .help-q{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;border:1.5px solid currentColor;font-size:12px;line-height:1}
 th-help-sheet{display:contents}
 th-help-sheet .help-search{margin-bottom:6px}
+.thead a.thead-rec{color:var(--navy);text-decoration:none}

@@ -37,6 +37,8 @@ export const keys = {
   contacts: (t: string, pid: string) => ({ PK: `TEAM#${t}`, SK: `PLAYER#${pid}#CONTACTS` }),
   event: (t: string, eid: string) => ({ PK: `TEAM#${t}`, SK: `EVENT#${eid}` }),
   refjobs: (t: string, eid: string) => ({ PK: `TEAM#${t}`, SK: `EVENT#${eid}#REFJOBS` }),
+  /** A tournament's match tracker: its matches, slots per day and scorekeeper (shared/matches.ts). */
+  matches: (t: string, eid: string) => ({ PK: `TEAM#${t}`, SK: `EVENT#${eid}#MATCHES` }),
   agenda: (t: string, eid: string) => ({ PK: `TEAM#${t}`, SK: `EVENT#${eid}#AGENDA` }),
   meal: (t: string, eid: string, mid: string) => ({ PK: `TEAM#${t}`, SK: `EVENT#${eid}#MEAL#${mid}` }),
   family: (t: string, pid: string) => ({ PK: `TEAM#${t}`, SK: `FAMILY#${pid}` }),

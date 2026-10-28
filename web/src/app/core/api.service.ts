@@ -11,6 +11,7 @@ import { APP_CONFIG } from './config';
 import type { Repeat } from './series';
 import type { Sheets } from './xlsx';
 import type { FeedRules } from '@shared/feed-rules';
+import type { Match } from '@shared/matches';
 import type { Agenda, Club, CommsHealth, CommsPage, EmailTemplate, FeedCheck, FeedRun, FeedView, ReplaceResult, MessageSettings, MyNotifications, ClubDetail, ClubTeam, Handbook, ImportResult, Invite, LedgerEntry, Me, Meal, MoneyKind, Player, RefAssign, Rsvp, Settings, Task, TeamBundle, TeamEvent, Travel } from './models';
 
 export class ApiError extends Error {
@@ -166,6 +167,10 @@ export class ApiService {
   }
   deleteAnnouncement(teamId: string, aid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/announcements/${enc(aid)}`); }
 
+  saveMatch(teamId: string, eid: string, mid: string, m: { time?: string; court?: string; opponent?: string; format: number; sets: { us: number; them: number }[]; result: string }) { return this.call<{ match: Match }>('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/matches/${enc(mid)}`, m); }
+  clearMatch(teamId: string, eid: string, mid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}/matches/${enc(mid)}`); }
+  setMatchSlots(teamId: string, eid: string, date: string, slots: number) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/matchslots`, { date, slots }); }
+  setScorekeeper(teamId: string, eid: string, sub: string | null) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/scorekeeper`, { sub }); }
   saveRefJobs(teamId: string, eid: string, assign: RefAssign) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/refjobs`, { assign }); }
   setRefGroups(teamId: string, groups: Record<string, 'A' | 'B'>) { return this.call('PUT', `/teams/${enc(teamId)}/refgroups`, { groups }); }
   saveAgenda(teamId: string, eid: string, agenda: Agenda) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/agenda`, agenda); }

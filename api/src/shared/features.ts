@@ -8,6 +8,7 @@ export const FEATURES = {
   meals:     { label: "Tournament meals", help: "Meal plans and families signing up for meals.", role: "food" },
   travel:    { label: "Travel and lodging", help: "Hotels, each family's travel plans and trip agendas for travel tournaments.", role: null },
   refjobs:   { label: "Ref jobs", help: "Work duties assigned at tournaments.", role: null },
+  matches:   { label: "Match tracker and stats", help: "Scores for each tournament match, the team's record and the Stats tab.", role: null },
   uniforms:  { label: "Uniform order", help: "Uniform items and each player's sizes.", role: null },
   tasks:     { label: "Coordinator tasks", help: "The coordinator's to-do list.", role: null },
   attendance: { label: "Practice attendance", help: "Coaches mark who came to each practice; families see their own player's attendance.", role: null },

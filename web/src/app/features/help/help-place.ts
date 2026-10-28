@@ -8,8 +8,8 @@ export function placeOf(url: string): HelpPlace | null {
   if (!seg) return 'home';
   if (seg === 'tournaments') {
     if (!id) return 'tournaments';
-    return section === 'ref' || section === 'meals' || section === 'travel' ? `tournament:${section}` as HelpPlace : 'tournament';
+    return section === 'ref' || section === 'meals' || section === 'travel' || section === 'matches' ? `tournament:${section}` as HelpPlace : 'tournament';
   }
-  return (['schedule', 'fund', 'roster', 'info', 'members', 'communications'] as const).find((s) => s === seg) ?? null;
+  return (['schedule', 'stats', 'fund', 'roster', 'info', 'members', 'communications'] as const).find((s) => s === seg) ?? null;
 }
 

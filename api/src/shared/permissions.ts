@@ -25,6 +25,7 @@ export const PERMISSIONS = {
   takeAttendance: { label: "Take practice attendance and see every player's", roles: ["admin", "coach", "coordinator"] },
   schedule:   { label: "Edit schedule, practices, tournaments, hotels, game-day sheets", roles: ["admin", "coach", "coordinator"] },
   refjobs:    { label: "Assign ref jobs", roles: ["admin", "coach", "coordinator"] },
+  scores:     { label: "Enter match scores and choose a tournament's scorekeeper", roles: ["admin", "coach", "coordinator"] },
   announce:   { label: "Post and pin announcements", roles: ["admin", "coach", "coordinator"] },
   handbook:   { label: "Edit the team handbook", roles: ["admin", "coach", "coordinator"] },
   meals:      { label: "Plan meals and assign families", roles: ["admin", "coordinator", "food"] },
