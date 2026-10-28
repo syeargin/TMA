@@ -1,4 +1,4 @@
-import { Component, effect, inject } from '@angular/core';
+import { Component, computed, effect, inject } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
@@ -24,9 +24,15 @@ const isPublic = (path: string) => PUBLIC_PAGES.has(path) || path.startsWith('/h
     @if (!landing()) {
     <header class="hdr">
       <div class="hdr-in">
-        <a class="brand" [routerLink]="auth.user() ? '/teams' : '/'">
-          <svg class="crest" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" fill="none" stroke="#fff" stroke-width="2.5"/><path d="M26 2c-6 8-8 16-7 24s5 16 13 24M4.5 17c9 2 18 1 26-4s13-10 15-11M3 31c9-4 20-4 29 0s14 11 16 12" fill="none" stroke="#fff" stroke-width="2" opacity=".85"/><circle cx="26" cy="26" r="24" fill="none" class="crest-a" stroke-width="2.5" stroke-dasharray="10 140" transform="rotate(-60 26 26)"/></svg>
-          <div><h1>{{ header.title() }}</h1><div class="sub">{{ header.sub() || theme.look()?.name || '' }}</div></div>
+        <a class="brand" [routerLink]="auth.user() ? '/teams' : '/'" [attr.aria-label]="sitePage() ? 'Teem Hub' : null">
+          @if (sitePage()) {
+            <img class="brand-logo" src="/brand/logo-white.svg" alt="Teem Hub" width="157" height="55">
+          } @else {
+            <!-- A team or club page: the Teem Hub mark, then the team's own name. -->
+            <img class="brand-mark" src="/brand/mark-white.svg" alt="Teem Hub" width="84" height="48">
+            <span class="brand-rule" aria-hidden="true"></span>
+            <div><h1>{{ header.title() }}</h1><div class="sub">{{ header.sub() || theme.look()?.name || '' }}</div></div>
+          }
         </a>
         <div class="hdr-side">
           @if (live.status() !== 'off') {
@@ -53,7 +59,14 @@ const isPublic = (path: string) => PUBLIC_PAGES.has(path) || path.startsWith('/h
     }
     <router-outlet />
     @if (toast.message()) { <div class="toast" [class.bad]="toast.bad()" role="status" aria-live="polite">{{ toast.message() }}</div> }
-    @if (!landing()) { <footer class="foot muted">@if (commit) { Build {{ commit }} }</footer> }`
+    @if (!landing()) {
+      <footer class="foot muted">
+        <a routerLink="/" class="foot-logo" aria-label="Teem Hub"><img class="on-light" src="/brand/logo-color.svg" alt="" width="86" height="30"><img class="on-dark" src="/brand/logo-white.svg" alt="" width="86" height="30"></a>
+        <span class="foot-links"><a routerLink="/help">Help</a> · <a routerLink="/privacy">Privacy</a> · <a routerLink="/terms">Terms</a></span>
+        <span class="spacer"></span>
+        <span>© Teem Hub Inc.@if (commit) { · Build {{ commit }} }</span>
+      </footer>
+    }`
 })
 export class App {
   private readonly cfg = inject(APP_CONFIG);
@@ -87,5 +100,7 @@ export class App {
     // Signed in as someone else: start them on their own teams.
     if (user && before && before !== user.sub && !isPublic(path)) await this.router.navigateByUrl('/teams');
   }
+  /** Pages that aren't a team's or club's (no title set): the full logo instead of a name. */
+  readonly sitePage = computed(() => this.header.title() === 'Teem Hub' && !this.header.sub());
   readonly liveText: Record<LiveStatus, string> = { off: '', live: 'Live', connecting: 'Connecting…', reconnecting: 'Reconnecting…' };
 }

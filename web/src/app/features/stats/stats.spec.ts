@@ -50,11 +50,11 @@ describe('sharing results', () => {
   it('writes a tournament and a season as text, with no times, courts or players', () => {
     const t = tournamentShare({ team: 'Test 13', club: 'Test Club', title: 'Fall Classic', when: 'Nov 14–15', totals: { played: 2, won: 1, lost: 1, setsWon: 2, setsLost: 3, pointsFor: 104, pointsAgainst: 107, toPlay: 2 },
       matches: [{ opponent: 'Lakeside 13 Gold', sets: [{ us: 25, them: 21 }, { us: 23, them: 25 }, { us: 15, them: 11 }], result: 'W' }, { opponent: 'Northside', sets: [{ us: 19, them: 25 }, { us: 22, them: 25 }], result: 'L' }] });
-    expect(t.text).toBe('Test 13 at Fall Classic (Nov 14–15): 1–1, sets 2–3 · points −3\nW 25–21, 23–25, 15–11 vs Lakeside 13 Gold\nL 19–25, 22–25 vs Northside');
+    expect(t.text).toBe('Test 13 at Fall Classic (Nov 14–15): 1–1, sets 2–3 · points −3\nW 25–21, 23–25, 15–11 vs Lakeside 13 Gold\nL 19–25, 22–25 vs Northside\n— Shared from Teem Hub · teemhub.net');
     expect(t.headline).toBe('1–1');
     expect(t.text).not.toMatch(/AM|Ct|court/i);
     const s = seasonShare({ team: 'Test 13', label: '2026-27 season', totals: { played: 3, won: 2, lost: 1, setsWon: 4, setsLost: 3, pointsFor: 154, pointsAgainst: 149, toPlay: 0 }, tournaments: [{ title: 'Harvest Cup', totals: { played: 1, won: 1, lost: 0, setsWon: 2, setsLost: 0, pointsFor: 50, pointsAgainst: 42, toPlay: 0 } }] });
-    expect(s.text).toBe('Test 13, 2026-27 season: 2–1, sets 4–3 · points +5\nHarvest Cup: 1–0 (sets 2–0 · +8)');
+    expect(s.text).toBe('Test 13, 2026-27 season: 2–1, sets 4–3 · points +5\nHarvest Cup: 1–0 (sets 2–0 · +8)\n— Shared from Teem Hub · teemhub.net');
   });
 });
 

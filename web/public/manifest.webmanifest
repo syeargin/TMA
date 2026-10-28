@@ -1,0 +1,28 @@
+{
+  "name": "Teem Hub",
+  "short_name": "Teem Hub",
+  "description": "Your team's season in one place.",
+  "start_url": "/teams",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#15294D",
+  "theme_color": "#15294D",
+  "icons": [
+    {
+      "src": "/brand/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/brand/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

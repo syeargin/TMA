@@ -223,3 +223,6 @@
 @media (prefers-reduced-motion: no-preference) { :host { scroll-behavior: smooth; } }
 /* The app's global main{} sets a reading width and padding; this page runs edge to edge. */
 .lp main { max-width: none; margin: 0; padding: 0; width: auto; }
+
+.lp-logo { display: block; height: 49px; width: auto; }
+.lp-foot-logo { display: block; height: 40px; width: auto; }

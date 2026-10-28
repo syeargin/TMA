@@ -1,5 +1,6 @@
 # Builds the Team setup and Club setup upload templates. Run from the repo root: python3 docs/templates/build-templates.py
 from openpyxl import Workbook
+from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.comments import Comment
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -135,7 +136,10 @@ SCHED_EX=["Tournament","Winter Invitational Classic",D("2026-12-12"),D("2026-12-
 def readme(wb, title, intro, tabs, extra):
     ws=wb.active; ws.title="Read me"
     ws.column_dimensions["A"].width=24; ws.column_dimensions["B"].width=70; ws.column_dimensions["C"].width=14
-    r=1
+    # The Teem Hub logo (brand kit, primary colors) in the top-left corner.
+    logo=XLImage("web/public/brand/email-logo-color.png"); logo.width, logo.height = 150, 52
+    ws.add_image(logo, "A1"); ws.row_dimensions[1].height=44
+    r=2
     ws.cell(r,1,title).font=F(bold=True,size=16,color=NAVY); r+=1
     ws.cell(r,1,intro).font=F(color="47546C"); ws.merge_cells(start_row=r,start_column=1,end_row=r,end_column=3)
     ws.cell(r,1).alignment=Alignment(wrap_text=True); ws.row_dimensions[r].height=48; r+=2

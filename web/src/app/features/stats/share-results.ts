@@ -11,12 +11,23 @@ export type ShareRow = { label: string; detail: string; badge: string; tone: 'w'
 export type ShareCard = { kicker: string; title: string; when: string; headline: string; sub: string; rows: ShareRow[]; text: string; colors?: { primary: string; accent: string } };
 
 const W = 1080, H = 1350, MAX_ROWS = 9;
+/** The Teem Hub band along the bottom of every picture: navy, a red top edge, the white logo. */
+const BAND = 150, NAVY = '#15294D', RED = '#C8323E';
+export const BRAND_HOST = 'teemhub.net';
+export const CREDIT = `— Shared from Teem Hub · ${BRAND_HOST}`;
+
+let logo: Promise<HTMLImageElement | null> | null = null;
+/** The white logo as a PNG (same origin, so the canvas can still be saved; PNG because some browsers mark a canvas unsaveable after drawing SVG). */
+function whiteLogo(): Promise<HTMLImageElement | null> {
+  logo ??= new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = '/brand/email-logo-white.png'; });
+  return logo;
+}
 
 /** One tournament's finished matches. */
 export function tournamentShare(o: { team: string; club?: string; title: string; when: string; totals: Totals; matches: { opponent?: string; sets: SetScore[]; result: Result }[]; colors?: { primary: string; accent: string } }): ShareCard {
   const rows = o.matches.map((m) => ({ label: m.opponent?.trim() || 'Opponent', detail: setText(m.sets), badge: m.result, tone: m.result === 'W' ? 'w' as const : 'l' as const }));
   const sub = `sets ${o.totals.setsWon}–${o.totals.setsLost} · points ${pointDiff(o.totals)}`;
-  const text = [`${o.team} at ${o.title} (${o.when}): ${record(o.totals)}, ${sub}`, ...rows.map((r) => `${r.badge} ${r.detail} vs ${r.label}`)].join('\n');
+  const text = [`${o.team} at ${o.title} (${o.when}): ${record(o.totals)}, ${sub}`, ...rows.map((r) => `${r.badge} ${r.detail} vs ${r.label}`), CREDIT].join('\n');
   return { kicker: [o.club, o.team].filter(Boolean).join(' · '), title: o.title, when: o.when, headline: record(o.totals), sub, rows, text, colors: o.colors };
 }
 
@@ -24,7 +35,7 @@ export function tournamentShare(o: { team: string; club?: string; title: string;
 export function seasonShare(o: { team: string; club?: string; label: string; totals: Totals; tournaments: { title: string; totals: Totals }[]; colors?: { primary: string; accent: string } }): ShareCard {
   const rows = o.tournaments.map((t) => ({ label: t.title, detail: `sets ${t.totals.setsWon}–${t.totals.setsLost} · ${pointDiff(t.totals)}`, badge: record(t.totals), tone: t.totals.won > t.totals.lost ? 'w' as const : t.totals.won < t.totals.lost ? 'l' as const : 'n' as const }));
   const sub = `sets ${o.totals.setsWon}–${o.totals.setsLost} · points ${pointDiff(o.totals)}`;
-  const text = [`${o.team}, ${o.label}: ${record(o.totals)}, ${sub}`, ...rows.map((r) => `${r.label}: ${r.badge} (${r.detail})`)].join('\n');
+  const text = [`${o.team}, ${o.label}: ${record(o.totals)}, ${sub}`, ...rows.map((r) => `${r.label}: ${r.badge} (${r.detail})`), CREDIT].join('\n');
   return { kicker: [o.club, o.team].filter(Boolean).join(' · '), title: o.label, when: `${o.tournaments.length} tournament${o.tournaments.length === 1 ? '' : 's'}`, headline: record(o.totals), sub, rows, text, colors: o.colors };
 }
 
@@ -48,7 +59,6 @@ export async function drawCard(card: ShareCard, host: string): Promise<Blob> {
   const soft = light ? 'rgba(16,27,46,.7)' : 'rgba(255,255,255,.78)';
   const line = light ? 'rgba(16,27,46,.18)' : 'rgba(255,255,255,.2)';
   g.fillStyle = bg; g.fillRect(0, 0, W, H);
-  if (card.colors?.accent) { g.fillStyle = card.colors.accent; g.fillRect(0, H - 18, W, 18); }
   const P = 80;
   const fit = (text: string, font: (px: number) => string, max: number, start: number) => {
     let px = start;
@@ -72,7 +82,7 @@ export async function drawCard(card: ShareCard, host: string): Promise<Blob> {
 
   const rows = card.rows.slice(0, MAX_ROWS);
   let y = 590;
-  const rowH = card.rows.length > MAX_ROWS ? 70 : Math.min(100, (H - 150 - y) / Math.max(rows.length, 1));
+  const rowH = card.rows.length > MAX_ROWS ? 64 : Math.min(96, (H - BAND - 70 - y) / Math.max(rows.length, 1));
   for (const r of rows) {
     g.strokeStyle = line; g.lineWidth = 2;
     g.beginPath(); g.moveTo(P, y); g.lineTo(W - P, y); g.stroke();
@@ -94,12 +104,19 @@ export async function drawCard(card: ShareCard, host: string): Promise<Blob> {
     y += rowH;
   }
   if (card.rows.length > MAX_ROWS) { g.fillStyle = soft; g.font = `600 30px ${fam.body}`; g.fillText(`+ ${card.rows.length - MAX_ROWS} more`, P, y + 44); }
-  g.fillStyle = soft; g.font = `600 28px ${fam.body}`;
-  g.fillText(`Shared from ${host}`, P, H - 60);
+  // Teem Hub band
+  g.fillStyle = NAVY; g.fillRect(0, H - BAND, W, BAND);
+  g.fillStyle = RED; g.fillRect(0, H - BAND, W, 8);
+  const img = await whiteLogo();
+  if (img) g.drawImage(img, P - 10, H - BAND + 30, 260, 91);
+  else { g.fillStyle = '#FFFFFF'; g.font = `800 52px ${fam.display}`; g.fillText('TEEM HUB', P, H - 50); }
+  g.fillStyle = 'rgba(255,255,255,.85)'; g.font = `600 32px ${fam.body}`; g.textAlign = 'right';
+  g.fillText(host, W - P, H - BAND / 2 + 16);
+  g.textAlign = 'left';
   return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('no image'))), 'image/png'));
 }
 
-const fileName = (card: ShareCard) => `${card.title.replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'results'}.png`;
+const fileName = (card: ShareCard) => `${card.title.replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'results'}-teem-hub.png`;
 
 /** The Share sheet: a preview of the picture, the phone's share options, and copy or download. */
 @Component({
@@ -129,7 +146,7 @@ export class ShareResults {
   readonly copied = signal(false);
   readonly error = signal('');
   readonly canShare = computed(() => typeof navigator !== 'undefined' && typeof navigator.share === 'function');
-  private readonly host = typeof location !== 'undefined' ? location.host : 'Teem Hub';
+  private readonly host = BRAND_HOST;
 
   constructor() {
     effect(() => {

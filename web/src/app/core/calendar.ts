@@ -29,7 +29,7 @@ export function toCalEvent(it: ScheduleItem, link: string): CalEvent {
   const base = {
     title: it.kind === 'practice' && !/practice/i.test(it.title) ? `${it.title} practice` : it.title,
     location: [it.location, courtLabel(it.court), it.address].filter(Boolean).join(', '),
-    details: [it.uniformColor ? `Practice uniform: ${it.uniformColor}` : '', it.note, `Teem Hub: ${link}`].filter(Boolean).join('\n\n'),
+    details: [it.uniformColor ? `Practice uniform: ${it.uniformColor}` : '', it.note, `From Teem Hub: ${link}`].filter(Boolean).join('\n\n'),
     uid: `${it.key}@a5-team-hub`
   };
   const allDay = { ...base, allDay: true, startDate: it.date, endDate: addDays(it.end || it.date, 1) };
