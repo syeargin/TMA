@@ -41,6 +41,8 @@ const { forgetFeedKey } = await import("../../src/lib/feed/secret.js");
 const { normalizeFeedUrl, setFeedFetcher } = await import("../../src/lib/feed/fetch.js");
 const { eidFor, runFeedSync } = await import("../../src/lib/feed/sync.js");
 const { purgeTeam } = await import("../../src/lib/retention.js");
+const { localParts } = await import("../../src/lib/comms/zoned.js");
+const { DEFAULT_TIME_ZONE } = await import("../../src/shared/messages.js");
 const { PutCommand, GetCommand, QueryCommand, UpdateCommand } = await import("@aws-sdk/lib-dynamodb");
 // The calendar site: answers "not modified" when it's sent the ETag it gave out, like a well-behaved server.
 let etagSupport = false;
@@ -106,7 +108,11 @@ describe("sync logs", () => {
     expect((await q(`FEEDLOG#${T}`, "SYNC#")).length).toBe(before);
     const s = (await source())!;
     expect(s.lastSync).toMatchObject({ ok: true, trigger: "job", unchanged: 6, total: 6 });
-    expect(s.soon.length).toBeGreaterThan(3);
+    // The days with feed events in the next 30, in the team's time zone. Worked out the same way here,
+    // not as a count: Media Day can fall on a practice Saturday, and UTC can already be tomorrow.
+    const today = localParts(new Date(), DEFAULT_TIME_ZONE).date, last = plusDays(today, 30);
+    expect(s.soon).toEqual([...new Set([...SATS, day(10)])].filter((d) => d >= today && d <= last).sort());
+    expect(s.soon.length).toBeGreaterThanOrEqual(2);
     // A change is kept, and so is Sync now.
     feed[1] = { ...feed[1], start: "0800", end: "1030" };
     await runFeedSync({ due: false });
