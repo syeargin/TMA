@@ -15,10 +15,12 @@ import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody 
 import type { Router } from "../router.js";
 import { checkId, clean, deleteMany, getItem, now, optStr, putItem, queryAll, str } from "../util.js";
 
+/** Weekly practices' first and last dates: YYYY-MM-DD, and anything else saved as blank (a bad date would never end the date loop). */
+const optDate = optStr(10).transform((v) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) ? v : undefined));
 const coach = z.object({ name: str(100), phone: optStr(40) });
 const practice = z.object({
   id: str(40), label: str(100), dow: z.number().int().min(0).max(6),
-  start: optStr(20), end: optStr(20), from: optStr(10), until: optStr(10), location: optStr(200), note: optStr(300)
+  start: optStr(20), end: optStr(20), from: optDate, until: optDate, location: optStr(200), note: optStr(300)
 });
 
 const settingsSchema = z.object({
