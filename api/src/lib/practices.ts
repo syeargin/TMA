@@ -21,6 +21,7 @@ export function seasonEnd(from: string): string {
 /** The first date on or after `from` that falls on weekday `dow` (0 = Sunday). */
 export function firstOnOrAfter(from: string, dow: number): string {
   const d = new Date(`${from}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) throw new Error(`Not a date: ${from}`);
   while (d.getUTCDay() !== dow) d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().slice(0, 10);
 }
@@ -55,7 +56,7 @@ export async function convertPractices(teamId: string, by: string): Promise<{ co
   if (!settings || !practices.length) return { converted: 0, skipped: [] };
   const at = now();
   const cancelled = (settings.cancelled ?? []) as string[];
-  const usable = practices.filter((p) => p.from && ID.test(`pr-${p.id}`));
+  const usable = practices.filter((p) => p.from && /^\d{4}-\d{2}-\d{2}$/.test(p.from) && ID.test(`pr-${p.id}`));
   const skipped = practices.filter((p) => !usable.includes(p)).map((p) => p.label || p.id);
   const events = usable.map((p) => practiceEvent(teamId, p, cancelled, by, at));
   const keep = cancelled.filter((k) => !usable.some((p) => k.startsWith(`pr-${p.id}-`)));

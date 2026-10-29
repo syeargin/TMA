@@ -5,6 +5,11 @@ const ev = (eid: string, date: string, o: Partial<TeamEvent> = {}): TeamEvent =>
   ({ eid, kind: 'event', title: 'Open gym', date, time: '6:00 PM', location: 'A5 Gym', ...o }) as TeamEvent;
 
 describe('expandPattern', () => {
+  it('gives no dates (rather than looping forever) for a malformed start or end', () => {
+    expect(expandPattern('9/1/2026', 'TBD', [2])).toEqual([]);
+    expect(expandPattern('TBD', '2027-06-30', [2])).toEqual([]);
+    expect(expandPattern('2026-11-03', 'Ongoing', [2])).toEqual([]);
+  });
   it('weekly on two days', () => {
     expect(expandPattern('2026-11-03', '2026-11-13', [2, 4])).toEqual(['2026-11-03', '2026-11-05', '2026-11-10', '2026-11-12']);
   });

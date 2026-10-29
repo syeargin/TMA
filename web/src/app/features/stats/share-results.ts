@@ -113,7 +113,9 @@ export async function drawCard(card: ShareCard, host: string): Promise<Blob> {
   g.fillStyle = 'rgba(255,255,255,.85)'; g.font = `600 32px ${fam.body}`; g.textAlign = 'right';
   g.fillText(host, W - P, H - BAND / 2 + 16);
   g.textAlign = 'left';
-  return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('no image'))), 'image/png'));
+  // Free the canvas's memory as soon as the picture is out: phones (iOS Safari above all) cap total canvas memory per tab.
+  const free = () => { c.width = 0; c.height = 0; };
+  return new Promise((resolve, reject) => c.toBlob((b) => { free(); if (b) resolve(b); else reject(new Error('no image')); }, 'image/png'));
 }
 
 const fileName = (card: ShareCard) => `${card.title.replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'results'}-teem-hub.png`;

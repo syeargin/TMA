@@ -50,15 +50,17 @@ const LABELS: Record<Section, string> = { gameday: 'Game day', matches: 'Matches
           <a [routerLink]="['/teams', store.teamId(), 'tournaments', e.eid, s]" [class.active]="current() === s" [attr.aria-current]="current() === s ? 'page' : null">{{ labels[s] }}</a>
         }
       </nav>
-      <div class="row" style="margin-bottom:14px">
-        @if (store.myPid() && store.canAnswerFor(store.myPid())) {
-          <span class="label">{{ store.playerName(store.myPid()) }}:</span>
-          <th-rsvp [item]="item()!" [pid]="store.myPid()" />
-        }
-        <th-counts [item]="item()!" />
-        <span class="spacer"></span>
-        <th-add-to-calendar [item]="item()!" [path]="'/teams/' + store.teamId() + '/tournaments/' + e.eid" />
-      </div>
+      @if (item(); as it) {
+        <div class="row" style="margin-bottom:14px">
+          @if (store.myPid() && store.canAnswerFor(store.myPid())) {
+            <span class="label">{{ store.playerName(store.myPid()) }}:</span>
+            <th-rsvp [item]="it" [pid]="store.myPid()" />
+          }
+          <th-counts [item]="it" />
+          <span class="spacer"></span>
+          <th-add-to-calendar [item]="it" [path]="'/teams/' + store.teamId() + '/tournaments/' + e.eid" />
+        </div>
+      }
       @switch (current()) {
         @case ('matches') { <th-matches [event]="e" /> }
         @case ('ref') { <th-ref-jobs [event]="e" /> }
@@ -82,7 +84,8 @@ export class Tournament {
   readonly labels = LABELS;
   readonly editing = signal(false);
 
-  readonly event = computed(() => this.store.event(this.eid()));
+  /** Only a tournament: an event changed to a practice or series (or a link to one) shows the not-found note. */
+  readonly event = computed(() => { const e = this.store.event(this.eid()); return e?.kind === 'tournament' ? e : null; });
   /** The record so far, once a match has a result. */
   readonly record = computed(() => {
     const e = this.event();

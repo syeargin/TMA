@@ -149,6 +149,14 @@ describe("practices", () => {
     expect(s.cancelled).not.toContain("pr-wed-2026-11-11");
     expect(s.cancelled).toContain("pr-wed-2026-11-18");
   });
+  it("saves a first or last date that isn't YYYY-MM-DD as blank (a bad date froze the schedule page)", async () => {
+    const bad = { ...P, id: "thu", dow: 4, from: "9/1/2026", until: "TBD" };
+    expect((await call("PUT", `/teams/${T}/practices`, ROLE_SUBS.coach, { practices: [P, bad] })).status).toBe(200);
+    const s = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.settings;
+    expect(s.practices[1].from).toBeUndefined();
+    expect(s.practices[1].until).toBeUndefined();
+    expect((await call("PUT", `/teams/${T}/practices`, ROLE_SUBS.coach, { practices: [P] })).status).toBe(200);
+  });
   it("parents can't change practices, and keys must be practice dates", async () => {
     expect((await call("PUT", `/teams/${T}/practices/cancelled/pr-wed-2026-11-25`, ROLE_SUBS.parent)).status).toBe(403);
     expect((await call("PUT", `/teams/${T}/practices/cancelled/e1`, ROLE_SUBS.coach)).status).toBe(400);
