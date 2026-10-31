@@ -10,6 +10,7 @@ import { MeService } from './core/me.service';
 import { ThemeService } from './core/theme.service';
 import type { LiveStatus } from './core/live-client';
 import { ToastService } from './core/toast.service';
+import { UsageService } from './core/usage.service';
 
 /** Pages for signed-out people (a signed-in visitor goes to their teams). */
 const SIGNED_OUT_PAGES = new Set(['/signin', '/signup', '/verify', '/forgot', '/reset']);
@@ -82,6 +83,8 @@ export class App {
   /** The landing page brings its own navigation and footer. */
   readonly landing = toSignal(this.router.events.pipe(filter((e) => e instanceof NavigationEnd), map(() => this.router.url.split(/[?#]/)[0] === '/')), { initialValue: location.pathname === '/' });
   constructor() {
+    // Site usage counts (site admin › Usage): page opens and errors, totals only.
+    inject(UsageService).start();
     // Load the name for the header once someone is signed in.
     effect(() => { if (this.auth.user()) void this.me.load().catch(() => {}); else this.me.clear(); });
     // Another tab signed in, out, or as someone else: follow it, so this tab never acts on an old answer.

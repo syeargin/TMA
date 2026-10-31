@@ -124,7 +124,8 @@ export function accountRoutes(r: Router) {
     }
     const invites = email ? await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `INVITE#${email}` }, ProjectionExpression: "PK, SK" }) : [];
     const key = (i: Item) => ({ PK: String(i.PK), SK: String(i.SK) });
-    await deleteMany([...memberships.map(key), ...adminOf.map(key), ...invites.map(key), keys.profile(caller.sub)]);
+    // The last day you opened each team (site usage) goes too.
+    await deleteMany([...memberships.map(key), ...memberships.map((m) => ({ PK: `SEEN#${teamOf(m)}`, SK: caller.sub })), ...adminOf.map(key), ...invites.map(key), keys.profile(caller.sub)]);
     await deleteSignIn(caller.username || caller.sub);
     console.log(JSON.stringify({ msg: "account deleted", sub: caller.sub, teams: memberships.length, clubs: adminOf.length }));
     // A required notice to the address the account used, so someone who didn't do this finds out.

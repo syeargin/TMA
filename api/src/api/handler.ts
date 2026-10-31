@@ -19,6 +19,10 @@ import { mailRoutes } from "./routes/mail.js";
 import { commsRoutes, publicRoutes } from "./routes/comms.js";
 import { helpAdminRoutes, helpPublicRoutes } from "./routes/help.js";
 import { matchRoutes } from "./routes/matches.js";
+import { usagePublicRoutes, usageRoutes } from "./routes/usage.js";
+import { countAction, countRequest, quietly } from "../lib/usage.js";
+import { clubOfTeam } from "../lib/clubs.js";
+import { actionOf, errorAreaOf } from "../shared/usage.js";
 import { assertClubWritable, assertTeamWritable } from "./context.js";
 import { ID } from "./util.js";
 
@@ -41,11 +45,13 @@ mailRoutes(router);
 commsRoutes(router);
 helpAdminRoutes(router);
 matchRoutes(router);
+usageRoutes(router);
 
 /** Routes that need no sign-in (template.yaml gives them no authorizer). */
 export const publicRouter = new Router();
 publicRoutes(publicRouter);
 helpPublicRoutes(publicRouter);
+usagePublicRoutes(publicRouter);
 
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyStructuredResultV2> {
   const method = event.requestContext.http.method;
@@ -88,5 +94,18 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
     return json(500, { error: "server_error", message: "Something went wrong on our side. Try again." });
   } finally {
     console.log(JSON.stringify({ msg: "request", method, path, status, ms: Date.now() - started, sub }));
+    await count(method, path, status, event);
   }
+}
+
+/** Site usage: every request for Health, and what people did for Usage (lib/usage.ts). Never fails the request. */
+const COUNTERS = new Set(["/usage/events", "/public/usage"]);
+async function count(method: string, path: string, status: number, event: APIGatewayProxyEventV2WithJWTAuthorizer) {
+  if (COUNTERS.has(path) || method === "OPTIONS") return;
+  const body = status < 300 && method !== "GET" ? (event.isBase64Encoded && event.body ? Buffer.from(event.body, "base64").toString("utf8") : event.body ?? null) : null;
+  const act = status < 300 && method !== "GET" ? actionOf(method, path, body) : null;
+  await quietly(Promise.all([
+    countRequest(status, errorAreaOf(path)),
+    ...(act ? [(act.teamId && ID.test(act.teamId) ? clubOfTeam(act.teamId) : Promise.resolve("")).then((club) => countAction(club, act.teamId, act.action))] : [])
+  ]));
 }

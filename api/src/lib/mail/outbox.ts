@@ -158,6 +158,24 @@ async function setStatus(id: string, status: EmailStatus, detail = "", extra: Re
   if (res.Attributes) await countStatus(res.Attributes, status, detail);
 }
 
+/**
+ * Links to the site in an email say they came from an email (?via=email), so site admin › Usage can
+ * count visits that started there. Only our own links; the count is a total, never who clicked.
+ */
+export function tagLinks(body: string, html: boolean, base = process.env.SITE_URL ?? ""): string {
+  const site = base.replace(/\/$/, "");
+  if (!site) return body;
+  const esc = site.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return body.replace(new RegExp(`${esc}(?=$|[/?#\\s"'<>)])[^\\s"'<>)]*`, "g"), (url) => {
+    const hash = url.indexOf("#");
+    const [head, tail] = hash < 0 ? [url, ""] : [url.slice(0, hash), url.slice(hash)];
+    // Pictures (the logo) and links that already say where they came from stay as they are.
+    if (/via=/.test(head) || /\.(png|jpe?g|gif|svg|webp|ico)$/i.test(head.split("?")[0])) return url;
+    const path = head.slice(site.length) || "/";
+    return `${site}${path}${path.includes("?") ? (html ? "&amp;" : "&") : "?"}via=email${tail}`;
+  });
+}
+
 /** Sends each queued delivery once. Safe to run twice: only "queued" records are claimed. */
 export async function sendDeliveries(ids: string[]): Promise<{ sent: number; failed: number; skipped: number }> {
   const t = transport();
@@ -185,7 +203,7 @@ export async function sendDeliveries(ids: string[]): Promise<{ sent: number; fai
       const r = render(item.msg as LiveMessage, item.data as never);
       const suffix = env() && env() !== "prod" ? ` (${env()})` : "";
       const messageId = await t.send({
-        to: String(item.to), fromName: r.fromName + suffix, subject: r.subject, html: r.html, text: r.text,
+        to: String(item.to), fromName: r.fromName + suffix, subject: r.subject, html: tagLinks(r.html, true), text: tagLinks(r.text, false),
         tags: { env: env() || "local", delivery: id, msg: String(item.msg) },
         headers: (item.headers as Record<string, string> | undefined) ?? undefined
       });

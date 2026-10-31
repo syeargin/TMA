@@ -4,6 +4,7 @@ import { ROLES } from "../../shared/permissions.js";
 import { loadAccess } from "../context.js";
 import { conflict, HttpError, json, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
+import { forgetSeen } from "../../lib/usage.js";
 import { checkId, clean, deleteItem, getItem, now, optStr, putItem, queryAll } from "../util.js";
 import { isExpired } from "../../lib/invites.js";
 import { dispatch, queueTeamInvite } from "../../lib/mail/invite-mail.js";
@@ -158,6 +159,7 @@ export function peopleRoutes(r: Router) {
       if (admins.length <= 1) throw conflict("A team needs at least one team admin. Make someone else an admin first.");
     }
     await deleteItem(keys.member(a.teamId, sub));
+    await forgetSeen(a.teamId, sub);
     return json(204, undefined);
   });
 }

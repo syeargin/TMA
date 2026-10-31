@@ -41,9 +41,9 @@ describe("team invite emails", () => {
     expect(m.tags).toMatchObject({ env: "dev", msg: "invite" });
     expect(m.html).toContain("Maya&#39;s parent or guardian");
     expect(m.html).not.toContain("Parker");
-    expect(m.html).toContain("https://dev.teemhub.net/signup#email=jordan%40example.com");
+    expect(m.html).toContain("https://dev.teemhub.net/signup?via=email#email=jordan%40example.com");
     expect(m.html).toContain("#1F4E3D");
-    expect(m.text).toContain("Accept the invite: https://dev.teemhub.net/signup#email=jordan%40example.com");
+    expect(m.text).toContain("Accept the invite: https://dev.teemhub.net/signup?via=email#email=jordan%40example.com");
     const inv = (await invites()).find((i) => i.email === "jordan@example.com");
     expect(inv).toMatchObject({ emailStatus: "sent", emailCount: 1 });
   });

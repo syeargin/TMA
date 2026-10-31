@@ -24,6 +24,8 @@ const MAX = 400;
 export function expandPattern(start: string, until: string, days: number[], every = 1): string[] {
   const out: string[] = [];
   const s = pd(start);
+  // A malformed start or end (old data) would never reach `until`: no dates, rather than a hung run.
+  if (Number.isNaN(s.getTime()) || !/^\d{4}-\d{2}-\d{2}$/.test(until)) return [];
   const week0 = new Date(s); week0.setDate(s.getDate() - s.getDay());
   const want = new Set(days.map(Number));
   for (let d = new Date(s); iso(d) <= until && out.length < MAX; d.setDate(d.getDate() + 1)) {

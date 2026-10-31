@@ -1,29 +1,49 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CLUB_FEATURE_KEYS, CLUB_FEATURES, clubAllows, type ClubFeature } from '@shared/features';
 import { ApiService } from '../../core/api.service';
 import { HeaderService } from '../../core/header.service';
 import type { AdminClub, ClubHistory } from '../../core/models';
 import { HelpStats } from './help-stats';
+import { Health } from './health';
+import { Usage } from './usage';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
 
 type Draft = { status: 'active' | 'inactive'; reason: string; limited: boolean; limit: number; features: Record<ClubFeature, boolean> };
 
+type Section = 'clubs' | 'usage' | 'health' | 'help';
+const SECTIONS: Section[] = ['clubs', 'usage', 'health', 'help'];
+
 /**
- * /admin — the site admin dashboard (site owners). Every club with its status, teams used of its
- * limit and its features, and a panel to change them. Each change goes in the club's history.
+ * /admin[/usage|/health|/help] — the site admin dashboard (site owners).
+ * Clubs: every club with its status, teams used of its limit and its features, and a panel to change
+ * them (each change goes in the club's history). Usage and Health: site usage counts. Help: help guide counts.
  */
 @Component({
   selector: 'th-site-admin',
-  imports: [DatePipe, Messages, RouterLink, HelpStats],
+  imports: [DatePipe, Messages, RouterLink, RouterLinkActive, HelpStats, Usage, Health],
   template: `
+  <nav class="tabs admin-tabs" aria-label="Site admin sections">
+    <div class="tabs-in">
+      <a class="tab" routerLink="/teams" title="All your teams">‹ Teams</a>
+      <a class="tab" routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Clubs</a>
+      <a class="tab" routerLink="/admin/usage" routerLinkActive="active" ariaCurrentWhenActive="page">Usage</a>
+      <a class="tab" routerLink="/admin/health" routerLinkActive="active" ariaCurrentWhenActive="page">Health</a>
+      <a class="tab" routerLink="/admin/help" routerLinkActive="active" ariaCurrentWhenActive="page">Help</a>
+    </div>
+  </nav>
   <main>
+    @switch (current()) {
+      @case ('usage') { <th-usage /> }
+      @case ('health') { <th-health /> }
+      @case ('help') { <th-help-stats /> }
+      @default {
     <div class="sec-h">
       <div>
-        <h2>Site admin</h2>
-        <p class="muted" style="margin-top:6px">Which clubs are active, how many teams each may have, and the features each club can use. <a routerLink="/teams">Back to your teams</a></p>
+        <h2>Clubs</h2>
+        <p class="muted" style="margin-top:6px">Which clubs are active, how many teams each may have, and the features each club can use.</p>
       </div>
     </div>
     <th-messages [error]="error()" [notice]="notice()" />
@@ -98,9 +118,10 @@ type Draft = { status: 'active' | 'inactive'; reason: string; limited: boolean; 
           </div>
         </div>
       </section>
-      <th-help-stats />
     } @else if (!error()) {
       <p class="muted">Loading…</p>
+    }
+      }
     }
   </main>`
 })
@@ -112,6 +133,9 @@ export class SiteAdmin extends Page {
   readonly draft = signal<Draft | null>(null);
   readonly history = signal<ClubHistory[]>([]);
   readonly keys = CLUB_FEATURE_KEYS;
+  /** The :section route param (none = Clubs). */
+  readonly section = input<string>('');
+  readonly current = computed<Section>(() => SECTIONS.find((s) => s === this.section()) ?? 'clubs');
 
   readonly activeCount = computed(() => (this.clubs() ?? []).filter((c) => c.status === 'active').length);
   readonly teamCount = computed(() => (this.clubs() ?? []).reduce((n, c) => n + c.activeTeams, 0));
@@ -122,7 +146,8 @@ export class SiteAdmin extends Page {
     this.header.title.set('Site admin');
     this.header.sub.set('Teem Hub');
     inject(DestroyRef).onDestroy(() => this.header.reset());
-    void this.load();
+    // The clubs list loads the first time Clubs is shown.
+    effect(() => { if (this.current() === 'clubs' && !untracked(this.clubs)) untracked(() => void this.load()); });
   }
 
   async load() {

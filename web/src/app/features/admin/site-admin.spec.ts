@@ -17,7 +17,7 @@ describe('site admin dashboard', () => {
     popular: { all: { ids: [], from: 'starter' }, parent: { ids: [], from: 'counts' }, staff: { ids: [], from: 'starter' }, admin: { ids: [], from: 'starter' } }
   };
 
-  function mount() {
+  function mount(section = '') {
     const call = vi.fn((method: string, path: string, body?: Record<string, unknown>) => {
       if (method === 'GET' && path === '/admin/clubs') return Promise.resolve({ clubs });
       if (method === 'GET' && path === '/admin/help') return Promise.resolve(HELP);
@@ -26,6 +26,7 @@ describe('site admin dashboard', () => {
     });
     TestBed.configureTestingModule({ imports: [SiteAdmin], providers: [provideRouter([]), { provide: ApiService, useValue: { call } }] });
     const f = TestBed.createComponent(SiteAdmin);
+    if (section) f.componentRef.setInput('section', section);
     f.detectChanges();
     return { f, call, el: f.nativeElement as HTMLElement };
   }
@@ -66,8 +67,8 @@ describe('site admin dashboard', () => {
     expect(call).not.toHaveBeenLastCalledWith('PUT', '/admin/clubs/a5', { status: 'inactive' });
   });
 
-  it('shows the help guide counts under the clubs', async () => {
-    const { f, el, call } = mount();
+  it('shows the help guide counts on the Help tab', async () => {
+    const { f, el, call } = mount('help');
     await settle(); await settle(); f.detectChanges();
     expect(call).toHaveBeenCalledWith('GET', '/admin/help');
     const card = [...el.querySelectorAll('section.card')].find((s) => s.textContent?.includes('Help guide'))!;

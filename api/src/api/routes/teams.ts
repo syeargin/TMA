@@ -13,6 +13,7 @@ import { ARCHIVE_DAYS, DELETE_GRACE_DAYS, daysFrom, purgeDate } from "../../lib/
 import { isPlatformAdmin, loadAccess, loadClubAccess, requirePlatformAdmin, type Caller } from "../context.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
+import { markSeen, quietly } from "../../lib/usage.js";
 import { checkId, clean, deleteMany, getItem, now, optStr, putItem, queryAll, str } from "../util.js";
 
 /** Weekly practices' first and last dates: YYYY-MM-DD, and anything else saved as blank (a bad date would never end the date loop). */
@@ -289,6 +290,8 @@ export function teamRoutes(r: Router) {
     // Features the team can use (its own switches and its club's), the team's own switches for
     // Team settings, and what the club allows (site admin dashboard).
     if (out.settings) out.settings = { ...out.settings, features: access.features, teamFeatures: access.teamFeatures };
+    // Site usage: the first time today this member opens the team (club admins looking in aren't counted).
+    if (access.member?.status === "active") await quietly(markSeen(access.clubId, access.teamId, caller.sub, access.member.roles ?? []));
     return json(200, { ...out, team: clean(dir) ?? null, club: clubs.get(access.clubId) ?? null, clubControls: publicControls(access.club), emailPosts });
   });
 
