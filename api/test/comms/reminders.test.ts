@@ -84,7 +84,7 @@ describe("availability reminder", () => {
     expect(r.sends.find((s) => s.key === "availability:2026-11-01")).toMatchObject({ queued: 1, empty: 1 });
     const el = to("el@example.com")[0];
     expect(el.subject).toBe("Can Ella make Tue's practice?");
-    const links = [...el.text.matchAll(/(In|Maybe|Out): (https:\/\/dev\.teemhub\.net\/answer#t=\S+)/g)].map((m) => [m[1], m[2]]);
+    const links = [...el.text.matchAll(/(In|Maybe|Out): (https:\/\/dev\.teemhub\.net\/answer\?via=email#t=\S+)/g)].map((m) => [m[1], m[2]]);
     expect(links.map((l) => l[0])).toEqual(["In", "Maybe", "Out"]);
     const yes = links[0][1].split("#t=")[1];
 

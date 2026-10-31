@@ -2,6 +2,7 @@ import { recountTeams } from "./club-controls.js";
 import { forgetTeamClubs, DEFAULT_CLUB } from "./clubs.js";
 import { keys } from "./keys.js";
 import { deleteMany, queryAll } from "../api/util.js";
+import { teamUsageKeys } from "./usage.js";
 
 /**
  * How long things are kept (R4, R31). The privacy notice quotes these numbers, so change both together.
@@ -26,18 +27,22 @@ export function purgeDate(dir: Record<string, unknown>): string | undefined {
  * invites still waiting for it, and its email delivery stats. People's accounts stay (they can be on other teams).
  */
 export async function purgeTeam(teamId: string, clubId: string, by: string): Promise<number> {
-  const [records, invites, stats, feedLog] = await Promise.all([
+  const [records, invites, stats, feedLog, seen, usage] = await Promise.all([
     queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `TEAM#${teamId}` }, ProjectionExpression: "PK, SK" }),
     queryAll({ IndexName: "GSI1", KeyConditionExpression: "GSI1PK = :t AND begins_with(GSI1SK, :i)", ExpressionAttributeValues: { ":t": `TEAM#${teamId}`, ":i": "INVITE#" }, ProjectionExpression: "PK, SK" }),
     // Email delivery counters and addresses (Messaging M3).
     queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `MAILSTATS#${teamId}` }, ProjectionExpression: "PK, SK" }),
     // Calendar feed sync log (kept outside the team's partition).
     queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `FEEDLOG#${teamId}` }, ProjectionExpression: "PK, SK" }),
+    // The last day each member opened the team (site usage).
+    queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `SEEN#${teamId}` }, ProjectionExpression: "PK, SK" }),
+    // Its usage counts (site admin › Usage).
+    teamUsageKeys(teamId),
   ]);
   const key = (i: Record<string, unknown>) => ({ PK: String(i.PK), SK: String(i.SK) });
   // The club link goes last, so a run that stops partway can be repeated and still finds the club.
   const clubLink = records.filter((i) => i.SK === "META#CLUB").map(key);
-  const rest = [keys.teamDir(clubId, teamId), ...invites.map(key), ...stats.map(key), ...feedLog.map(key), ...records.filter((i) => i.SK !== "META#CLUB").map(key)];
+  const rest = [keys.teamDir(clubId, teamId), ...invites.map(key), ...stats.map(key), ...feedLog.map(key), ...seen.map(key), ...usage, ...records.filter((i) => i.SK !== "META#CLUB").map(key)];
   await deleteMany(rest);
   await deleteMany(clubLink);
   forgetTeamClubs();

@@ -1,6 +1,8 @@
-import { Component, ElementRef, computed, effect, input, output, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { pointDiff, record, setText, type Result, type SetScore, type Totals } from '@shared/matches';
 import { Sheet } from '../../shared/sheet';
+import { TeamStore } from '../../core/team-store';
+import { UsageService } from '../../core/usage.service';
 
 /**
  * Sharing results: a picture (drawn here in the browser, 1080×1350) and the same results as text.
@@ -149,10 +151,15 @@ export class ShareResults {
   readonly error = signal('');
   readonly canShare = computed(() => typeof navigator !== 'undefined' && typeof navigator.share === 'function');
   private readonly host = BRAND_HOST;
+  private readonly usage = inject(UsageService);
+  private readonly team = inject(TeamStore, { optional: true });
+  /** Counted once per sheet, for site admin › Usage ("Results shared"). */
+  private counted = false;
+  private count() { if (!this.counted) { this.counted = true; this.usage.shared(this.team?.teamId() ?? ''); } }
 
   constructor() {
     effect(() => {
-      if (!this.open()) return;
+      if (!this.open()) { this.counted = false; return; }
       const card = this.card();
       this.copied.set(false); this.error.set('');
       // A data: URL, not blob:, because the site's CSP allows images from 'self' and data: only.
@@ -170,13 +177,14 @@ export class ShareResults {
     const withFile = navigator.canShare?.({ files: [file] }) ?? false;
     try {
       await navigator.share(withFile ? { files: [file], text: card.text, title: card.title } : { text: card.text, title: card.title });
+      this.count();
     } catch (e) {
       if ((e as { name?: string })?.name !== 'AbortError') this.error.set("Sharing didn't work here. Copy the text or download the picture instead.");
     }
   }
 
   async copy() {
-    try { await navigator.clipboard.writeText(this.card().text); this.copied.set(true); }
+    try { await navigator.clipboard.writeText(this.card().text); this.copied.set(true); this.count(); }
     catch { this.error.set("Couldn't copy on this device."); }
   }
 
@@ -186,5 +194,6 @@ export class ShareResults {
     const a = document.createElement('a');
     a.href = u; a.download = fileName(this.card());
     a.click();
+    this.count();
   }
 }

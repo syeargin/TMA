@@ -481,9 +481,12 @@ Resources:
       DefaultRouteSettings:
         ThrottlingBurstLimit: 100
         ThrottlingRateLimit: 50
-      # The help guide's counts need no sign-in, so they get a much lower limit than the rest.
+      # The help guide's and the public pages' counts need no sign-in, so they get a much lower limit than the rest.
       RouteSettings:
         "POST /public/help/events":
+          ThrottlingBurstLimit: 20
+          ThrottlingRateLimit: 5
+        "POST /public/usage":
           ThrottlingBurstLimit: 20
           ThrottlingRateLimit: 5
       AccessLogSettings:
@@ -588,6 +591,14 @@ Resources:
           Properties:
             ApiId: !Ref HttpApi
             Path: /public/help/events
+            Method: POST
+            Auth: { Authorizer: NONE }
+        # Page opens on pages anyone can see (help, sign-in, the front page): counts only, no team (routes/usage.ts).
+        PublicUsage:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /public/usage
             Method: POST
             Auth: { Authorizer: NONE }
         PublicHelpPopular:

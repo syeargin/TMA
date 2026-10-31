@@ -194,6 +194,79 @@ await api("POST", "/teams/test-13/payments", MOM, { kind: "in", cat: "Dues", pid
   }
   await api("PUT", "/teams/test-13/events/e1/scorekeeper", OWNER, { sub: MOM });
 }
+
+// Site admin › Usage and Health: twelve weeks of made-up counts, so the charts have something to show.
+{
+  const { BatchWriteCommand } = await import("@aws-sdk/lib-dynamodb");
+  const U = await import("../src/lib/usage.js");
+  const { bucketOf } = await import("../src/shared/usage.js");
+  const byKey = new Map<string, Record<string, unknown>>();
+  const row = (pk: string, sk: string, date: string, f: Record<string, unknown>) => {
+    const had = byKey.get(`${pk}|${sk}`);
+    if (had) { had.n = Number(had.n ?? 0) + Number(f.n ?? 0); return; }
+    byKey.set(`${pk}|${sk}`, { PK: pk, SK: sk, type: pk.startsWith("HEALTH") ? "HealthCount" : "UsageCount", ttl: U.ttlFor(date), ...f });
+  };
+  const rows: Record<string, unknown>[] = [];
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const today = U.stamp().date;
+  const teams: [string, string, number][] = [["test", "test-13", 1], ["test", "test-14", 0.45], ["eastside", "ev-14", 0.8], ["eastside", "ev-15", 0.6], ["eastside", "ev-16", 0.15]];
+  const areas: [string, number][] = [["home", 9], ["schedule", 12], ["tournaments", 3], ["gameday", 5], ["matches", 2], ["stats", 1.5], ["fund", 2], ["roster", 1.5], ["attendance", 1], ["meals", 1], ["travel", 0.8], ["info", 0.6]];
+  const hourShape = [0, 0, 0, 0, 0, 0.2, 0.6, 1.2, 1.4, 0.8, 0.6, 0.7, 1, 0.8, 0.7, 1.1, 1.6, 2, 3, 3.4, 2.8, 1.8, 0.9, 0.3];
+  for (let back = 83; back >= 0; back--) {
+    const date = U.plusDays(today, -back);
+    const m = date.slice(0, 7), dd = date.slice(8), dow = new Date(`${date}T12:00:00Z`).getUTCDay();
+    const ramp = Math.min(1, 0.12 + (83 - back) / 40) * (dow === 6 ? 1.5 : dow === 0 ? 1.2 : 1);
+    let dayViews = 0;
+    for (const [club, team, w] of teams) for (const [area, aw] of areas) {
+      const v = Math.round(aw * w * ramp * (0.6 + rnd()));
+      if (v) { row(`USAGE#${m}`, `D#${dd}#P#${club}#${team}#${area}`, date, { n: v }); dayViews += v; }
+    }
+    hourShape.forEach((h, hr) => { const v = Math.round(dayViews * h / 24 * (dow === 6 && hr >= 7 && hr <= 11 ? 2.2 : 1)); if (v) row(`USAGE#${m}`, `D#${dd}#HR#${String(hr).padStart(2, "0")}`, date, { n: v }); });
+    for (const [club, share] of [["test", 0.55], ["eastside", 0.45]] as const) {
+      const visits = Math.round(dayViews * share / 3);
+      for (const [src, f] of [["email", 0.42], ["direct", 0.26], ["app", 0.18], ["link", 0.05]] as const) row(`USAGE#${m}`, `D#${dd}#V#${club}#${src}`, date, { n: Math.round(visits * f) });
+      for (const [dev, f] of [["phone", 0.74], ["computer", 0.22], ["tablet", 0.04]] as const) row(`USAGE#${m}`, `D#${dd}#DEV#${club}#${dev}`, date, { n: Math.round(visits * f) });
+    }
+    for (const [club, team, w] of teams) for (const [act, f] of [["answers", 9], ["events", 0.6], ["announcements", 0.3], ["payments", 0.25], ["attendance", 0.2], ["scores", dow === 6 || dow === 0 ? 2 : 0], ["meals", 0.15], ["shares", dow === 0 ? 0.6 : 0]] as const) {
+      const v = Math.round(f * w * ramp * (0.5 + rnd()));
+      if (v) row(`USAGE#${m}`, `D#${dd}#ACT#${club}#${team}#${act}`, date, { n: v });
+    }
+    for (const [area, slow] of [["home", 1], ["schedule", 1.2], ["gameday", 0.9], ["matches", 1], ["attendance", 1.8], ["fund", 1.1]] as const) for (const dev of ["phone", "computer"]) {
+      for (let k = 0; k < 6; k++) {
+        const ms = (dev === "phone" ? 420 : 260) * slow * (0.5 + rnd() * 1.6) * (k === 5 ? 2.5 : 1);
+        row(`USAGE#${m}`, `D#${dd}#L#${dev}#${area}#${bucketOf(ms)}`, date, { n: 1 + Math.round(rnd() * 3) });
+      }
+    }
+    if (back < 31) hourShape.forEach((h, hr) => {
+      const n = Math.round(dayViews * 2.6 * h / 24) + 6;
+      const err = back === 2 && hr === 19 ? 14 : rnd() < 0.015 ? 1 : 0;
+      row(`HEALTH#${m}`, `D#${dd}#H#${String(hr).padStart(2, "0")}`, date, { n, err });
+    });
+  }
+  const errDay = U.plusDays(today, -2);
+  row(`HEALTH#${errDay.slice(0, 7)}`, `D#${errDay.slice(8)}#E#Schedule`, errDay, { n: 14, lastAt: `${errDay}T23:12:00Z`, status: 500 });
+  row(`HEALTH#${today.slice(0, 7)}`, `D#${today.slice(8)}#E#Calendar feed`, today, { n: 2, lastAt: `${today}T10:00:00Z`, status: 502 });
+  row(`HEALTH#${today.slice(0, 7)}`, `D#${today.slice(8)}#CE#stats`, today, { n: 1 });
+  for (const [c, back, hh] of [["af616b6c0ffee", 5, "14"], ["60c5a44c0ffee", 2, "23"], ["53b2bfdc0ffee", 1, "18"]] as const) {
+    const d = U.plusDays(today, -back);
+    rows.push({ PK: "RELEASES", SK: `C#${c}`, type: "Release", commit: c, at: `${d}T${hh}:05:00Z`, ttl: U.ttlFor(d) });
+  }
+  const week0 = U.plusDays(U.weekOf(today), -77);
+  for (let i = 0; i < 12; i++) {
+    const week = U.plusDays(week0, i * 7), grow = Math.min(1, 0.15 + i / 6);
+    for (const [club, team, w] of teams) {
+      row(`USAGE#${week.slice(0, 7)}`, `W#${week}#${club}#${team}#family`, week, { n: Math.round(11 * w * grow * (0.85 + rnd() * 0.3)) });
+      row(`USAGE#${week.slice(0, 7)}`, `W#${week}#${club}#${team}#staff`, week, { n: Math.max(1, Math.round(3 * w * grow)) });
+    }
+  }
+  for (const [sub, back, kind] of [[MOM, 0, "family"], ["u-dad", 1, "family"], ["u-kim", 0, "staff"]] as const) {
+    const d = U.plusDays(today, -back);
+    rows.push({ PK: "SEEN#test-13", SK: sub, type: "Seen", day: d, week: U.weekOf(d), kind, clubId: "test", ttl: U.ttlFor(d) });
+  }
+  rows.push(...byKey.values());
+  for (let i = 0; i < rows.length; i += 25) await ddb.send(new BatchWriteCommand({ RequestItems: { [TABLE]: rows.slice(i, i + 25).map((Item) => ({ PutRequest: { Item } })) } }));
+}
 setMfaLookup();
 
 const DIST = join(import.meta.dirname, "../../web/dist");

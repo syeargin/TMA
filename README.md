@@ -198,6 +198,14 @@ Site owners open **Site admin** (`/admin`, linked from Your teams) to manage eve
 
 How it's stored: each club's controls live in `CLUB#<c>` / `CONTROLS`, which only site owners change (`lib/club-controls.ts`). A club without the record is active, with every feature and no limit, so existing clubs are unchanged until a site owner sets something. The count of active teams goes up in the same transaction that creates or restores a team, with a condition that refuses it at the limit, so two admins creating teams at once can't go over. The daily retention job recounts every club.
 
+### Site usage: the Usage and Health tabs
+
+Site admin has four tabs: **Clubs** (above), **Usage**, **Health** and **Help** (the help guide's counts). Usage and Health are counted on our own servers, with no analytics service, trackers or counting cookies, and keep daily totals only (`lib/usage.ts`, `api/routes/usage.ts`):
+- **Usage** (`/admin/usage`, 7 days, 30 days or the season, every club or one): people who opened a team in the last 7 days, teams in use, families joined, practices answered, teams that need a look (not started or gone quiet); people active each week (12 weeks); when people use it (day and hour, Eastern); getting families on (players → invited → joined → answered once → active in 30 days); how visits start (an email link, the home-screen app, another site, typed in) and the device; each team's status; features in use; and what people did, against the period before.
+- **Health** (`/admin/health`, 24 hours, 7 days or 30 days): requests that failed, how long 95% of pages take to open on phones, email delivered and bounced, calendar links that are failing, team pages open right now, requests per hour with failures, errors by page (on our servers and in people's browsers), the slowest pages, and failures in the hour after each release.
+
+How it's counted: the site reports each page it opens (`core/usage.service.ts`: the page, the team, the device, how long it took, and on a visit's first page how it started and the release) to `POST /usage/events`, or `POST /public/usage` for pages anyone can open (throttled like the help counts). The API counts every request and failure, and actions such as availability answers and match scores, as they happen (`handler.ts`). Links to the site in emails carry `?via=email`. Totals live in `USAGE#<month>`, `HEALTH#<month>` and `RELEASES`, and expire after 13 months. The one record about a person is `SEEN#<team>` / `<sub>`: the last day each member opened the team, so people can be counted once a day and once a week. It's deleted when they leave the team or delete their account, and with the team. The privacy notice says so.
+
 ### Practice attendance
 
 A team feature ("Practice attendance", on by default; a site owner can switch it off per club):
