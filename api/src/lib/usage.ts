@@ -205,10 +205,11 @@ export async function teamUsageKeys(teamId: string, at = new Date()): Promise<{ 
     let start: Record<string, unknown> | undefined;
     do {
       const res = await ddb.send(new QueryCommand({
-        TableName: TABLE, KeyConditionExpression: "PK = :p", FilterExpression: "contains(SK, :t)", ProjectionExpression: "PK, SK",
-        ExpressionAttributeValues: { ":p": `USAGE#${m}`, ":t": `#${teamId}#` }, ExclusiveStartKey: start
+        TableName: TABLE, KeyConditionExpression: "PK = :p", ProjectionExpression: "PK, SK",
+        ExpressionAttributeValues: { ":p": `USAGE#${m}` }, ExclusiveStartKey: start
       }));
-      out.push(...(res.Items ?? []).map((i) => ({ PK: String(i.PK), SK: String(i.SK) })));
+      // DynamoDB can't filter on a key attribute, so the rows naming the team are picked out here.
+      out.push(...(res.Items ?? []).filter((i) => String(i.SK).includes(`#${teamId}#`)).map((i) => ({ PK: String(i.PK), SK: String(i.SK) })));
       start = res.LastEvaluatedKey;
     } while (start);
     return out;
