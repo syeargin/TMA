@@ -3,6 +3,7 @@ import { CanActivateFn, Router } from '@angular/router';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 import { MeService } from './me.service';
+import type { Me } from './models';
 
 /** Team screens: signed-in people only. */
 export const signedInGuard: CanActivateFn = async () => {
@@ -17,7 +18,33 @@ export const signedOutGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   if (!auth.configured) return router.parseUrl('/unconfigured');
-  return (await auth.ensureUser()) ? router.parseUrl('/teams') : true;
+  return (await auth.ensureUser()) ? router.parseUrl(START_URL) : true;
+};
+
+/**
+ * Where people land when they arrive (sign-in, the home-screen app, a sign-in page while already
+ * signed in). Your teams with ?start=1: startGuard sends one-team families straight to that team.
+ */
+export const START_URL = '/teams?start=1';
+
+/** The one team to open on arrival, or null to show Your teams (lib for startGuard; tested on its own). */
+export function startTeam(me: Me): string | null {
+  // Club admins and site owners start on Your teams: their club tools are there.
+  if (me.platformAdmin || me.clubAdmin || (me.clubs ?? []).some((c) => c.admin)) return null;
+  // Just added to a team: show the list so the new team is seen.
+  if (me.acceptedInvites) return null;
+  const active = me.teams.filter((t) => !t.archived);
+  return active.length === 1 ? active[0].teamId : null;
+}
+
+/** Your teams, on arrival only (?start=1): one team opens that team's Home; otherwise the list, without the ?start. */
+export const startGuard: CanActivateFn = async (route) => {
+  if (route.queryParamMap.get('start') !== '1') return true;
+  const router = inject(Router);
+  let m: Me;
+  try { m = await inject(MeService).load(); } catch { return router.parseUrl('/teams'); }
+  const teamId = startTeam(m);
+  return router.createUrlTree(teamId ? ['/teams', teamId] : ['/teams']);
 };
 
 /** Remembered at sign-up, so a new account isn't asked to accept the notice twice. */
