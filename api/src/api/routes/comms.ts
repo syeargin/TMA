@@ -175,7 +175,14 @@ export function commsRoutes(r: Router) {
         // The next send, as if the message were on.
         const on = { ...c, messages: { ...c?.messages, [msg]: { ...c?.messages?.[msg], on: true } } } as TeamComms;
         const horizon = msg === "dues" ? 120 : msg === "packet" ? 60 : 14;
-        const next = occurrences(on, new Date(), horizon, t).find((o) => o.msg === msg);
+        let next = occurrences(on, new Date(), horizon, t).find((o) => o.msg === msg);
+        // A packet goes out days before its tournament. Once that day has passed, preview the next
+        // tournament's packet anyway, as of today, rather than saying nothing is coming up.
+        if (!next && msg === "packet") {
+          const today = localParts(new Date(), zoneOf(c)).date;
+          const tour = targets(t, "packet", effective("packet", on)!).find((x) => (t.items.find((i) => i.eid === x.eid)?.end ?? "") >= today);
+          if (tour) next = { msg, date: today, sendAt: new Date(), key: tour.key, label: tour.label, skipped: false, paused: false, target: { ...tour, sendDate: today } };
+        }
         if (!next && msg !== "weekly" && msg !== "staffDigest") {
           throw badRequest(msg === "packet" ? "There's no tournament coming up to make a packet for." : msg === "dues" ? "Set a dues amount and due date in team settings first." : "Nothing is coming up that takes an answer.");
         }
