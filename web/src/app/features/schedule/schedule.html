@@ -4,6 +4,9 @@
     <p class="muted" style="margin-top:6px">{{ note() }}</p>
   </div>
   <span class="spacer"></span>
+  <div class="row">
+    <button class="btn sm ghost" type="button" aria-haspopup="dialog" (click)="store.subscribeFor.set(['practice', 'tournament', 'event'])"><span aria-hidden="true">↻</span> Subscribe to calendar</button>
+  </div>
   @if (store.can('schedule')) {
     <div class="row">
       <button class="btn sm" type="button" (click)="add('practice')">Add practice</button>

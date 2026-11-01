@@ -1,4 +1,6 @@
-import { Component, ElementRef, computed, input, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, inject, input, viewChild } from '@angular/core';
+import { CAL_TYPES, countByType, typeOf } from '../core/calendar-links';
+import { TeamStore } from '../core/team-store';
 import { CalEvent, googleUrl, ics, icsFileName, outlookUrl, toCalEvent, toSeriesCalEvent } from '../core/calendar';
 import { today } from '../core/dates';
 import type { ScheduleItem } from '../core/schedule';
@@ -29,6 +31,11 @@ import { describe } from '../core/series';
           } @else {
             <button type="button" role="menuitem" class="sub" (click)="download(e)">Download .ics (Outlook desktop)</button>
           }
+          @if (store) {
+            <div class="cal-h">Keep it up to date<span>Your calendar updates when the schedule changes</span></div>
+            <button type="button" role="menuitem" class="cal-sub" aria-haspopup="dialog" (click)="subscribe(true)"><span aria-hidden="true">↻</span> Every {{ kindWord() }} ({{ kindCount() }} {{ kindCount() === 1 ? 'date' : 'dates' }})…</button>
+            <button type="button" role="menuitem" class="cal-sub" aria-haspopup="dialog" (click)="subscribe(false)">Everything on the schedule…</button>
+          }
         </div>
       </details>
     }`
@@ -46,6 +53,14 @@ export class AddToCalendar {
     return toCalEvent(it, this.link());
   });
   readonly series = computed(() => toSeriesCalEvent(this.item(), this.link()));
+  /** On a team's pages: the subscribe panel, starting from this kind of event. */
+  readonly store = inject(TeamStore, { optional: true });
+  readonly kindWord = computed(() => ({ practice: 'practice', tournament: 'tournament', event: 'team event' })[typeOf(this.item().kind)]);
+  readonly kindCount = computed(() => (this.store ? countByType(this.store.items(), today())[typeOf(this.item().kind)] : 0));
+  subscribe(justThis: boolean) {
+    this.close();
+    this.store?.subscribeFor.set(justThis ? [typeOf(this.item().kind)] : [...CAL_TYPES]);
+  }
   readonly repeatText = computed(() => (this.item().series ? describe(this.item().series!) : ''));
   google(e: CalEvent) { return googleUrl(e); }
   outlook(e: CalEvent, which: 'live' | 'office') { return outlookUrl(e, which); }

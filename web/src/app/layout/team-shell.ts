@@ -8,13 +8,14 @@ import { TeamStore } from '../core/team-store';
 import { Router } from '@angular/router';
 import { AvailabilitySheet } from '../features/schedule/availability-sheet';
 import { AttendanceSheet } from '../features/schedule/attendance-sheet';
+import { SubscribeSheet } from '../features/schedule/subscribe-sheet';
 import { NgComponentOutlet } from '@angular/common';
 import { HelpSheetState } from '../features/help/help-sheet-state';
 
 /** /teams/:teamId — loads the team once for all its tabs and keeps it live. */
 @Component({
   selector: 'th-team-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, AvailabilitySheet, AttendanceSheet, NgComponentOutlet],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, AvailabilitySheet, AttendanceSheet, SubscribeSheet, NgComponentOutlet],
   providers: [TeamStore],
   template: `
     <nav class="tabs" aria-label="Team sections">
@@ -47,6 +48,7 @@ import { HelpSheetState } from '../features/help/help-sheet-state';
         <router-outlet />
         <th-availability-sheet />
         <th-attendance-sheet />
+        <th-subscribe-sheet />
         @if (helpSheet(); as c) { <ng-container *ngComponentOutlet="c" /> }
       } @else if (store.loadError()) {
         <div class="banner"><p><b>This team didn't load.</b> {{ store.loadError() }}</p><a class="btn sm" routerLink="/teams">Your teams</a></div>

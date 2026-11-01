@@ -689,3 +689,34 @@ label.agree input{width:18px;height:18px;margin-top:1px;flex:none}
 th-help-sheet{display:contents}
 th-help-sheet .help-search{margin-bottom:6px}
 .thead a.thead-rec{color:var(--navy);text-decoration:none}
+
+/* Calendar subscriptions (features/schedule/subscribe-sheet, home) */
+.cal-menu .cal-sub{color:var(--navy);display:flex;gap:6px;align-items:center}
+.cal-menu .cal-sub:first-of-type{background:var(--btn-soft)}
+.sub-types{display:flex;flex-direction:column;margin:4px 0 6px}
+.sub-type{flex-direction:row;align-items:center;gap:10px;padding:10px 2px;border-top:1px solid var(--line-2);font-size:15px;color:var(--ink);cursor:pointer}
+.sub-type:first-child{border-top:0}
+.sub-type input{width:20px;height:20px;flex:none}
+.sub-type b{flex:1}
+.sub-apps{display:flex;flex-direction:column;gap:8px;margin:14px 0 10px}
+.sub-apps .btn{min-height:46px;font-size:15px}
+.sub-total{text-align:center;margin-top:-4px}
+.sub-more{display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:space-between}
+.sub-have{background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;padding:8px 10px;margin:8px 0 0}
+.sub-warn{color:var(--warn);margin:12px 0 0}
+.cal-card,.cal-links{margin-top:16px}
+.cal-card .sub-team{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line-2)}
+.cal-card .sub-team:first-child{border-top:0}
+.cal-card .sub-team input{width:20px;height:20px;margin-top:2px;flex:none}
+.cal-card .sub-kinds{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:6px}
+.cal-card .sub-kinds label{flex-direction:row;align-items:center;gap:6px;font-weight:400;font-size:13.5px;color:var(--ink)}
+.cal-card .sub-kinds input{width:16px;height:16px;margin:0}
+.calall-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.cal-btns{display:flex;flex-direction:column;gap:8px}
+.cal-btns .cal-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.cal-btns .btn{min-height:42px}
+.cal-links .li-cal{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line-2)}
+.cal-links .li-cal:first-child{border-top:0}
+.cal-links .li-cal .grow{min-width:0}
+.cal-links .stale{color:var(--warn)}
+.cal-links .acts{display:flex;gap:12px;flex-wrap:wrap}

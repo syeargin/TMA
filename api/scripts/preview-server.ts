@@ -289,8 +289,10 @@ createServer(async (req, res) => {
     const sub = subOf(String(req.headers.authorization ?? "").replace(/^Bearer /, ""));
     const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : undefined;
     const email = ({ [OWNER]: "owner@example.com", "u-dad": "dad@example.com", "u-gran": "gran@example.com", "u-kim": "kim@example.com" } as Record<string, string>)[sub] ?? "mom@example.com";
-    const r = await handler(event(req.method!, url.pathname.slice(4), sub || null, body, email));
-    res.writeHead(r.statusCode ?? 200, { ...cors, "content-type": "application/json" }).end(r.body ?? "");
+    const ev = event(req.method!, url.pathname.slice(4), sub || null, body, email);
+    if (url.search) Object.assign(ev, { rawQueryString: url.search.slice(1), queryStringParameters: Object.fromEntries(url.searchParams) });
+    const r = await handler(ev);
+    res.writeHead(r.statusCode ?? 200, { ...cors, "content-type": "application/json", ...(r.headers as Record<string, string> | undefined) }).end(r.body ?? "");
     return;
   }
   if (url.pathname === "/csp-report") {

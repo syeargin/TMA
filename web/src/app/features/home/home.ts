@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EmailTemplates } from './email-templates';
+import { CalendarPanel } from './calendar-panel';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { MeService } from '../../core/me.service';
@@ -14,7 +15,7 @@ import { roleLabel } from '../../shared/roles';
 
 @Component({
   selector: 'th-home',
-  imports: [ReactiveFormsModule, RouterLink, Messages, TwoStepPrompt, EmailTemplates],
+  imports: [ReactiveFormsModule, RouterLink, Messages, TwoStepPrompt, EmailTemplates, CalendarPanel],
   templateUrl: './home.html'
 })
 export class Home extends Page {
@@ -47,6 +48,7 @@ export class Home extends Page {
     }
     return out.sort((a, b) => (a.club?.name ?? '').localeCompare(b.club?.name ?? ''));
   });
+  readonly activeTeams = computed(() => this.groups().flatMap((g) => g.teams));
   readonly showClubNames = computed(() => this.groups().length > 1);
   /** Past teams a site owner archived: still open to look back on, read-only. */
   readonly archivedTeams = computed(() => (this.me()?.teams ?? []).filter((t) => t.archived));

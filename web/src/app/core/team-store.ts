@@ -1,3 +1,4 @@
+import type { CalType } from './calendar-links';
 import { reviewItems } from '@shared/feed-rules';
 import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
@@ -46,6 +47,8 @@ export class TeamStore implements OnDestroy {
   readonly lost = new Subject<string>();
   /** Which item's availability list is open (rendered once by the team shell). */
   readonly availabilityFor = signal<ScheduleItem | null>(null);
+  /** The calendar subscribe panel, open with these kinds of event ticked (features/schedule/subscribe-sheet). */
+  readonly subscribeFor = signal<CalType[] | null>(null);
   /** Which practice's attendance is being taken (rendered once by the team shell). */
   readonly attendanceFor = signal<ScheduleItem | null>(null);
 

@@ -489,6 +489,13 @@ Resources:
         "POST /public/usage":
           ThrottlingBurstLimit: 20
           ThrottlingRateLimit: 5
+        # Calendar apps check each person's calendar link about once an hour (routes/calendars.ts).
+        "GET /public/calendar.ics":
+          ThrottlingBurstLimit: 40
+          ThrottlingRateLimit: 10
+        "HEAD /public/calendar.ics":
+          ThrottlingBurstLimit: 20
+          ThrottlingRateLimit: 5
       AccessLogSettings:
         DestinationArn: !GetAtt ApiAccessLogs.Arn
         Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","time":"$context.requestTime","method":"$context.httpMethod","path":"$context.path","status":"$context.status","latencyMs":"$context.responseLatency","sub":"$context.authorizer.claims.sub","error":"$context.authorizer.error"}'
@@ -600,6 +607,22 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /public/usage
             Method: POST
+            Auth: { Authorizer: NONE }
+        # Calendar links: a calendar app fetches the schedule with the person's private link. The link
+        # rides in the query string (?k=), which the access log above doesn't record.
+        PublicCalendar:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /public/calendar.ics
+            Method: GET
+            Auth: { Authorizer: NONE }
+        PublicCalendarHead:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /public/calendar.ics
+            Method: HEAD
             Auth: { Authorizer: NONE }
         PublicHelpPopular:
           Type: HttpApi
