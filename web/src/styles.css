@@ -705,6 +705,18 @@ th-help-sheet .help-search{margin-bottom:6px}
 .sub-have{background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;padding:8px 10px;margin:8px 0 0}
 .sub-warn{color:var(--warn);margin:12px 0 0}
 .cal-card,.cal-links{margin-top:16px}
+.cal-fold{padding:0}
+.cal-fold .cal-fold-h{margin:0;font-family:var(--f-body);font-weight:400;font-size:15px;line-height:1.4;text-transform:none;letter-spacing:0;color:var(--ink)}
+.cal-fold-btn{appearance:none;border:0;background:none;width:100%;font:inherit;display:flex;align-items:center;gap:12px;padding:13px 14px;text-align:left;cursor:pointer;color:var(--ink);border-radius:12px}
+.cal-fold-btn:hover{background:var(--surface-2)}
+.cal-fold-btn:focus-visible{outline:2px solid var(--navy);outline-offset:-2px}
+.cal-ico{width:34px;height:34px;border-radius:9px;background:var(--btn-soft);color:var(--navy);display:flex;align-items:center;justify-content:center;flex:none}
+.cal-fold-t{display:block;font-family:var(--f-cond);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:16px;line-height:1.15}
+.cal-fold-t .pill{margin-left:6px;font-family:var(--f-body);letter-spacing:0;text-transform:none;vertical-align:1px}
+.cal-fold-s{display:block;font-size:13px;color:var(--ink-3);margin-top:2px}
+.cal-fold-c{display:flex;align-items:center;gap:6px;color:var(--navy);font-weight:600;font-size:13.5px;white-space:nowrap}
+.cal-fold.open .cal-fold-btn{border-radius:12px 12px 0 0}
+.cal-fold-b{border-top:1px solid var(--line-2);padding:12px 14px 14px}
 .cal-card .sub-team{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line-2)}
 .cal-card .sub-team:first-child{border-top:0}
 .cal-card .sub-team input{width:20px;height:20px;margin-top:2px;flex:none}

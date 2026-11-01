@@ -13,9 +13,19 @@ type Pick = Record<string, CalType[]>;
   selector: 'th-calendar-panel',
   template: `
     @if (teams().length > 1) {
-      <section class="card card-b cal-card" aria-labelledby="calall-h">
-        <h3 id="calall-h" style="margin-top:0">One calendar for all your teams</h3>
-        <p class="muted" style="margin:0 0 10px">Every team's dates in a single calendar that updates on its own. Each event starts with the team, like “{{ teams()[0].name || teams()[0].teamId }} · Practice”.</p>
+      <section class="card cal-card cal-fold" [class.open]="open()">
+        <h3 class="cal-fold-h">
+          <button type="button" class="cal-fold-btn" [attr.aria-expanded]="open()" aria-controls="calall-body" (click)="open.set(!open())">
+            <span class="cal-ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg></span>
+            <span class="grow">
+              <span class="cal-fold-t">One calendar for all your teams@if (all()) { <span class="pill p-ok">On</span> }</span>
+              <span class="cal-fold-s">{{ summary() }}</span>
+            </span>
+            <span class="cal-fold-c">{{ open() ? 'Hide' : all() ? 'Change' : 'Set up' }}<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path [attr.d]="open() ? 'M3 7.5l3-3 3 3' : 'M3 4.5l3 3 3-3'" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg></span>
+          </button>
+        </h3>
+        <div id="calall-body" class="cal-fold-b" [hidden]="!open()">
+        <p class="small muted" style="margin:0 0 6px">Each event starts with the team, like “{{ teams()[0].name || teams()[0].teamId }} · Practice”.</p>
         <div class="calall-grid">
           <div>
             @for (t of teams(); track t.teamId) {
@@ -50,6 +60,7 @@ type Pick = Record<string, CalType[]>;
         @if (saved()) { <p class="hint" role="status">Saved. Your calendar picks this up the next time it checks.</p> }
         @if (notice()) { <p class="msg notice" role="status">{{ notice() }}</p> }
         @if (error()) { <p class="msg error" role="alert">{{ error() }}</p> }
+        </div>
       </section>
     }
 
@@ -86,6 +97,8 @@ export class CalendarPanel {
   readonly appLabel = APP_LABEL;
   readonly short: Record<string, string> = { apple: 'Apple', google: 'Google', outlook: 'Outlook.com', office: 'Outlook (work)' };
 
+  /** Closed on every visit: the team list stays the first thing on the page. */
+  readonly open = signal(false);
   readonly picked = signal<Pick>({});
   readonly busy = signal(false);
   readonly saved = signal(false);
@@ -115,6 +128,17 @@ export class CalendarPanel {
       });
     });
   }
+
+  /** The line under the title: what it does, or once it's set up, where it is and whether it's being checked. */
+  readonly summary = computed(() => {
+    const l = this.all();
+    const n = this.teams().length;
+    if (!l) return `${n === 2 ? 'Both' : `All ${n}`} teams' dates, updating on their own`;
+    const count = Object.keys(l.teams ?? {}).length;
+    const c = lastChecked(l.lastFetchAt);
+    const when = !l.lastFetchAt ? 'not checked yet' : c.stale ? 'not checked lately' : c.text.replace(/^Last checked /, 'checked ').replace(/ minutes ago$/, ' min ago');
+    return [l.app && l.app !== 'copy' && l.app !== 'download' ? APP_LABEL[l.app] : '', `${count} team${count === 1 ? '' : 's'}`, when].filter(Boolean).join(' · ');
+  });
 
   key(l: CalLink) { return l.scope + (l.teamId ?? ''); }
   title(l: CalLink) { return l.scope === 'all' ? 'All your teams' : this.names().get(l.teamId!) ?? l.teamId ?? ''; }

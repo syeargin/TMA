@@ -49,6 +49,21 @@ describe('calendar links', () => {
     });
     afterEach(() => http.verify());
 
+    it('says where the all-teams calendar is once it’s set up', async () => {
+      const f = TestBed.createComponent(CalendarPanel);
+      f.componentRef.setInput('teams', [{ teamId: 't13', name: 'A5 13 Tom', roles: ['parent'] }, { teamId: 'lfc', name: 'Lakeside U12', roles: ['parent'] }, { teamId: 'x', name: 'X', roles: ['parent'] }]);
+      f.detectChanges();
+      await flush();
+      http.expectOne('https://api.test/me/calendars').flush({ links: [link({ scope: 'all', teamId: undefined, types: undefined, teams: { t13: ['practice'], lfc: ['event'] }, app: 'google', lastFetchAt: new Date(Date.now() - 40 * 60_000).toISOString() })] });
+      await flush();
+      f.detectChanges();
+      const toggle = (f.nativeElement as HTMLElement).querySelector('.cal-fold-btn')!;
+      expect(toggle.textContent).toContain('On');
+      expect(toggle.textContent).toContain('Google Calendar · 2 teams · checked 40 min ago');
+      expect(toggle.textContent).toContain('Change');
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    });
+
     it('keeps the list in step as links are made, reset and stopped', async () => {
       const cal = TestBed.inject(CalendarLinks);
       const loading = cal.load();
@@ -89,6 +104,17 @@ describe('calendar links', () => {
       f.detectChanges();
       const el = f.nativeElement as HTMLElement;
       expect(el.textContent).toContain('One calendar for all your teams');
+      // Closed to start: one row that says what it does.
+      const toggle = el.querySelector<HTMLButtonElement>('.cal-fold-btn')!;
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(el.querySelector<HTMLElement>('#calall-body')!.hidden).toBe(true);
+      expect(toggle.textContent).toContain("Both teams' dates, updating on their own");
+      expect(toggle.textContent).toContain('Set up');
+      toggle.click();
+      f.detectChanges();
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      expect(el.querySelector<HTMLElement>('#calall-body')!.hidden).toBe(false);
+      expect(toggle.textContent).toContain('Hide');
       expect([...el.querySelectorAll<HTMLInputElement>('.cal-card input[type=checkbox]')].every((c) => c.checked)).toBe(true);
       expect(el.querySelectorAll('.cal-card .sub-kinds input').length).toBe(6);
       const row = el.querySelector('.li-cal')!;
