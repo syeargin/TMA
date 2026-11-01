@@ -96,17 +96,19 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     id: "add-to-calendar", role: "parent", title: "Add the schedule to your phone's calendar",
-    summary: "Add one practice, event or tournament, or every date in a repeating practice series, to your calendar.",
+    summary: "Subscribe so your calendar keeps up with schedule changes, or add a single date.",
     keywords: ["calendar", "ical", "ics", "subscribe", "save", "iphone", "apple", "google", "android", "outlook", "phone", "export"],
     steps: [
-      "Open the **Schedule** tab, or a tournament's page.",
-      "Tap **📅 Add to calendar** on the date you want.",
-      "Choose your calendar: **Apple (iPhone, Mac)**, **Google / Android**, **Outlook.com** or **Outlook (work or school)**.",
-      "For a repeating practice, choose from **Every date in the series** to add them all at once."
+      "Open the **Schedule** tab and tap **Subscribe to calendar** (or, on any date's **📅 Add to calendar** menu, choose **Every practice** or **Everything on the schedule**).",
+      "Untick anything you don't want: **Practices**, **Tournaments** or **Team events**.",
+      "Choose your calendar: **Apple Calendar**, **Google Calendar** or **Outlook**. It updates on its own when the coach changes or cancels a date.",
+      "Just want one date? On the date's **📅 Add to calendar** menu, pick your calendar under **This date**."
     ],
     tips: [
-      "What you add is a copy: if the coach changes or cancels a date later, your calendar won't update. The Teem Hub schedule is always the latest.",
-      "Using Outlook on a computer? Choose **Download .ics (Outlook desktop)** and open the file."
+      "On more than one team? On **Your teams**, use **One calendar for all your teams**: each event starts with the team's name.",
+      "Calendar apps check every hour or so (Google can take most of a day), so urgent changes still come by email or text.",
+      "Your calendar link is private. If you shared it by mistake, choose **Reset link** on Your teams; **Stop** takes the events out of that calendar.",
+      "A single date you add is a copy and won't update. Using Outlook on a computer? Choose **Download .ics (Outlook desktop)** and open the file."
     ],
     shot: { file: "add-to-calendar.webp", alt: "The Add to calendar menu with Apple, Google and Outlook choices" },
     go: { label: "Open the schedule", path: "schedule" },

@@ -20,6 +20,7 @@ import { commsRoutes, publicRoutes } from "./routes/comms.js";
 import { helpAdminRoutes, helpPublicRoutes } from "./routes/help.js";
 import { matchRoutes } from "./routes/matches.js";
 import { usagePublicRoutes, usageRoutes } from "./routes/usage.js";
+import { calendarPublicRoutes, calendarRoutes } from "./routes/calendars.js";
 import { countAction, countRequest, quietly } from "../lib/usage.js";
 import { clubOfTeam } from "../lib/clubs.js";
 import { actionOf, errorAreaOf } from "../shared/usage.js";
@@ -46,12 +47,14 @@ commsRoutes(router);
 helpAdminRoutes(router);
 matchRoutes(router);
 usageRoutes(router);
+calendarRoutes(router);
 
 /** Routes that need no sign-in (template.yaml gives them no authorizer). */
 export const publicRouter = new Router();
 publicRoutes(publicRouter);
 helpPublicRoutes(publicRouter);
 usagePublicRoutes(publicRouter);
+calendarPublicRoutes(publicRouter);
 
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyStructuredResultV2> {
   const method = event.requestContext.http.method;

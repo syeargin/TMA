@@ -4,6 +4,7 @@ import { keys, normEmail } from "../../lib/keys.js";
 import { PRIVACY_VERSION } from "../../shared/privacy.js";
 import { dispatch, queueEmail } from "../../lib/mail/outbox.js";
 import { siteUrl } from "../../lib/mail/invite-mail.js";
+import { subKeysFor } from "../../lib/calendar-feed.js";
 import { badRequest, conflict, json, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { clean, deleteMany, getItem, now, putItem, queryAll } from "../util.js";
@@ -75,6 +76,8 @@ export function accountRoutes(r: Router) {
       teams.push(team);
     }
     const invites = email ? await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `INVITE#${email}` } }) : [];
+    // Calendar links, without the link itself: the file may be kept or shared, and the link opens a schedule.
+    const calendars = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :c)", ExpressionAttributeValues: { ":p": `USER#${caller.sub}`, ":c": "CAL#" } });
     return json(200, {
       exportedAt: now(),
       about: "Everything Teem Hub stores about you and your family. Teams' schedules, announcements and other families' records aren't included.",
@@ -82,7 +85,8 @@ export function accountRoutes(r: Router) {
       siteOwner: !!owner,
       clubAdminOf: adminOf.map((a) => clubOf(a)),
       teams,
-      pendingInvites: invites.map((i) => clean(i))
+      pendingInvites: invites.map((i) => clean(i)),
+      calendarLinks: calendars.map((c) => { const { token: _t, ...rest } = c; return clean(rest); })
     });
   });
 
@@ -124,8 +128,9 @@ export function accountRoutes(r: Router) {
     }
     const invites = email ? await queryAll({ KeyConditionExpression: "PK = :p", ExpressionAttributeValues: { ":p": `INVITE#${email}` }, ProjectionExpression: "PK, SK" }) : [];
     const key = (i: Item) => ({ PK: String(i.PK), SK: String(i.SK) });
-    // The last day you opened each team (site usage) goes too.
-    await deleteMany([...memberships.map(key), ...memberships.map((m) => ({ PK: `SEEN#${teamOf(m)}`, SK: caller.sub })), ...adminOf.map(key), ...invites.map(key), keys.profile(caller.sub)]);
+    // The last day you opened each team (site usage) goes too, and your calendar links stop working.
+    const calendars = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :c)", ExpressionAttributeValues: { ":p": `USER#${caller.sub}`, ":c": "CAL#" }, ProjectionExpression: "SK, #t", ExpressionAttributeNames: { "#t": "token" } });
+    await deleteMany([...subKeysFor(caller.sub, calendars), ...memberships.map(key), ...memberships.map((m) => ({ PK: `SEEN#${teamOf(m)}`, SK: caller.sub })), ...adminOf.map(key), ...invites.map(key), keys.profile(caller.sub)]);
     await deleteSignIn(caller.username || caller.sub);
     console.log(JSON.stringify({ msg: "account deleted", sub: caller.sub, teams: memberships.length, clubs: adminOf.length }));
     // A required notice to the address the account used, so someone who didn't do this finds out.
