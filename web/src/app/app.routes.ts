@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { privacyGuard, signedInGuard, signedOutGuard } from './core/guards';
+import { privacyGuard, signedInGuard, signedOutGuard, startGuard } from './core/guards';
 import { Narrow } from './layout/narrow';
 
 const T = (s: string) => `${s} · Teem Hub`;
@@ -45,7 +45,7 @@ export const routes: Routes = [
   {
     path: '', component: Narrow,
     children: [
-      { path: 'teams', pathMatch: 'full', loadComponent: () => import('./features/home/home').then((m) => m.Home), canActivate: [signedInGuard, privacyGuard], title: T('Your teams') },
+      { path: 'teams', pathMatch: 'full', loadComponent: () => import('./features/home/home').then((m) => m.Home), canActivate: [signedInGuard, privacyGuard, startGuard], title: T('Your teams') },
       { path: 'answer', title: T('Availability'), loadComponent: () => import('./features/account/answer').then((m) => m.Answer) },
       { path: 'unsubscribe', title: T('Unsubscribe'), loadComponent: () => import('./features/account/unsubscribe').then((m) => m.Unsubscribe) },
       { path: 'privacy', title: T('Privacy notice'), loadComponent: () => import('./features/privacy/privacy').then((m) => m.Privacy) },

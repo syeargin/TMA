@@ -3,7 +3,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { PASSWORD_RULES } from '../../core/errors';
-import { PRIVACY_KEY } from '../../core/guards';
+import { PRIVACY_KEY, START_URL } from '../../core/guards';
 import { PRIVACY_VERSION } from '@shared/privacy';
 import { Autofocus } from '../../shared/autofocus';
 import { Messages } from '../../shared/messages';
@@ -74,7 +74,7 @@ export class SignIn extends AuthPage {
     this.remember(email);
     return this.run(async () => {
       const step = await this.auth.logIn(email, password);
-      if (step === 'DONE') return this.go('/teams');
+      if (step === 'DONE') return this.go(START_URL);
       if (step === 'CONFIRM_SIGN_UP') {
         await this.auth.resendCode(email);
         return this.go('/verify', { notice: "Verify your email first. We've sent you a new code." });
@@ -92,7 +92,7 @@ export class SignIn extends AuthPage {
     return this.run(async () => {
       try {
         const step = await this.auth.confirmCode(code);
-        if (step === 'DONE') return this.go('/teams');
+        if (step === 'DONE') return this.go(START_URL);
         this.error.set("Sign-in needs a step this page doesn't support yet.");
         return;
       } catch (err) {
@@ -139,7 +139,7 @@ export class SignUp extends AuthPage {
     try { localStorage.setItem(PRIVACY_KEY, PRIVACY_VERSION); } catch { /* storage blocked: they'll be asked once */ }
     return this.run(async () => {
       const step = await this.auth.createAccount(email, password);
-      return step === 'CONFIRM_SIGN_UP' ? this.go('/verify') : this.go('/teams');
+      return step === 'CONFIRM_SIGN_UP' ? this.go('/verify') : this.go(START_URL);
     });
   }
 }
