@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 process.env.TABLE_NAME = "TeamHub-test-reminders";
 process.env.MAIL_TRANSPORT = "memory";
 process.env.SITE_URL = "https://dev.teemhub.net";
@@ -191,12 +191,26 @@ describe("announcement emails", () => {
 });
 
 describe("previews", () => {
+  // Previews look ahead from today, so the team's dates (Fall Classic on Nov 7) need a fixed today.
+  const today = (iso: string) => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(iso)); };
+  afterEach(() => { vi.useRealTimers(); });
+
   it("previews every message from the team's records", async () => {
+    today("2026-10-28T14:00:00Z");
     for (const msg of ["packet", "availability", "dues", "payment", "announcement"]) {
       const r = await owner("GET", `/teams/${T}/comms/${msg}/preview`);
       expect([msg, r.status]).toEqual([msg, 200]);
       expect(r.body.html).toContain("Rem 13");
     }
+  });
+
+  it("previews the next tournament's packet after its send day, until the tournament is over", async () => {
+    today("2026-11-03T14:00:00Z"); // the packet went out Oct 31; the tournament is Nov 7-8
+    const r = await owner("GET", `/teams/${T}/comms/packet/preview`);
+    expect(r.status).toBe(200);
+    expect(r.body.html).toContain("Fall Classic");
+    today("2026-11-10T14:00:00Z");
+    expect((await owner("GET", `/teams/${T}/comms/packet/preview`)).body.message).toBe("There's no tournament coming up to make a packet for.");
   });
 });
 
