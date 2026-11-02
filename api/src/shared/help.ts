@@ -95,6 +95,24 @@ export const HELP_TOPICS: HelpTopic[] = [
     places: ["schedule", "home", "email"], related: ["add-to-calendar", "see-answers"]
   },
   {
+    id: "ask-or-report", role: "parent", title: "Ask a question, report a problem or suggest an idea",
+    summary: "Ask your team's coordinators or Teem Hub, report something that isn't working, or share an idea.",
+    keywords: ["question", "ask", "contact", "support", "help", "problem", "bug", "broken", "not working", "error", "report", "idea", "suggest", "suggestion", "feedback", "coordinator"],
+    steps: [
+      "Tap **? Help** on any team page, or **Questions & feedback** at the bottom of any page.",
+      "Choose **Ask a question**, **Report a problem** or **Suggest an idea**.",
+      "For a question, choose who should answer: **your team's coordinator** (the schedule, dues, travel, the team) or **Teem Hub** (signing in, how the site works).",
+      "Write it and tap **Send**. You get a reference number, and the reply comes by email."
+    ],
+    tips: [
+      "Saw an error? Tap **Report this** next to it: the page and the error are filled in for you.",
+      "A screenshot helps us see what you saw. It's kept for 60 days.",
+      "Can't sign in? Use **Questions & feedback** at the bottom of the sign-in page.",
+      "What you've sent, and the replies, are on your **Account** page."
+    ],
+    places: ["home"], related: ["add-to-calendar"]
+  },
+  {
     id: "add-to-calendar", role: "parent", title: "Add the schedule to your phone's calendar",
     summary: "Subscribe so your calendar keeps up with schedule changes, or add a single date.",
     keywords: ["calendar", "ical", "ics", "subscribe", "save", "iphone", "apple", "google", "android", "outlook", "phone", "export"],

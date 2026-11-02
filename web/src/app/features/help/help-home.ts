@@ -4,6 +4,7 @@ import { HELP_ROLES, HELP_ROLE_LABELS, HELP_TOPICS, type HelpRole } from '@share
 import { searchHelp } from '@shared/help-search';
 import { HeaderService } from '../../core/header.service';
 import { HelpService, topicById } from './help.service';
+import { AskBlock } from '../../shared/ask-block';
 import { HelpText } from './help-text';
 
 /** Ideas shown when a search finds nothing. */
@@ -12,7 +13,7 @@ const TRY = ['add to calendar', 'pay dues', 'cancel practice', 'invite', 'hotel'
 /** /help — every topic by role, a search box and "Most used". Works without signing in. */
 @Component({
   selector: 'th-help-home',
-  imports: [RouterLink, HelpText],
+  imports: [RouterLink, HelpText, AskBlock],
   styleUrl: './help.css',
   encapsulation: ViewEncapsulation.None,
   template: `
@@ -86,7 +87,7 @@ const TRY = ['add to calendar', 'pay dues', 'cancel practice', 'invite', 'hotel'
         </section>
       }
     }
-    <p class="muted small help-foot">Can't find what you need? Ask your coach or team coordinator. They can see how the team is set up.</p>
+    <th-ask-block heading="Can't find what you need?" />
   </main>`
 })
 export class HelpHome implements OnDestroy {

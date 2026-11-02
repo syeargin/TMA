@@ -32,6 +32,8 @@ export type QueueInput<K extends LiveMessage> = {
   teamId?: string; clubId?: string; link?: Link; by?: string;
   /** Extra mail headers, like List-Unsubscribe for optional messages. */
   headers?: Record<string, string>;
+  /** Where replies go (a family's question: their own address). */
+  replyTo?: string;
 };
 
 const deliveryId = (dedupe: string) => createHash("sha256").update(dedupe).digest("hex").slice(0, 32);
@@ -46,7 +48,7 @@ export async function queueEmail<K extends LiveMessage>(q: QueueInput<K>): Promi
       TableName: TABLE, ConditionExpression: "attribute_not_exists(PK)",
       Item: {
         ...deliveryKey(id), type: "Delivery", id, msg: q.msg, channel: "email", to: normEmail(q.to), data: q.data,
-        status: "queued", link: q.link, teamId: q.teamId, clubId: q.clubId, by: q.by, headers: q.headers,
+        status: "queued", link: q.link, teamId: q.teamId, clubId: q.clubId, by: q.by, headers: q.headers, replyTo: q.replyTo,
         createdAt: at, day: dayOf(at), ttl: Math.floor(Date.now() / 1000) + DELIVERY_DAYS * 86400
       }
     }));
@@ -102,7 +104,7 @@ export async function dispatch(ids: string[]): Promise<void> {
 
 // ---------- the sender ----------
 
-export type Mail = { to: string; fromName: string; subject: string; html: string; text: string; tags: Record<string, string>; headers?: Record<string, string> };
+export type Mail = { to: string; fromName: string; subject: string; html: string; text: string; tags: Record<string, string>; headers?: Record<string, string>; replyTo?: string };
 export interface Transport { send(m: Mail): Promise<string> }
 
 /** Tests and the local preview (MAIL_TRANSPORT=memory) collect mail here instead of sending it. */
@@ -124,6 +126,7 @@ const sesTransport = (from: string): Transport => ({
     const res = await ses.send(new SendEmailCommand({
       FromEmailAddress: fromHeader(m.fromName, from),
       Destination: { ToAddresses: [m.to] },
+      ReplyToAddresses: m.replyTo ? [m.replyTo] : undefined,
       Content: { Simple: {
         Subject: { Data: m.subject, Charset: "UTF-8" },
         Body: { Html: { Data: m.html, Charset: "UTF-8" }, Text: { Data: m.text, Charset: "UTF-8" } },
@@ -205,7 +208,8 @@ export async function sendDeliveries(ids: string[]): Promise<{ sent: number; fai
       const messageId = await t.send({
         to: String(item.to), fromName: r.fromName + suffix, subject: r.subject, html: tagLinks(r.html, true), text: tagLinks(r.text, false),
         tags: { env: env() || "local", delivery: id, msg: String(item.msg) },
-        headers: (item.headers as Record<string, string> | undefined) ?? undefined
+        headers: (item.headers as Record<string, string> | undefined) ?? undefined,
+        replyTo: typeof item.replyTo === "string" && item.replyTo ? item.replyTo : undefined
       });
       await setStatus(id, "sent", "", { sesId: messageId, sentAt: new Date().toISOString() });
       // The bounce-rate alarm divides bounces by this (template.yaml MailSentMetric).

@@ -5,6 +5,7 @@ import { HELP_ROLES, HELP_ROLE_LABELS, type HelpRole } from '@shared/help';
 import { AuthService } from '../../core/auth.service';
 import { HeaderService } from '../../core/header.service';
 import { HelpService, goLink, topicById, type HelpVia } from './help.service';
+import { AskBlock } from '../../shared/ask-block';
 import { HelpText } from './help-text';
 
 const VIAS: HelpVia[] = ['browse', 'search', 'popular', 'context', 'related', 'link'];
@@ -12,7 +13,7 @@ const VIAS: HelpVia[] = ['browse', 'search', 'popular', 'context', 'related', 'l
 /** /help/:topic — one topic's steps, screenshot, tips and related topics. Works without signing in. */
 @Component({
   selector: 'th-help-topic',
-  imports: [RouterLink, HelpText],
+  imports: [RouterLink, HelpText, AskBlock],
   styleUrl: './help.css',
   encapsulation: ViewEncapsulation.None,
   template: `
@@ -63,6 +64,7 @@ const VIAS: HelpVia[] = ['browse', 'search', 'popular', 'context', 'related', 'l
           </div>
         </section>
       }
+      <th-ask-block heading="Still have a question?" />
     } @else {
       <div class="empty">That help topic doesn't exist any more. <a routerLink="/help">See every topic</a></div>
     }

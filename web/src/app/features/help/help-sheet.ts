@@ -4,6 +4,7 @@ import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { HELP_ROLE_LABELS, HELP_TOPICS, helpRolesFor, type HelpPlace, type HelpRole } from '@shared/help';
 import { TeamStore } from '../../core/team-store';
+import { AskBlock } from '../../shared/ask-block';
 import { Sheet } from '../../shared/sheet';
 import { HelpSheetState } from './help-sheet-state';
 import { placeOf } from './help-place';
@@ -15,7 +16,7 @@ import { placeOf } from './help-place';
  */
 @Component({
   selector: 'th-help-sheet',
-  imports: [Sheet, RouterLink],
+  imports: [Sheet, RouterLink, AskBlock],
   template: `
     <th-sheet heading="Help for this page" [open]="open()" (closed)="open.set(false)">
       <form role="search" class="help-search" (submit)="$event.preventDefault(); search(q.value)">
@@ -35,10 +36,12 @@ import { placeOf } from './help-place';
         <p class="muted">No topics for this page yet.</p>
       }
       <p><a class="link" routerLink="/help" [queryParams]="{ team: store.teamId() }" (click)="open.set(false)">See every help topic</a></p>
+      <th-ask-block [before]="closeSheet" />
     </th-sheet>`
 })
 export class HelpSheet {
   readonly store = inject(TeamStore);
+  readonly closeSheet = () => this.open.set(false);
   private readonly router = inject(Router);
   readonly open = inject(HelpSheetState).open;
   readonly labels = HELP_ROLE_LABELS;

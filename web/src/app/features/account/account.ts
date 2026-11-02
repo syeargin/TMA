@@ -7,11 +7,12 @@ import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
 import { NotificationSettings } from './notification-settings';
 import { TextAlerts } from './text-alerts';
+import { MyFeedbackList } from './my-feedback';
 
 /** /account — two-step sign-in, privacy, download my data, delete my account (R2, R4). */
 @Component({
   selector: 'th-account',
-  imports: [RouterLink, Messages, NotificationSettings, TextAlerts],
+  imports: [RouterLink, Messages, NotificationSettings, TextAlerts, MyFeedbackList],
   template: `
     <h2>Your account</h2>
     <th-messages [error]="error()" [notice]="notice()" />
@@ -26,6 +27,8 @@ import { TextAlerts } from './text-alerts';
     <th-notification-settings />
 
     <th-text-alerts />
+
+    <th-my-feedback />
 
     <section class="acct">
       <h3>Your data</h3>

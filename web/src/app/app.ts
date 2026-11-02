@@ -11,6 +11,8 @@ import { ThemeService } from './core/theme.service';
 import type { LiveStatus } from './core/live-client';
 import { ToastService } from './core/toast.service';
 import { UsageService } from './core/usage.service';
+import { FeedbackState } from './core/feedback';
+import { FeedbackSheet } from './shared/feedback-sheet';
 
 /** Pages for signed-out people (a signed-in visitor goes to their teams). */
 const SIGNED_OUT_PAGES = new Set(['/signin', '/signup', '/verify', '/forgot', '/reset']);
@@ -20,7 +22,7 @@ const isPublic = (path: string) => PUBLIC_PAGES.has(path) || path.startsWith('/h
 
 @Component({
   selector: 'th-root',
-  imports: [RouterOutlet, RouterLink],
+  imports: [RouterOutlet, RouterLink, FeedbackSheet],
   template: `
     @if (!landing()) {
     <header class="hdr">
@@ -59,11 +61,12 @@ const isPublic = (path: string) => PUBLIC_PAGES.has(path) || path.startsWith('/h
     </header>
     }
     <router-outlet />
-    @if (toast.message()) { <div class="toast" [class.bad]="toast.bad()" role="status" aria-live="polite">{{ toast.message() }}</div> }
+    @if (toast.message()) { <div class="toast" [class.bad]="toast.bad()" role="status" aria-live="polite">{{ toast.message() }}@if (toast.bad()) { <button type="button" class="link toast-report" (click)="feedback.open('problem', true)">Report this</button> }</div> }
+    <th-feedback-sheet />
     @if (!landing()) {
       <footer class="foot muted">
         <a routerLink="/" class="foot-logo" aria-label="Teem Hub"><img class="on-light" src="/brand/logo-color.svg" alt="" width="86" height="30"><img class="on-dark" src="/brand/logo-white.svg" alt="" width="86" height="30"></a>
-        <span class="foot-links"><a routerLink="/help">Help</a> · <a routerLink="/privacy">Privacy</a> · <a routerLink="/terms">Terms</a></span>
+        <span class="foot-links"><a routerLink="/help">Help</a> · <a routerLink="/privacy">Privacy</a> · <a routerLink="/terms">Terms</a> · <button type="button" class="link foot-fb" (click)="feedback.open()">Questions &amp; feedback</button></span>
         <span class="spacer"></span>
         <span>© Teem Hub Inc.@if (commit) { · Build {{ commit }} }</span>
       </footer>
@@ -75,6 +78,7 @@ export class App {
   readonly header = inject(HeaderService);
   readonly live = inject(LiveService);
   readonly toast = inject(ToastService);
+  readonly feedback = inject(FeedbackState);
   readonly me = inject(MeService);
   readonly theme = inject(ThemeService);
   readonly env = this.cfg.env || 'local';
