@@ -496,6 +496,10 @@ Resources:
         "HEAD /public/calendar.ics":
           ThrottlingBurstLimit: 20
           ThrottlingRateLimit: 5
+        # Questions & feedback from someone signed out (the sign-in page): also limited per email and address (routes/feedback.ts).
+        "POST /public/feedback":
+          ThrottlingBurstLimit: 5
+          ThrottlingRateLimit: 1
       AccessLogSettings:
         DestinationArn: !GetAtt ApiAccessLogs.Arn
         Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","time":"$context.requestTime","method":"$context.httpMethod","path":"$context.path","status":"$context.status","latencyMs":"$context.responseLatency","sub":"$context.authorizer.claims.sub","error":"$context.authorizer.error"}'
@@ -623,6 +627,14 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /public/calendar.ics
             Method: HEAD
+            Auth: { Authorizer: NONE }
+        # Questions & feedback from the sign-in page (signed-in people use /feedback).
+        PublicFeedback:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /public/feedback
+            Method: POST
             Auth: { Authorizer: NONE }
         PublicHelpPopular:
           Type: HttpApi

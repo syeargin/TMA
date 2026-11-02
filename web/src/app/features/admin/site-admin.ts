@@ -8,22 +8,23 @@ import type { AdminClub, ClubHistory } from '../../core/models';
 import { HelpStats } from './help-stats';
 import { Health } from './health';
 import { Usage } from './usage';
+import { FeedbackInbox } from './feedback-inbox';
 import { Messages } from '../../shared/messages';
 import { Page } from '../../shared/page';
 
 type Draft = { status: 'active' | 'inactive'; reason: string; limited: boolean; limit: number; features: Record<ClubFeature, boolean> };
 
-type Section = 'clubs' | 'usage' | 'health' | 'help';
-const SECTIONS: Section[] = ['clubs', 'usage', 'health', 'help'];
+type Section = 'clubs' | 'usage' | 'health' | 'feedback' | 'help';
+const SECTIONS: Section[] = ['clubs', 'usage', 'health', 'feedback', 'help'];
 
 /**
- * /admin[/usage|/health|/help] — the site admin dashboard (site owners).
+ * /admin[/usage|/health|/feedback|/help] — the site admin dashboard (site owners).
  * Clubs: every club with its status, teams used of its limit and its features, and a panel to change
  * them (each change goes in the club's history). Usage and Health: site usage counts. Help: help guide counts.
  */
 @Component({
   selector: 'th-site-admin',
-  imports: [DatePipe, Messages, RouterLink, RouterLinkActive, HelpStats, Usage, Health],
+  imports: [DatePipe, Messages, RouterLink, RouterLinkActive, HelpStats, Usage, Health, FeedbackInbox],
   template: `
   <nav class="tabs admin-tabs" aria-label="Site admin sections">
     <div class="tabs-in">
@@ -31,6 +32,7 @@ const SECTIONS: Section[] = ['clubs', 'usage', 'health', 'help'];
       <a class="tab" routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Clubs</a>
       <a class="tab" routerLink="/admin/usage" routerLinkActive="active" ariaCurrentWhenActive="page">Usage</a>
       <a class="tab" routerLink="/admin/health" routerLinkActive="active" ariaCurrentWhenActive="page">Health</a>
+      <a class="tab" routerLink="/admin/feedback" routerLinkActive="active" ariaCurrentWhenActive="page">Feedback</a>
       <a class="tab" routerLink="/admin/help" routerLinkActive="active" ariaCurrentWhenActive="page">Help</a>
     </div>
   </nav>
@@ -38,6 +40,7 @@ const SECTIONS: Section[] = ['clubs', 'usage', 'health', 'help'];
     @switch (current()) {
       @case ('usage') { <th-usage /> }
       @case ('health') { <th-health /> }
+      @case ('feedback') { <th-feedback-inbox /> }
       @case ('help') { <th-help-stats /> }
       @default {
     <div class="sec-h">

@@ -5,6 +5,7 @@ import { PRIVACY_VERSION } from "../../shared/privacy.js";
 import { dispatch, queueEmail } from "../../lib/mail/outbox.js";
 import { siteUrl } from "../../lib/mail/invite-mail.js";
 import { subKeysFor } from "../../lib/calendar-feed.js";
+import * as Feedback from "../../lib/feedback.js";
 import { badRequest, conflict, json, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { clean, deleteMany, getItem, now, putItem, queryAll } from "../util.js";
@@ -86,6 +87,7 @@ export function accountRoutes(r: Router) {
       clubAdminOf: adminOf.map((a) => clubOf(a)),
       teams,
       pendingInvites: invites.map((i) => clean(i)),
+      feedback: (await Feedback.mine(caller.sub)).map((f) => ({ ref: f.ref, kind: f.kind, sentTo: f.route === "team" ? f.sentTo : "Teem Hub", status: f.status, message: f.message, page: f.page?.title, team: f.teamName, createdAt: f.createdAt, replies: (f.replies ?? []).map((r) => ({ at: r.at, byName: r.byName, message: r.message })), screenshot: f.hasShot ? "kept 60 days; not included here" : undefined })),
       calendarLinks: calendars.map((c) => { const { token: _t, ...rest } = c; return clean(rest); })
     });
   });
@@ -130,7 +132,8 @@ export function accountRoutes(r: Router) {
     const key = (i: Item) => ({ PK: String(i.PK), SK: String(i.SK) });
     // The last day you opened each team (site usage) goes too, and your calendar links stop working.
     const calendars = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :c)", ExpressionAttributeValues: { ":p": `USER#${caller.sub}`, ":c": "CAL#" }, ProjectionExpression: "SK, #t", ExpressionAttributeNames: { "#t": "token" } });
-    await deleteMany([...subKeysFor(caller.sub, calendars), ...memberships.map(key), ...memberships.map((m) => ({ PK: `SEEN#${teamOf(m)}`, SK: caller.sub })), ...adminOf.map(key), ...invites.map(key), keys.profile(caller.sub)]);
+    // Questions and reports you sent (with their screenshots) go too.
+    await deleteMany([...(await Feedback.keysOf(caller.sub)), ...subKeysFor(caller.sub, calendars), ...memberships.map(key), ...memberships.map((m) => ({ PK: `SEEN#${teamOf(m)}`, SK: caller.sub })), ...adminOf.map(key), ...invites.map(key), keys.profile(caller.sub)]);
     await deleteSignIn(caller.username || caller.sub);
     console.log(JSON.stringify({ msg: "account deleted", sub: caller.sub, teams: memberships.length, clubs: adminOf.length }));
     // A required notice to the address the account used, so someone who didn't do this finds out.
