@@ -9,3 +9,7 @@ samconfig.local.toml
 
 # Team data exported from the hub (names, phones, emails)
 *-items.json
+
+# Python bytecode
+__pycache__/
+*.pyc
