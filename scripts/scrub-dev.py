@@ -4,6 +4,7 @@
 Once a team's real data lives in prod, dev should hold only made-up data. Run in CloudShell, which
 already has python3, boto3 and the account's credentials:
 
+    python3 scripts/scrub-dev.py --list                           # every dev team id, and how many real addresses each has
     python3 scripts/scrub-dev.py a5-13tom                         # shows what would go, changes nothing
     python3 scripts/scrub-dev.py a5-13tom --yes                   # does it
     python3 scripts/scrub-dev.py a5-13tom --clone test-13:a5-13test:a5:"A5 13 Test" --yes
@@ -116,6 +117,27 @@ def user_pool_id() -> str:
     return found
 
 
+def list_teams(table):
+    """Every team in dev, with how many members use a real address, so the right id is easy to find."""
+    rows = scan_all(table, FilterExpression=Attr("PK").begins_with("TEAM#") & (Attr("SK").eq("META#SETTINGS") | Attr("SK").begins_with("MEMBER#")),
+                    ProjectionExpression="PK, SK, teamName, email")
+    teams = {}
+    for r in rows:
+        t = teams.setdefault(r["PK"][5:], {"name": "", "members": 0, "real": 0})
+        if r["SK"] == "META#SETTINGS":
+            t["name"] = str(r.get("teamName", ""))
+        else:
+            t["members"] += 1
+            email = str(r.get("email", ""))
+            if email and not made_up(email):
+                t["real"] += 1
+    print(f"\nTeams in {TABLE}:")
+    print(f"  {'team id':<24} {'members':>7} {'real addresses':>15}  name")
+    for tid, t in sorted(teams.items()):
+        print(f"  {tid:<24} {t['members']:>7} {t['real']:>15}  {t['name']}")
+    return teams
+
+
 def team_records(table, team):
     """Everything stored for one team, outside the people themselves."""
     records = query_all(table, KeyConditionExpression=Key("PK").eq(f"TEAM#{team}"))
@@ -137,6 +159,10 @@ def main() -> int:
     anyway = "--people-anyway" in sys.argv
     keep = {e.strip().lower() for e in (arg_value("--keep") or "").split(",") if e.strip()}
     clone = arg_value("--clone")
+    if "--list" in sys.argv:
+        boto3.resource("dynamodb").Table(TABLE).load()
+        list_teams(boto3.resource("dynamodb").Table(TABLE))
+        return 0
     if not teams and not clone:
         print(__doc__)
         return 1
@@ -145,6 +171,8 @@ def main() -> int:
 
     table = boto3.resource("dynamodb").Table(TABLE)
     table.load()
+    if not go:
+        print("DRY RUN: nothing will change. Add --yes to do it.")
     print(f"Table {TABLE}{' (local: ' + os.environ['AWS_ENDPOINT_URL'] + ')' if os.environ.get('AWS_ENDPOINT_URL') else ''}")
 
     # Who is protected: site owners and club admins (by sign-in id), and made-up or listed addresses.
@@ -158,8 +186,10 @@ def main() -> int:
     for team in teams:
         records, club, dir_entry, invites, side = team_records(table, team)
         if not records and not dir_entry and not invites:
-            print(f"\n{team}: nothing in {TABLE}. Check the team id.")
-            continue
+            # Stop before changing anything: a wrong id shouldn't still copy a team or delete people.
+            print(f"\nNo team {team!r} in {TABLE}, so nothing was changed. Use one of these ids:")
+            list_teams(table)
+            return 1
         settings = next((r for r in records if r["SK"] == "META#SETTINGS"), {})
         kinds = Counter(r["SK"].split("#")[0] for r in records)
         print(f"\n{team} ({settings.get('teamName', 'no name')}) in club {club}")
@@ -245,7 +275,9 @@ def main() -> int:
         # Copying a team that still has real people in it would undo the point; check first.
         real = [str(r.get("email", "")) for r in source if r["SK"].startswith("MEMBER#") and r.get("email") and not made_up(str(r["email"])) and str(r["email"]).lower() not in protected_emails]
         if real:
-            raise SystemExit(f"{src} has members with real addresses ({len(real)}); copy only a made-up team.")
+            print(f"\nNothing was changed: {src} has {len(real)} member(s) with a real address ({', '.join(real)}).")
+            print("Copy only a made-up team. Run without --clone to remove the real team now, and copy later.")
+            return 1
         src_dir = table.get_item(Key={"PK": f"CLUB#{source_club(source)}", "SK": f"TEAM#{src}"}).get("Item") or {}
         for r in source:
             sk = r["SK"]
