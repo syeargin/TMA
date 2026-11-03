@@ -275,7 +275,9 @@ def main() -> int:
         # Copying a team that still has real people in it would undo the point; check first.
         real = [str(r.get("email", "")) for r in source if r["SK"].startswith("MEMBER#") and r.get("email") and not made_up(str(r["email"])) and str(r["email"]).lower() not in protected_emails]
         if real:
-            raise SystemExit(f"{src} has members with real addresses ({len(real)}); copy only a made-up team.")
+            print(f"\nNothing was changed: {src} has {len(real)} member(s) with a real address ({', '.join(real)}).")
+            print("Copy only a made-up team. Run without --clone to remove the real team now, and copy later.")
+            return 1
         src_dir = table.get_item(Key={"PK": f"CLUB#{source_club(source)}", "SK": f"TEAM#{src}"}).get("Item") or {}
         for r in source:
             sk = r["SK"]
