@@ -353,6 +353,11 @@ def env_block(E, env):
                 Effect: Allow
                 Action: cloudwatch:DescribeAlarms
                 Resource: "*"
+              # The topic every alarm emails (R9): only this environment's.
+              - Sid: AlarmTopic
+                Effect: Allow
+                Action: [sns:CreateTopic, sns:DeleteTopic, sns:GetTopicAttributes, sns:SetTopicAttributes, sns:Subscribe, sns:Unsubscribe, sns:ListSubscriptionsByTopic, sns:GetSubscriptionAttributes, sns:TagResource, sns:UntagResource, sns:ListTagsForResource]
+                Resource: !Sub "arn:aws:sns:${{AWS::Region}}:${{AWS::AccountId}}:${{AppPrefix}}-{env}-*"
               # The daily retention job's schedule (R4) and the email events rule (Messaging M1).
               - Sid: Schedules
                 Effect: Allow

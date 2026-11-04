@@ -64,7 +64,7 @@ GitHub enforces these rules before it gives a run the token AWS trusts, so a wor
 
 **3. Protect `main`** in *Settings → Branches*: require a pull request, and require the CI checks to pass.
 
-**4. Optional budget alert.** Add `AlertEmail=you@example.com` to `parameter_overrides` in `samconfig.toml` to create a monthly AWS budget alert (default $20).
+**4. Alerts.** Add `AlertEmail=you@example.com` to `parameter_overrides` in `samconfig.toml` (both environments). It gets a monthly AWS budget alert (default $20) and an email whenever an alarm goes off or clears: API errors and crashes, sign-up trigger failures, throttling, live updates, email sending and bounces, the planner, feed sync and background jobs (R9). After the first deploy with it set, AWS sends a "Subscription Confirmation" email to that address: click **Confirm subscription**, or alarm emails won't arrive.
 
 ## Deploying
 
