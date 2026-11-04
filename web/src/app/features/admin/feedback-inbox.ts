@@ -8,6 +8,8 @@ import { FeedbackService, type FeedbackStatus, type InboxItem, type InboxStats, 
 type Filter = FeedbackStatus | 'all';
 const FILTERS: [Filter, string][] = [['new', 'New'], ['waiting', 'Answered'], ['planned', 'Planned'], ['closed', 'Closed'], ['all', 'All']];
 const KIND: Record<string, [string, string]> = { question: ['Question', 'q'], problem: ['Problem', 'p'], idea: ['Idea', 'i'], team: ['Team question', 't'] };
+const ROLE: Record<string, string> = { club: 'Club director or admin', team: 'Team coordinator or coach', parent: 'Parent' };
+const TEAMS: Record<string, string> = { '1': '1 team', '2-9': '2–9 teams', '10-39': '10–39 teams', '40+': '40+ teams' };
 
 /** Site admin › Feedback: questions, problems and ideas, with replies by email. */
 @Component({
@@ -45,16 +47,21 @@ const KIND: Record<string, [string, string]> = { question: ['Question', 'q'], pr
               @for (f of filters; track f[0]) {
                 <button class="chip" type="button" [attr.aria-pressed]="filter() === f[0]" (click)="filter.set(f[0])">{{ f[1] }}@if (f[0] !== 'all') { ({{ count(f[0]) }})}</button>
               }
+              <button class="chip fb-inq" type="button" [attr.aria-pressed]="kind() === 'inquiry'" (click)="kind.set(kind() === 'inquiry' ? '' : 'inquiry'); filter.set('all')">Inquiries ({{ inquiries() }})</button>
             </div>
             <label class="sr-only" for="fb-kind">Type</label>
             <select id="fb-kind" class="fb-kindsel" [value]="kind()" (change)="kind.set($any($event.target).value)">
-              <option value="">All types</option><option value="question">Questions</option><option value="problem">Problems</option><option value="idea">Ideas</option><option value="team">Team questions</option>
+              <option value="">All types</option><option value="question">Questions</option><option value="problem">Problems</option><option value="idea">Ideas</option><option value="team">Team questions</option><option value="inquiry">Inquiries</option>
             </select>
           </div>
           @for (f of shown(); track f.id) {
             <button type="button" class="fb-row" [class.sel]="f.id === openId()" (click)="select(f.id)">
               <span class="pill fb-k" [class]="'pill fb-k ' + k(f)[1]">{{ k(f)[0] }}</span>
+              @if (f.inquiry; as q) {
+                <span class="grow"><b>{{ q.org }}@if (q.teams) { · {{ teams[q.teams] }}}@if (q.role === 'parent') { (from a parent)}</b><span class="small muted">{{ f.name }} · {{ role[q.role] }}@if (q.sport) { · {{ q.sport }}}@if (q.coordinatorEmail) { · coordinator: {{ q.coordinatorEmail }}} · {{ f.ref }}</span></span>
+              } @else {
               <span class="grow"><b>{{ first(f.message) }}</b><span class="small muted">{{ f.name }}@if (f.teamName) { · {{ f.teamName }}}@if (f.roles?.length) { · {{ f.roles!.join(', ') }}}@if (f.device) { · {{ f.device.split(' · ')[0] }}} · {{ f.ref }}</span></span>
+              }
               <span class="small muted fb-when">{{ ago(f.createdAt) }}<br><span [class.fb-new]="f.status === 'new'">{{ statusLabel(f) }}</span></span>
             </button>
           } @empty {
@@ -67,7 +74,7 @@ const KIND: Record<string, [string, string]> = { question: ['Question', 'q'], pr
             <div class="row" style="gap:8px"><span class="pill fb-k" [class]="'pill fb-k ' + k(f)[1]">{{ k(f)[0] }}</span><span class="small muted">{{ f.ref }} · {{ ago(f.createdAt) }}</span>
               @if (f.similar.length) { <span class="spacer"></span><span class="small">Similar: @for (s of f.similar; track s; let last = $last) { <button class="link" type="button" (click)="select(s)">{{ refOf(s) }}</button>@if (!last) {, } }</span> }
             </div>
-            <p class="fb-said">{{ f.message }}</p>
+            @if (f.message) { <p class="fb-said">{{ f.message }}</p> }
             @if (f.hasShot) {
               @if (shot(); as src) { <a [href]="src" target="_blank" rel="noopener" class="fb-shotlink"><img [src]="src" alt="Screenshot sent with this report" /></a> }
               @else if (shotGone()) { <p class="small muted">The screenshot has been deleted (they're kept 60 days).</p> }
@@ -75,6 +82,14 @@ const KIND: Record<string, [string, string]> = { question: ['Question', 'q'], pr
             }
             <dl class="fb-kv">
               <dt>From</dt><dd>{{ f.name }} · <a [href]="'mailto:' + f.email">{{ f.email }}</a></dd>
+              @if (f.inquiry; as q) {
+                <dt>Who</dt><dd>{{ role[q.role] }}</dd>
+                <dt>{{ q.role === 'parent' ? 'Team' : 'Club or team' }}</dt><dd>{{ q.org }}</dd>
+                @if (q.sport) { <dt>Sport</dt><dd>{{ q.sport }}</dd> }
+                @if (q.teams) { <dt>Teams</dt><dd>{{ teams[q.teams] }}</dd> }
+                @if (q.coordinatorEmail) { <dt>Coordinator</dt><dd><a [href]="'mailto:' + q.coordinatorEmail">{{ q.coordinatorEmail }}</a></dd> }
+                <dt>Came from</dt><dd>Front page · “Talk to us”@if (q.source) { in the {{ q.source }}}</dd>
+              }
               @if (f.page) { <dt>Page</dt><dd>@if (f.page.path.startsWith('/')) { <a [routerLink]="f.page.path">{{ f.page.title }}</a> } @else { {{ f.page.title }} }</dd> }
               @if (f.error) { <dt>Error</dt><dd>“{{ f.error.message }}” ({{ f.error.code }}) at {{ time(f.error.at) }} · <a routerLink="/admin/health">Health</a></dd> }
               @if (f.teamName) { <dt>Team</dt><dd><a [routerLink]="['/teams', f.teamId]">{{ f.teamName }}</a>@if (f.roles?.length) { · {{ f.roles!.join(', ') }}}</dd> }
@@ -108,6 +123,9 @@ export class FeedbackInbox {
   private readonly svc = inject(FeedbackService);
   private readonly query = toSignal(inject(ActivatedRoute).queryParamMap.pipe(map((q) => q.get('item') ?? '')), { initialValue: '' });
   readonly filters = FILTERS;
+  readonly role = ROLE;
+  readonly teams = TEAMS;
+  readonly inquiries = computed(() => (this.items() ?? []).filter((f) => f.kind === 'inquiry' && f.status !== 'closed').length);
   readonly items = signal<InboxItem[] | null>(null);
   readonly stats = signal<InboxStats | null>(null);
   readonly settings = signal<OwnerSettings | null>(null);
@@ -140,7 +158,10 @@ export class FeedbackInbox {
     } catch (e) { this.error.set(explain(e)); }
   }
 
-  k(f: InboxItem) { return KIND[f.route === 'team' ? 'team' : f.kind]; }
+  k(f: InboxItem): [string, string] {
+    if (f.kind === 'inquiry') return [f.inquiry?.role === 'club' ? 'Club inquiry' : 'Team inquiry', 'x'];
+    return KIND[f.route === 'team' ? 'team' : f.kind];
+  }
   count(s: FeedbackStatus) { return (this.items() ?? []).filter((f) => f.status === s).length; }
   statusLabel(f: InboxItem) { return f.route === 'team' && f.status === 'waiting' ? 'With the team' : FILTERS.find((x) => x[0] === f.status)?.[1] ?? f.status; }
   refOf(id: string) { return this.items()?.find((f) => f.id === id)?.ref ?? id; }

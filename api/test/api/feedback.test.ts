@@ -149,6 +149,48 @@ describe("questions & feedback", () => {
     expect(last).toBe(409);
   });
 
+  it("takes a club inquiry from the front page: owners told, a confirmation sent, replies go to support", async () => {
+    memoryOutbox.length = 0;
+    const r = await call("POST", "/public/inquiry", null, { role: "club", name: "Pat Morgan", email: "Pat@SummitVBC.org", org: "Summit Volleyball Club", sport: "Volleyball", teams: "10-39", message: "We run 24 teams.", source: "hero" }, "10.0.2.1");
+    expect(r.status).toBe(201);
+    expect(r.body.ref).toMatch(/^TH-10\d\d$/);
+    const owner = sentTo("sam@example.com");
+    expect(owner.length).toBe(1);
+    expect(owner[0].subject).toContain("Club inquiry");
+    expect(owner[0].text).toContain("Club director or admin · Summit Volleyball Club · Volleyball · 10–39 teams");
+    expect(owner[0].replyTo).toBeUndefined();
+    const conf = sentTo("pat@summitvbc.org");
+    expect(conf.length).toBe(1);
+    expect(conf[0].subject).toBe("We got your message (Teem Hub)");
+    expect(conf[0].replyTo).toBe("support@teemhub.net");
+    expect(conf[0].text).toContain("We'll reply soon");
+    expect(conf[0].text).toContain("— Sam, Teem Hub");
+    const inbox = (await call("GET", "/admin/feedback", OWNER)).body.items;
+    const item = inbox.find((i: { ref: string }) => i.ref === r.body.ref);
+    expect(item.kind).toBe("inquiry");
+    expect(item.inquiry).toEqual({ role: "club", org: "Summit Volleyball Club", sport: "Volleyball", teams: "10-39", source: "hero" });
+    memoryOutbox.length = 0;
+    expect((await call("POST", `/admin/feedback/${item.id}/reply`, OWNER, { message: "Thanks Pat, how about Tuesday?" })).status).toBe(200);
+    const reply = sentTo("pat@summitvbc.org");
+    expect(reply[0].replyTo).toBe("support@teemhub.net");
+    expect(reply[0].text).toContain("Reply to this email any time");
+  });
+
+  it("keeps a parent's coordinator email, checks the fields, and ignores bots", async () => {
+    memoryOutbox.length = 0;
+    const r = await call("POST", "/public/inquiry", null, { role: "parent", name: "Jen Carter", email: "jen@example.com", org: "Pinecrest 14 Green", coordinatorEmail: "kim@pinecrest.org", teams: "40+" }, "10.0.2.2");
+    expect(r.status).toBe(201);
+    const item = (await call("GET", "/admin/feedback", OWNER)).body.items.find((i: { ref: string }) => i.ref === r.body.ref);
+    expect(item.inquiry).toEqual({ role: "parent", org: "Pinecrest 14 Green", sport: "", coordinatorEmail: "kim@pinecrest.org" });
+    expect(sentTo("sam@example.com")[0].subject).toContain("Team inquiry");
+    expect(sentTo("jen@example.com")[0].text).toContain("through their coordinator or club");
+    const bad = await call("POST", "/public/inquiry", null, { role: "club", name: "Pat", email: "pat@summitvbc", org: "" }, "10.0.2.3");
+    expect(bad.status).toBe(400);
+    const bot = await call("POST", "/public/inquiry", null, { role: "club", name: "Bot", email: "bot2@example.com", org: "Spam Inc", website: "http://spam" }, "10.0.2.4");
+    expect(bot.status).toBe(201);
+    expect(sentTo("bot2@example.com").length).toBe(0);
+  });
+
   it("deletes what you sent with your account", async () => {
     await member(T, KIM, ["coach"], { email: "kim@example.com" });
     expect((await call("DELETE", "/me", KIM, { confirm: "DELETE" })).status).toBe(204);

@@ -503,6 +503,10 @@ Resources:
         "POST /public/feedback":
           ThrottlingBurstLimit: 5
           ThrottlingRateLimit: 1
+        # "Talk to us" on the front page: also limited per email and address (routes/feedback.ts).
+        "POST /public/inquiry":
+          ThrottlingBurstLimit: 5
+          ThrottlingRateLimit: 1
       AccessLogSettings:
         DestinationArn: !GetAtt ApiAccessLogs.Arn
         Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","time":"$context.requestTime","method":"$context.httpMethod","path":"$context.path","status":"$context.status","latencyMs":"$context.responseLatency","sub":"$context.authorizer.claims.sub","error":"$context.authorizer.error"}'
@@ -637,6 +641,14 @@ Resources:
           Properties:
             ApiId: !Ref HttpApi
             Path: /public/feedback
+            Method: POST
+            Auth: { Authorizer: NONE }
+        # "Talk to us" on the front page: clubs and teams asking about Teem Hub.
+        PublicInquiry:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /public/inquiry
             Method: POST
             Auth: { Authorizer: NONE }
         PublicHelpPopular:

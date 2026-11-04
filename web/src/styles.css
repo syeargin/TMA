@@ -796,7 +796,8 @@ th-help-sheet .help-search{margin-bottom:6px}
 .fb-when{text-align:right;white-space:nowrap}
 .fb-new{color:var(--bad);font-weight:600}
 .fb-k{justify-self:start}
-.fb-k.q{background:#E8EEF8;color:#15294D}.fb-k.p{background:#FBE6E8;color:#B42C37}.fb-k.i{background:#E7F4EA;color:#15532F}.fb-k.t{background:#F1ECF8;color:#4D3380}
+.fb-k.q{background:#E8EEF8;color:#15294D}.fb-k.p{background:#FBE6E8;color:#B42C37}.fb-k.i{background:#E7F4EA;color:#15532F}.fb-k.t{background:#F1ECF8;color:#4D3380}.fb-k.x{background:#FDEBD2;color:#8A4B06}
+.chip.fb-inq{border-color:#F1CFA0;color:#8A4B06}.chip.fb-inq[aria-pressed=true]{background:#FDEBD2;border-color:#E9B77A;color:#6E3B04}
 .fb-detail{padding:16px 18px}
 .fb-shotlink img{max-width:100%;max-height:260px;border:1px solid var(--line);border-radius:10px;display:block;margin:8px 0}
 .fb-kv{display:grid;grid-template-columns:80px minmax(0,1fr);gap:4px 10px;font-size:13.5px;margin:10px 0}

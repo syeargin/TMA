@@ -3,14 +3,15 @@
   <header class="lp-nav-wrap">
     <nav class="lp-nav lp-in" aria-label="Main">
       <a class="lp-brand" href="#top" (click)="jump($event, 'top')">
-<img class="lp-logo" src="/brand/logo-white.svg" alt="Teem Hub" width="140" height="49">
+        <img class="lp-logo" src="/brand/logo-white.svg" alt="Teem Hub" width="140" height="49">
       </a>
       <div class="lp-links">
-        <a href="#features" (click)="jump($event, 'features')">Features</a>
-        <a href="#roles" (click)="jump($event, 'roles')">Who it's for</a>
-        <a href="#how" (click)="jump($event, 'how')">How it works</a>
-        <a href="#clubs" (click)="jump($event, 'clubs')">For clubs</a>
+        <a class="lp-wide" href="#features" (click)="jump($event, 'features')">Features</a>
+        <a class="lp-wide" href="#clubs" (click)="jump($event, 'clubs')">For clubs</a>
+        <a class="lp-wide" href="#how" (click)="jump($event, 'how')">How it works</a>
+        <a class="lp-wide" routerLink="/help">Help</a>
         <a class="lp-nav-cta" [routerLink]="signedIn() ? '/teams' : '/signin'">{{ signedIn() ? 'Your teams' : 'Sign in' }}</a>
+        <a class="lp-btn lp-btn-accent lp-btn-sm" href="#contact" (click)="jump($event, 'contact', 'nav')">Talk to us</a>
       </div>
     </nav>
   </header>
@@ -19,301 +20,354 @@
     <!-- HERO -->
     <section id="top" class="lp-hero">
       <div class="lp-hero-ring" aria-hidden="true"></div>
-      <div class="lp-hero-rule" aria-hidden="true"></div>
       <div class="lp-in lp-hero-in">
         <div class="lp-hero-copy">
-          <div class="lp-kicker"><span class="lp-bar"></span><span>FOR YOUTH TRAVEL TEAMS</span></div>
+          <div class="lp-kicker"><span class="lp-bar"></span><span>FOR YOUTH TRAVEL TEAMS AND CLUBS</span></div>
           <h1>Your team's whole season, in one place.</h1>
-          <p class="lp-lede">Practices, tournaments, ref jobs, travel and the team fund, organized for coordinators, coaches and families. No more digging through the group chat.</p>
+          <p class="lp-lede">Schedule, game-day sheets, match results, travel, meals and the team fund, with a weekly email and a calendar that keeps itself up to date. Families answer in one tap.</p>
           <div class="lp-actions">
+            <a class="lp-btn lp-btn-accent" href="#contact" (click)="jump($event, 'contact', 'hero')">Talk to us about your club</a>
             @if (signedIn()) {
-              <a class="lp-btn lp-btn-accent" routerLink="/teams">Go to your teams</a>
-              <a class="lp-btn lp-btn-ghost" href="#features" (click)="jump($event, 'features')">See what's inside</a>
+              <a class="lp-btn lp-btn-ghost" routerLink="/teams">Go to your teams</a>
             } @else {
-              <a class="lp-btn lp-btn-accent" href="#pilot" (click)="jump($event, 'pilot')">Join the pilot</a>
               <a class="lp-btn lp-btn-ghost" routerLink="/signin">Sign in to your team</a>
             }
           </div>
-          <div class="lp-fine">Invite-only during the 2026–27 pilot season. Free for every family.</div>
+          <div class="lp-fine">In its 2026–27 pilot with youth volleyball teams. Free for every family, no app store download.</div>
         </div>
 
-        <!-- Phone: Home screen -->
-        <div class="lp-phone-col">
-          <div class="lp-phone" role="img" aria-label="Teem Hub home screen on a phone, showing tasks for you and the next 7 days">
-            <div class="lp-phone-screen">
-              <div class="lp-phone-head">
-                <div class="lp-phone-club">SUMMIT VOLLEYBALL CLUB</div>
-                <div class="lp-phone-team">13 NAVY</div>
-                <div class="lp-phone-tabs"><span class="on">HOME</span><span>SCHEDULE</span><span>TOURNAMENTS</span><span>FUND</span></div>
+        <!-- Phone: a team's Home -->
+        <div class="lp-phone" aria-hidden="true">
+          <div class="lp-scr">
+            <div class="lp-ph-h">
+              <div class="lp-c lp-tiny">SUMMIT VOLLEYBALL CLUB</div>
+              <div class="lp-d" style="font-size:28px">13 Navy</div>
+              <div class="lp-ph-tabs"><span class="on">HOME</span><span>SCHEDULE</span><span>TOURNAMENTS</span><span>STATS</span></div>
+            </div>
+            <div class="lp-ph-body">
+              <div class="lp-card lp-pad lp-bl-red">
+                <div class="lp-c lp-tiny" style="color:var(--accent)">NEXT UP · SATURDAY</div>
+                <div class="lp-d" style="font-size:24px;margin:4px 0">Winter Classic</div>
+                <div class="lp-sm lp-mut">Arrive 7:15 AM · Convention Center Hall C · Court 6</div>
+                <div class="lp-row lp-between" style="margin-top:10px"><div class="lp-ans"><span class="on">In</span><span>Maybe</span><span>Out</span></div><span class="lp-sm lp-link">📅 Add</span></div>
               </div>
-              <div class="lp-phone-body">
-                <div class="lp-cond">For you</div>
-                <div class="lp-task"><i class="t-accent"></i><div><b>Mark Ava's availability</b><span>3 practices this week</span></div></div>
-                <div class="lp-task"><i class="t-warn"></i><div><b>Add travel plans: Sunshine Qualifier</b><span>Hotel block closes Jan 30</span></div></div>
-                <div class="lp-task"><i class="t-ok"></i><div><b>Your ref job: Book, Set 2</b><span>Winter Classic · Saturday</span></div></div>
-                <div class="lp-cond" style="padding-top:4px">Next 7 days</div>
-                <div class="lp-week">
-                  <div class="lp-day"><div class="lp-date"><small>SAT</small><b>17</b></div><div><b>Team practice</b><span>7:30–10:00 AM · Sportsplex Ct 4</span></div></div>
-                  <div class="lp-day"><div class="lp-date"><small>MON</small><b>19</b></div><div><b>Master coaching</b><span>5:00–9:15 PM · Sportsplex</span></div></div>
-                </div>
-              </div>
+              <div class="lp-c lp-tiny lp-mut">FOR YOU</div>
+              <div class="lp-card lp-pad-s"><b>Add travel plans: Sunshine Qualifier</b><div class="lp-sm lp-mut">Hotel block closes Jan 30</div></div>
+              <div class="lp-card lp-pad-s"><b>Your ref job: Book, set 2</b><div class="lp-sm lp-mut">Winter Classic · Saturday</div></div>
+              <div class="lp-card lp-pad-s lp-row lp-between"><div><b>Practice tonight</b><div class="lp-sm lp-mut">6:00–8:00 PM · Court 4 · 11 in</div></div><span class="lp-pill ok">You're in</span></div>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- REPLACES STRIP -->
-    <section class="lp-strip" aria-label="What Teem Hub replaces">
-      <div class="lp-in lp-strip-in">
-        <div class="lp-strip-h">One hub instead of:</div>
-        <ul class="lp-pills">
-          <li>Endless group-chat threads</li>
-          <li>17-tab spreadsheets</li>
-          <li>Sign-up sheets</li>
-          <li>Reminder texts</li>
-        </ul>
-      </div>
-    </section>
+    <!-- NEW THIS SEASON -->
+    <div class="lp-in lp-new">
+      <span class="lp-c lp-mut" style="font-size:13px">NEW THIS SEASON</span>
+      <ul class="lp-chips">
+        <li>📅 Calendar that updates itself</li>
+        <li>🏐 Match results and stats</li>
+        <li>✓ Practice attendance</li>
+        <li>✉ Weekly team email</li>
+        <li>↻ Club calendar sync</li>
+        <li>? Questions and feedback</li>
+      </ul>
+    </div>
 
     <!-- FEATURES -->
-    <section id="features" class="lp-in lp-features">
-      <div class="lp-sec-head">
-        <div class="lp-eyebrow">WHAT'S INSIDE</div>
-        <h2>Everything the season throws at you, handled once.</h2>
-      </div>
+    <section id="features" class="lp-in lp-sec">
+      <div class="lp-eyebrow">WHAT'S INSIDE</div>
+      <h2 class="lp-h2">Everything the season throws at you, handled once.</h2>
 
-      <!-- F1 Tournaments -->
-      <div class="lp-feature">
+      <!-- 1 Game day + results -->
+      <article class="lp-feat">
         <div class="lp-copy">
-          <div class="lp-label">TOURNAMENTS</div>
-          <h3>A game-day sheet for every event</h3>
-          <p>Arrival time, parking, team code, where to meet and the schedule link, all in one place. Ref jobs are assigned per set, so every family knows their job before they walk in.</p>
-          <ul>
-            <li>Agenda, game-day sheet, meals and hotel per tournament</li>
-            <li>Book, score, libero and line jobs rotated fairly</li>
-          </ul>
+          <div class="lp-label">GAME DAY</div>
+          <h3>The game-day sheet, then every result</h3>
+          <p>Arrival, court, uniform, hotel and what to bring on one page. After each match, a team parent enters the score, so families who couldn't make it see how the day is going, and the season record keeps itself.</p>
+          <ul><li>Ref jobs rotated fairly, per set</li><li>Match results by set, pool standings and a season record</li><li>Share results as a picture to the team chat</li></ul>
         </div>
-        <div class="lp-shot-col">
-          <div class="lp-shot" role="img" aria-label="Screenshot: Winter Classic game-day sheet with ref job assignments">
-            <div class="lp-chrome"><span></span><span></span><span></span><em>Tournaments · Winter Classic</em></div>
-            <div class="lp-shot-hero"><div class="lp-shot-title">WINTER CLASSIC</div><div class="lp-shot-sub">Dec 13–14 · Convention Center, Hall C · 13 Open</div></div>
+        <div class="lp-shot" aria-hidden="true">
+          <div class="lp-chrome"><span></span><span></span><span></span><em>Tournaments · Winter Classic · Matches</em></div>
+          <div class="lp-thead"><div class="lp-c lp-tiny" style="opacity:.8">SUMMIT VOLLEYBALL CLUB</div><div class="lp-d" style="font-size:26px">Winter Classic</div><div class="lp-sm" style="opacity:.85">Dec 13–14 · Convention Center, Hall C · Pool B</div></div>
+          <div class="lp-tabs"><span>GAME-DAY SHEET</span><span>REF JOBS</span><span>MEALS</span><span>TRAVEL</span><span class="on">MATCHES</span></div>
+          <div class="lp-shot-body lp-split">
+            <div class="lp-stack">
+              <div class="lp-card lp-pad-s"><div class="lp-row lp-between"><b>vs Coastal 13 Red</b><span class="lp-pill ok">Won 2–0</span></div><div class="lp-sm lp-mut">25–19 · 25–22 · Court 6 · 8:00 AM</div></div>
+              <div class="lp-card lp-pad-s"><div class="lp-row lp-between"><b>vs Lakeside 13 Gold</b><span class="lp-pill ok">Won 2–1</span></div><div class="lp-sm lp-mut">25–23 · 22–25 · 15–11 · Court 6 · 9:30 AM</div><div class="lp-sm lp-mut">Entered by Dana C. after the match</div></div>
+              <div class="lp-card lp-pad-s"><div class="lp-row lp-between"><b>vs Metro 13 Black</b><span class="lp-pill mute">11:00 AM</span></div><div class="lp-sm lp-mut">Court 6 · you work book, set 2</div></div>
+            </div>
+            <div class="lp-card lp-pad">
+              <div class="lp-c lp-tiny lp-mut">POOL B</div>
+              <table class="lp-table">
+                <tr class="lp-mut"><td></td><td>W–L</td><td>Sets</td></tr>
+                <tr><td><b>13 Navy</b></td><td>2–0</td><td>4–1</td></tr>
+                <tr><td>Lakeside Gold</td><td>1–1</td><td>3–2</td></tr>
+                <tr><td>Coastal Red</td><td>0–1</td><td>0–2</td></tr>
+                <tr><td>Metro Black</td><td>0–1</td><td>1–2</td></tr>
+              </table>
+              <div class="lp-sm lp-link" style="margin-top:12px">Season record 18–6 ›</div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 2 Schedule + calendar -->
+      <article class="lp-feat rev">
+        <div class="lp-copy">
+          <div class="lp-label">SCHEDULE AND CALENDAR<span class="lp-newtag">NEW</span></div>
+          <h3>One schedule, right in your phone's calendar</h3>
+          <p>Practices, clinics and tournaments in one place, and in Apple, Google or Outlook with one tap. When the coach moves or cancels a date, every family's calendar changes on its own.</p>
+          <ul><li>Subscribe to every practice, every tournament or everything</li><li>One calendar for all your kids' teams</li><li>Club calendar feeds sync straight onto each team's schedule</li></ul>
+        </div>
+        <div class="lp-pair" aria-hidden="true">
+          <div class="lp-shot">
+            <div class="lp-chrome"><span></span><span></span><span></span><em>Schedule</em></div>
             <div class="lp-shot-body">
-              <div class="lp-tiles lp-tiles-4">
-                <div><small>ARRIVE</small><b>7:15 AM</b></div>
-                <div><small>FIRST MATCH</small><b>8:00 AM</b></div>
-                <div><small>PARKING</small><b>Deck B</b></div>
-                <div><small>TEAM CODE</small><b>G13NAVY</b></div>
+              <div class="lp-row lp-between"><span class="lp-d" style="font-size:24px">Schedule</span><span class="lp-sm lp-outline">↻ Subscribe</span></div>
+              <div class="lp-stack" style="margin-top:12px">
+                <div class="lp-card lp-pad-s"><div class="lp-sm lp-mut">TUE · NOV 10</div><b>Practice</b><div class="lp-sm lp-mut">6:00–8:00 PM · Court 4</div><div class="lp-row lp-between" style="margin-top:6px"><span class="lp-sm">11 in · 2 maybe</span><span class="lp-sm lp-link">📅 Add to calendar</span></div></div>
+                <div class="lp-card lp-pad-s" style="opacity:.7"><div class="lp-sm lp-mut">THU · NOV 12</div><b style="text-decoration:line-through">Practice</b> <span class="lp-pill bad">Cancelled</span></div>
+                <div class="lp-card lp-pad-s"><div class="lp-sm lp-mut">SAT–SUN · DEC 13</div><b>Winter Classic</b><div class="lp-sm lp-mut">Tournament · 2 days</div></div>
               </div>
-              <div>
-                <div class="lp-cond lp-pad">Ref jobs · Saturday, wave 1</div>
-                <div class="lp-scroll">
-                  <table class="lp-table">
-                    <thead><tr><th>Job</th><th>Set 1</th><th>Set 2</th><th>Set 3</th></tr></thead>
-                    <tbody>
-                      <tr><td>Book</td><td>Maya L.</td><td><span class="lp-tag lp-tag-you">Ava R. (you)</span></td><td>Zoe K.</td></tr>
-                      <tr><td>Score</td><td>Nora P.</td><td>Ella S.</td><td>Lila M.</td></tr>
-                      <tr><td>Libero</td><td>Ivy T.</td><td>June B.</td><td>Maya L.</td></tr>
-                      <tr><td>Lines</td><td>Zoe K., Ella S.</td><td>Nora P., Lila M.</td><td>Ava R., Ivy T.</td></tr>
-                    </tbody>
-                  </table>
-                </div>
+            </div>
+          </div>
+          <div class="lp-phone lp-phone-sm">
+            <div class="lp-scr">
+              <div style="padding:14px 14px 6px"><b style="font-size:20px">November</b> <span class="lp-mut">2026</span></div>
+              <div class="lp-cal">
+                <div style="border-left:4px solid #15294D;background:#E8EEF8"><b>13 Navy · Practice</b><br><span class="lp-mut">Tue 6:00 PM</span></div>
+                <div style="border-left:4px solid #9AA6BA;background:#F2F3F6"><b style="text-decoration:line-through">Cancelled: Practice</b><br><span class="lp-mut">Thu 6:00 PM</span></div>
+                <div style="border-left:4px solid #3E6FB0;background:#EDF2FA"><b>Dentist</b><br><span class="lp-mut">Fri 3:30 PM</span></div>
+                <div style="background:#15294D;color:#fff"><b>13 Navy · Winter Classic</b><br><span style="opacity:.8">All day · Sat–Sun</span></div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </article>
 
-      <!-- F2 Schedule -->
-      <div class="lp-feature lp-flip">
-        <div class="lp-shot-col">
-          <div class="lp-shot" role="img" aria-label="Screenshot: weekly schedule with availability counts and In, Maybe and Out buttons">
-            <div class="lp-chrome"><span></span><span></span><span></span><em>Schedule · October</em></div>
-            <div class="lp-shot-body lp-gap10">
-              <div class="lp-ev"><div class="lp-date"><small>SAT</small><b>17</b></div><div class="lp-ev-t"><b>Team practice</b><span>7:30–10:00 AM · Sportsplex Ct 4</span></div><div class="lp-counts"><span class="c-ok">11 in</span><span class="c-bad">1 out</span></div></div>
-              <div class="lp-ev lp-ev-pick"><div class="lp-date"><small>MON</small><b>19</b></div><div class="lp-ev-t"><b>Master coaching</b><span>5:00–9:15 PM · Sportsplex</span></div><div class="lp-rsvp"><span class="on">In</span><span>Maybe</span><span>Out</span></div></div>
-              <div class="lp-ev"><div class="lp-date"><small>THU</small><b>22</b></div><div class="lp-ev-t"><b>Team practice</b><span>6:00–8:30 PM · Sportsplex Ct 2</span></div><div class="lp-counts"><span class="c-ok">9 in</span><span class="c-warn">3 no reply</span></div></div>
-              <div class="lp-ev lp-ev-soft"><div class="lp-date"><small>SUN</small><b>25</b></div><div class="lp-ev-t"><b>Season kickoff celebration</b><span>7:00 PM · Club event · Required</span></div></div>
-            </div>
-          </div>
-        </div>
+      <!-- 3 Weekly email -->
+      <article class="lp-feat">
         <div class="lp-copy">
-          <div class="lp-label">SCHEDULE AND AVAILABILITY</div>
-          <h3>One schedule everyone trusts</h3>
-          <p>Practices, master coaching, club events and tournaments in one calendar. Families tap In, Maybe or Out, so coaches see who's coming before they plan practice.</p>
-          <ul>
-            <li>Change a time once, and everyone's schedule updates live</li>
-            <li>Availability counts at a glance for coaches</li>
-          </ul>
+          <div class="lp-label">TEAM EMAIL<span class="lp-newtag">NEW</span></div>
+          <h3>Answers without the chase</h3>
+          <p>Each family gets one weekly email with their week: dates, what needs an answer, their sign-ups and dues. Reminders go only to families who haven't answered, and In, Maybe or Out takes one tap, right from the email.</p>
+          <ul><li>Weekly at-a-glance, staff digest and tournament packets</li><li>Availability and dues reminders, only to who needs them</li><li>Delivery health shows who isn't getting team email</li></ul>
         </div>
-      </div>
-
-      <!-- F3 Travel -->
-      <div class="lp-feature">
-        <div class="lp-copy">
-          <div class="lp-label">TRAVEL</div>
-          <h3>Away tournaments without the chase</h3>
-          <p>The team hotel block, its booking deadline and every family's plans in one view. Coordinators see who hasn't booked yet, well before the rate expires.</p>
-          <ul>
-            <li>Hotel link, deadline and confirmation per family</li>
-            <li>Flying or driving, with arrival times for carpools</li>
-          </ul>
-        </div>
-        <div class="lp-shot-col">
-          <div class="lp-shot" role="img" aria-label="Screenshot: travel tracker for the Sunshine Qualifier showing which families have booked the team hotel">
-            <div class="lp-chrome"><span></span><span></span><span></span><em>Tournaments · Sunshine Qualifier · Travel</em></div>
-            <div class="lp-shot-body lp-gap14">
-              <div class="lp-hotel">
-                <div><small>TEAM HOTEL · ORLANDO · FEB 27–MAR 1</small><b>Lakeside Suites, team block</b></div>
-                <div class="lp-right"><small>BOOK BY</small><b class="lp-accent-text">Jan 30</b></div>
-              </div>
-              <div class="lp-progress"><div class="lp-meter"><i style="width:75%"></i></div><b>9 of 12 booked</b></div>
-              <div class="lp-scroll">
-                <table class="lp-table">
-                  <thead><tr><th>Family</th><th>Getting there</th><th>Arrives</th><th>Hotel</th></tr></thead>
-                  <tbody>
-                    <tr><td>Ava R.</td><td>Flying</td><td>Thu 6:40 PM</td><td><span class="lp-tag lp-tag-ok">Booked</span></td></tr>
-                    <tr><td>Maya L.</td><td>Driving</td><td>Thu 9:00 PM</td><td><span class="lp-tag lp-tag-ok">Booked</span></td></tr>
-                    <tr><td>Zoe K.</td><td>Flying</td><td>Fri 8:15 AM</td><td><span class="lp-tag lp-tag-warn">Not yet</span></td></tr>
-                    <tr><td>Nora P.</td><td>Carpool with Maya L.</td><td>Thu 9:00 PM</td><td><span class="lp-tag lp-tag-ok">Booked</span></td></tr>
-                  </tbody>
-                </table>
-              </div>
+        <div class="lp-shot lp-narrow" aria-hidden="true">
+          <div class="lp-chrome"><span></span><span></span><span></span><em>Inbox · 13 Navy via Teem Hub</em></div>
+          <div class="lp-mailhead"><img src="/brand/logo-white.svg" width="96" height="34" alt=""><span class="lp-c lp-tiny" style="color:#C3CDDF">13 NAVY · YOUR WEEK</span></div>
+          <div class="lp-shot-body">
+            <div class="lp-d" style="font-size:26px">Your week: Nov 9–15</div>
+            <p class="lp-sm lp-mut" style="margin:4px 0 12px">Hi Jen, here's Ava's week. One thing needs an answer.</p>
+            <div class="lp-card lp-pad" style="background:#F8FAFC"><b>Is Ava coming to practice Tuesday?</b><div class="lp-sm lp-mut">6:00–8:00 PM · Sportsplex Court 4</div>
+              <div class="lp-row" style="gap:8px;margin-top:10px"><span class="lp-mbtn navy">In</span><span class="lp-mbtn">Maybe</span><span class="lp-mbtn">Out</span></div></div>
+            <div class="lp-sm lp-kv">
+              <span class="lp-mut">Sat 14</span><span><b>Winter Classic</b> · arrive 7:15 AM · you bring Saturday lunch</span>
+              <span class="lp-mut">Dues</span><span>$150 due Nov 20 · <span class="lp-link">See the team fund</span></span>
             </div>
           </div>
         </div>
-      </div>
+      </article>
 
-      <!-- F4 Fund -->
-      <div class="lp-feature lp-flip">
-        <div class="lp-shot-col">
-          <div class="lp-shot" role="img" aria-label="Screenshot: team fund showing the balance, dues by family and recent ledger entries">
-            <div class="lp-chrome"><span></span><span></span><span></span><em>Team Fund</em></div>
-            <div class="lp-shot-body">
-              <div class="lp-tiles lp-tiles-3">
-                <div><small>BALANCE</small><b class="lp-big">$1,240</b></div>
-                <div><small>DUES COLLECTED</small><b class="lp-big">10 of 12</b></div>
-                <div><small>TO CONFIRM</small><b class="lp-big lp-warn-text">2</b></div>
-              </div>
-              <div>
-                <div class="lp-cond lp-pad">Dues by family</div>
-                <div class="lp-dues">
-                  <div><span>Ava R.</span><div class="lp-meter"><i style="width:100%"></i></div><em>Paid</em></div>
-                  <div><span>Maya L.</span><div class="lp-meter"><i style="width:100%"></i></div><em>Paid</em></div>
-                  <div><span>Zoe K.</span><div class="lp-meter"><i class="m-warn" style="width:50%"></i></div><em>$60 left</em></div>
-                </div>
-              </div>
-              <div>
-                <div class="lp-cond" style="padding-bottom:6px">Ledger</div>
-                <div class="lp-ledger"><span>Oct 12 · Kickoff pizza</span><b class="lp-bad-text">−$84.50</b></div>
-                <div class="lp-ledger lp-last"><span>Oct 10 · Dues, Maya L.</span><b class="lp-ok-text">+$120.00</b></div>
-              </div>
-            </div>
+      <!-- 4 Attendance -->
+      <article class="lp-feat rev">
+        <div class="lp-copy">
+          <div class="lp-label">PRACTICE ATTENDANCE<span class="lp-newtag">NEW</span></div>
+          <h3>Who came, at a glance</h3>
+          <p>Coaches take attendance at practice from their phone, starting from what families answered. Each family sees only their own player's record.</p>
+          <ul><li>Present, late, excused or absent, with a note</li><li>Season summary per player for the coaching staff</li></ul>
+        </div>
+        <div class="lp-shot" aria-hidden="true">
+          <div class="lp-chrome"><span></span><span></span><span></span><em>Roster · Attendance</em></div>
+          <div class="lp-shot-body">
+            <div class="lp-row lp-between" style="margin-bottom:10px"><span class="lp-d" style="font-size:24px">Attendance</span><span class="lp-sm lp-mut">14 practices · 91% present</span></div>
+            <table class="lp-table lp-lined">
+              <tr class="lp-mut lp-sm"><td>Player</td><td>Present</td><td>Last 8 practices</td></tr>
+              <tr><td><b>Ava C.</b></td><td>100%</td><td class="lp-dots"><i class="p">●●●●●●●●</i></td></tr>
+              <tr><td><b>Mia B.</b></td><td>93%</td><td class="lp-dots"><i class="p">●●●●●</i><i class="l">●</i><i class="p">●●</i></td></tr>
+              <tr><td><b>Zoe H.</b></td><td>79%</td><td class="lp-dots"><i class="p">●●●</i><i class="e">●</i><i class="p">●●</i><i class="a">●</i><i class="p">●</i></td></tr>
+              <tr><td><b>Nora M.</b></td><td>100%</td><td class="lp-dots"><i class="p">●●●●●●●●</i></td></tr>
+            </table>
+            <div class="lp-sm lp-mut lp-dots" style="margin-top:8px;letter-spacing:0"><i class="p">●</i> present <i class="l">●</i> late <i class="e">●</i> excused <i class="a">●</i> absent</div>
           </div>
         </div>
-        <div class="lp-copy">
-          <div class="lp-label">TEAM FUND AND MEALS</div>
-          <h3>Team money everyone can follow</h3>
-          <p>A running balance, dues by family and a clear ledger for the finance volunteer. Families record a payment, finance confirms it, and tournament meal budgets and sign-ups sit right alongside.</p>
-          <ul>
-            <li>Each family sees the team totals and only their own dues</li>
-            <li>Meal sign-ups and budgets per tournament</li>
-          </ul>
-        </div>
-      </div>
+      </article>
 
-      <!-- F5 Access -->
-      <div class="lp-feature">
+      <!-- 5 Travel, meals, money -->
+      <article class="lp-feat">
+        <div class="lp-copy">
+          <div class="lp-label">TRAVEL, MEALS AND MONEY</div>
+          <h3>The logistics, without the spreadsheet</h3>
+          <p>The hotel block and every family's travel plans, team meal sign-ups, and a team fund everyone can follow: each family sees their own dues, finance sees the whole ledger.</p>
+          <ul><li>Who hasn't booked, well before the rate expires</li><li>Meal slots families claim, first come first served</li><li>Payments recorded once, with a receipt email</li></ul>
+        </div>
+        <div class="lp-shot" aria-hidden="true">
+          <div class="lp-chrome"><span></span><span></span><span></span><em>Team Fund</em></div>
+          <div class="lp-shot-body lp-tiles">
+            <div class="lp-card lp-pad-s"><div class="lp-sm lp-mut">Collected</div><div class="lp-d" style="font-size:28px">$6,450</div></div>
+            <div class="lp-card lp-pad-s"><div class="lp-sm lp-mut">Spent</div><div class="lp-d" style="font-size:28px">$4,980</div></div>
+            <div class="lp-card lp-pad-s"><div class="lp-sm lp-mut">Balance</div><div class="lp-d" style="font-size:28px;color:#15532F">$1,470</div></div>
+            <div class="lp-card lp-pad-s lp-row lp-between lp-full"><div><b>Your dues: $150 left</b><div class="lp-sm lp-mut">Next payment due Nov 20</div></div><span class="lp-pill warn">Due soon</span></div>
+            <div class="lp-card lp-pad-s lp-row lp-between lp-full"><div><b>Sunshine Qualifier · Riverside Suites</b><div class="lp-sm lp-mut">9 of 13 families booked · block closes Jan 30</div></div><span class="lp-pill mute">4 to go</span></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 6 Roles and privacy -->
+      <article class="lp-feat rev">
         <div class="lp-copy">
           <div class="lp-label">ROLES AND PRIVACY</div>
           <h3>Private by design</h3>
-          <p>Every account starts with an invite from the team, and every person sees what their role needs. Allergies, travel plans and each family's dues stay with the family and the staff who need them, never in an open spreadsheet link.</p>
-          <ul>
-            <li>Invite-only: the team invites each family by email</li>
-            <li>Roles for admin, coach, coordinator, food, finance and parent</li>
-            <li>Families choose whether to share their phone and email</li>
-          </ul>
+          <p>Every account starts with an invite, and every person sees what their role needs. Allergies, travel plans and each family's dues stay with that family and the staff who need them.</p>
+          <ul><li>Roles for admin, coach, coordinator, food, finance and parent</li><li>Two-step sign-in for club admins</li><li>Families choose whether to share their phone and email</li></ul>
         </div>
-        <div class="lp-shot-col">
-          <div class="lp-shot" role="img" aria-label="Screenshot: members screen with waiting invites and a table of who can see what">
-            <div class="lp-chrome"><span></span><span></span><span></span><em>Members</em></div>
-            <div class="lp-shot-body">
-              <div>
-                <div class="lp-cond lp-pad">Invites waiting · 2</div>
-                <div class="lp-invites">
-                  <div><div><b>jordan.k&#64;example.com</b><span>Parent of Zoe K.</span></div><span class="lp-tag lp-tag-warn">Invited</span></div>
-                  <div><div><b>sam.t&#64;example.com</b><span>Finance</span></div><span class="lp-tag lp-tag-warn">Invited</span></div>
-                </div>
-              </div>
-              <div>
-                <div class="lp-cond lp-pad">Who can see what</div>
-                <div class="lp-scroll">
-                  <table class="lp-table">
-                    <thead><tr><th>Role</th><th>Schedule</th><th>Contacts</th><th>Allergies</th></tr></thead>
-                    <tbody>
-                      <tr><td>Coach</td><td>Edit</td><td>All</td><td>All</td></tr>
-                      <tr><td>Parent</td><td>View</td><td>Own, plus families who share</td><td>Own child</td></tr>
-                      <tr><td>Finance</td><td>View</td><td>All</td><td>None</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+        <div class="lp-shot" aria-hidden="true">
+          <div class="lp-chrome"><span></span><span></span><span></span><em>Members · Who can see what</em></div>
+          <div class="lp-shot-body lp-scroll">
+            <table class="lp-table lp-lined">
+              <tr class="lp-mut lp-sm"><td>Role</td><td>Schedule</td><td>Contacts</td><td>Allergies</td><td>Dues</td></tr>
+              <tr><td><b>Coach</b></td><td>Edit</td><td>All</td><td>All</td><td>Totals</td></tr>
+              <tr><td><b>Parent</b></td><td>View</td><td>Families who share</td><td>Own child</td><td>Own</td></tr>
+              <tr><td><b>Finance</b></td><td>View</td><td>All</td><td>None</td><td>All</td></tr>
+            </table>
           </div>
         </div>
-      </div>
+      </article>
     </section>
 
-    <!-- ROLES -->
-    <section id="roles" class="lp-in lp-block">
-      <h2 class="lp-h2">Built for everyone on the team</h2>
-      <div class="lp-cards">
-        <div class="lp-card"><div class="lp-card-h">Coordinators</div><p>Set up the season once. A to-do list shows what's still open: availability to mark, unbooked rooms and payments to confirm.</p></div>
-        <div class="lp-card"><div class="lp-card-h">Parents</div><p>Open one screen and see this weekend: where, when, what to bring and your job.</p></div>
-        <div class="lp-card"><div class="lp-card-h">Coaches</div><p>Post a change once and know who's coming. The logistics stay off the court.</p></div>
-        <div class="lp-card"><div class="lp-card-h">Club admins</div><p>Set up every team from a spreadsheet, in your club's colors, and help out on any team in the club.</p></div>
+    <!-- FOR CLUBS -->
+    <section id="clubs" class="lp-clubband">
+      <div class="lp-in lp-clubs">
+        <div>
+          <div class="lp-eyebrow">FOR CLUBS</div>
+          <h2 class="lp-h2" style="font-size:clamp(34px,4vw,46px)">Every team, in your club's colors</h2>
+          <p class="lp-mut lp-body">Give every team the same playbook. Set up the whole club from one spreadsheet, keep schedules in step with the club calendar you already run, and help out on any team when a coordinator needs a hand. Teem Hub works alongside your registration system, not instead of it.</p>
+          <div class="lp-swatches" aria-hidden="true">
+            <div><div class="lp-sw" style="background:#15294D">13 NAVY</div><div class="lp-sw-bar" style="background:#C8323E"></div><div class="lp-sm lp-mut">Summit VBC</div></div>
+            <div><div class="lp-sw" style="background:#0F4C3A">14 GREEN</div><div class="lp-sw-bar" style="background:#E0A526"></div><div class="lp-sm lp-mut">Pinecrest Juniors</div></div>
+            <div><div class="lp-sw" style="background:#3B1E5C">12 PURPLE</div><div class="lp-sw-bar" style="background:#E4572E"></div><div class="lp-sm lp-mut">Harbor FC</div></div>
+          </div>
+        </div>
+        <div class="lp-tools">
+          <div class="lp-tool"><b>Set up from a spreadsheet</b><span class="lp-sm lp-mut">Every team, staff and roster in one upload, checked before anything is saved.</span></div>
+          <div class="lp-tool"><b>Club calendar sync</b><span class="lp-sm lp-mut">Teams follow the club's calendar link; changes and cancellations flow through on their own.</span></div>
+          <div class="lp-tool"><b>One club, many teams</b><span class="lp-sm lp-mut">Club admins open any team, set colors and links once, and turn features on per team.</span></div>
+          <div class="lp-tool"><b>A help guide built in</b><span class="lp-sm lp-mut">Step-by-step help on every page, and a way for families to ask the right person.</span></div>
+        </div>
       </div>
     </section>
 
     <!-- HOW -->
-    <section id="how" class="lp-in lp-block">
-      <h2 class="lp-h2">Up and running in one evening</h2>
+    <section id="how" class="lp-in lp-how">
+      <h2 class="lp-h2" style="font-size:clamp(32px,3.6vw,42px)">Up and running in one evening</h2>
       <ol class="lp-steps">
-        <li><span class="lp-num">1</span><div><b>Import your roster</b><span>Bring players and parents over from the spreadsheet you already keep.</span></div></li>
-        <li><span class="lp-num">2</span><div><b>Load the season</b><span>Add practices, tournaments and the duties that rotate.</span></div></li>
-        <li><span class="lp-num">3</span><div><b>Invite families</b><span>Add each family's email. They create an account and land on your team, ready to go.</span></div></li>
+        <li class="lp-card"><span class="lp-d lp-num">1</span><b>Import your roster</b><span class="lp-mut">From the spreadsheet you already keep, or the club's.</span></li>
+        <li class="lp-card"><span class="lp-d lp-num">2</span><b>Load the season</b><span class="lp-mut">Add practices and tournaments, or connect the club's calendar.</span></li>
+        <li class="lp-card"><span class="lp-d lp-num">3</span><b>Invite families</b><span class="lp-mut">They get an email, create an account and land on your team.</span></li>
       </ol>
     </section>
 
-    <!-- CLUBS -->
-    <section id="clubs" class="lp-in lp-block lp-block-last">
-      <div class="lp-club">
-        <div class="lp-club-copy">
-          <div class="lp-label">FOR CLUBS</div>
-          <h2>Every team, in your club's colors</h2>
-          <p>Give every team the same proven playbook. Club admins set the club's colors and name, and Teem Hub works alongside your registration system rather than replacing it.</p>
+    <!-- CONTACT -->
+    <section id="contact" class="lp-contact">
+      <div class="lp-in lp-contact-in">
+        <div class="lp-contact-copy">
+          <div class="lp-c" style="color:#F0A4AA;font-size:14px">BRING TEEM HUB TO YOUR CLUB OR TEAM</div>
+          <h2>Let's talk about your season</h2>
+          <p class="lp-contact-lede">Tell us a little about your club or team. We'll reply soon to set up a call, a walk-through on a demo team, and a plan to get you running.</p>
+          <ol class="lp-next">
+            <li><span class="lp-d">1</span><div><b>We reply by email</b><span>From a real person, not a mailing list</span></div></li>
+            <li><span class="lp-d">2</span><div><b>A 20-minute walk-through</b><span>On a made-up demo team, in your club's colors</span></div></li>
+            <li><span class="lp-d">3</span><div><b>We help you set up</b><span>Your spreadsheet in, families invited</span></div></li>
+          </ol>
+          <p class="lp-sm lp-already">Already on a team? <a [routerLink]="signedIn() ? '/teams' : '/signin'">{{ signedIn() ? 'Your teams' : 'Sign in' }}</a> · Questions? <a href="mailto:support@teemhub.net">support&#64;teemhub.net</a></p>
         </div>
-        <div class="lp-swatches" aria-label="Examples of club color themes">
-          <div><div class="sw-top" style="background:#15294D">13 NAVY</div><div class="sw-bar" style="background:#C8323E"></div><div class="sw-name">Summit VBC</div></div>
-          <div><div class="sw-top" style="background:#0F4C3A">14 GREEN</div><div class="sw-bar" style="background:#E0A526"></div><div class="sw-name">Pinecrest Juniors</div></div>
-          <div><div class="sw-top" style="background:#3B1E5C">12 PURPLE</div><div class="sw-bar" style="background:#E4572E"></div><div class="sw-name">Harbor FC</div></div>
-        </div>
-      </div>
-    </section>
 
-    <!-- CTA -->
-    <section id="pilot" class="lp-in lp-cta-wrap">
-      <div class="lp-cta">
-        <div class="lp-cta-ring" aria-hidden="true"></div>
-        <div class="lp-cta-copy">
-          <h2>Bring your team in for the 2026–27 season</h2>
-          <p>The pilot is open by invitation. Free for every family, and no app store download.</p>
-        </div>
-        <div class="lp-actions lp-cta-actions">
-          @if (contact) {
-            <a class="lp-btn lp-btn-accent" [href]="inviteMail">Request an invite</a>
+        <div class="lp-form-card">
+          @if (sent(); as s) {
+            <div class="lp-sent" role="status">
+              <span class="lp-tick" aria-hidden="true">✓</span>
+              <b>Thanks, {{ s.name }}. We'll be in touch.</b>
+              <span class="lp-sm lp-mut">We'll reply to {{ s.email }} soon. A copy of your message is on its way to your inbox.</span>
+              <span class="lp-sm lp-mut">Reference <b>{{ s.ref }}</b></span>
+            </div>
+          } @else {
+            <form class="lp-form" novalidate (submit)="send($event)" aria-label="Talk to us">
+              <fieldset>
+                <legend>I'm a…</legend>
+                <div class="lp-seg">
+                  @for (r of roles; track r[0]) {
+                    <label [class.on]="role() === r[0]"><input type="radio" name="tu-role" [value]="r[0]" [checked]="role() === r[0]" (change)="role.set(r[0])">{{ r[1] }}</label>
+                  }
+                </div>
+              </fieldset>
+
+              @if (role() === 'parent') {
+                <p class="lp-note">Teams join Teem Hub through their coordinator or club. Tell us your team and we'll reach out to them for you, or <button type="button" class="lp-linkbtn" (click)="share()">share this page</button> with your coordinator.</p>
+                @if (shared()) { <p class="lp-sm lp-mut" role="status">{{ shared() }}</p> }
+              }
+
+              <div class="lp-grid2">
+                <div class="lp-field">
+                  <label for="tu-name">Your name</label>
+                  <input id="tu-name" autocomplete="name" maxlength="80" [value]="name()" (input)="name.set(val($event))" [class.err]="err('name')" [attr.aria-invalid]="!!err('name')" [attr.aria-describedby]="err('name') ? 'tu-name-e' : null">
+                  @if (err('name')) { <span id="tu-name-e" class="lp-errt">{{ err('name') }}</span> }
+                </div>
+                <div class="lp-field">
+                  <label for="tu-email">Email</label>
+                  <input id="tu-email" type="email" autocomplete="email" maxlength="200" [value]="email()" (input)="email.set(val($event))" [class.err]="err('email')" [attr.aria-invalid]="!!err('email')" [attr.aria-describedby]="err('email') ? 'tu-email-e' : null">
+                  @if (err('email')) { <span id="tu-email-e" class="lp-errt">{{ err('email') }}</span> }
+                </div>
+              </div>
+
+              @if (role() === 'parent') {
+                <div class="lp-field">
+                  <label for="tu-org">Your team and club</label>
+                  <input id="tu-org" maxlength="120" [value]="org()" (input)="org.set(val($event))" [class.err]="err('org')" [attr.aria-invalid]="!!err('org')" [attr.aria-describedby]="err('org') ? 'tu-org-e' : null">
+                  @if (err('org')) { <span id="tu-org-e" class="lp-errt">{{ err('org') }}</span> }
+                </div>
+                <div class="lp-field">
+                  <label for="tu-coordinatorEmail">Coordinator's email <span class="lp-opt">(optional)</span></label>
+                  <input id="tu-coordinatorEmail" type="email" maxlength="200" placeholder="If you'd like us to contact them" [value]="coordinatorEmail()" (input)="coordinatorEmail.set(val($event))" [class.err]="err('coordinatorEmail')" [attr.aria-invalid]="!!err('coordinatorEmail')" [attr.aria-describedby]="err('coordinatorEmail') ? 'tu-coord-e' : null">
+                  @if (err('coordinatorEmail')) { <span id="tu-coord-e" class="lp-errt">{{ err('coordinatorEmail') }}</span> }
+                </div>
+              } @else {
+                <div class="lp-grid2 lp-grid2-wide">
+                  <div class="lp-field">
+                    <label for="tu-org">Club or team name</label>
+                    <input id="tu-org" autocomplete="organization" maxlength="120" [value]="org()" (input)="org.set(val($event))" [class.err]="err('org')" [attr.aria-invalid]="!!err('org')" [attr.aria-describedby]="err('org') ? 'tu-org-e' : null">
+                    @if (err('org')) { <span id="tu-org-e" class="lp-errt">{{ err('org') }}</span> }
+                  </div>
+                  <div class="lp-field">
+                    <label for="tu-sport">Sport</label>
+                    <select id="tu-sport" [value]="sport()" (change)="sport.set(val($event))">
+                      @for (s of sports; track s) { <option [value]="s" [selected]="s === sport()">{{ s }}</option> }
+                    </select>
+                  </div>
+                </div>
+                <fieldset>
+                  <legend>How many teams?</legend>
+                  <div class="lp-seg">
+                    @for (t of teamCounts; track t[0]) {
+                      <label [class.on]="teams() === t[0]"><input type="radio" name="tu-teams" [value]="t[0]" [checked]="teams() === t[0]" (change)="teams.set(t[0])">{{ t[1] }}</label>
+                    }
+                  </div>
+                </fieldset>
+                <div class="lp-field">
+                  <label for="tu-msg">Anything we should know? <span class="lp-opt">(optional)</span></label>
+                  <textarea id="tu-msg" rows="3" maxlength="4000" placeholder="Season start, what you use today…" [value]="message()" (input)="message.set(val($event))"></textarea>
+                </div>
+              }
+
+              <div class="lp-hp" aria-hidden="true"><label for="tu-website">Website</label><input id="tu-website" tabindex="-1" autocomplete="off" [value]="website()" (input)="website.set(val($event))"></div>
+
+              @if (failed()) { <p class="lp-errt" role="alert">{{ failed() }}</p> }
+              <div class="lp-row lp-between lp-send">
+                <span class="lp-sm lp-mut">We use this only to reply. <a routerLink="/privacy">Privacy notice</a></span>
+                <button class="lp-btn lp-btn-accent" type="submit" [disabled]="busy()">{{ busy() ? 'Sending…' : 'Send' }}</button>
+              </div>
+            </form>
           }
-          <a class="lp-btn lp-btn-white" [routerLink]="signedIn() ? '/teams' : '/signin'">{{ signedIn() ? 'Your teams' : 'Sign in' }}</a>
         </div>
       </div>
     </section>
@@ -322,16 +376,15 @@
   <!-- FOOTER -->
   <footer class="lp-foot">
     <div class="lp-in lp-foot-in">
-      <img class="lp-foot-logo" src="/brand/logo-white.svg" alt="Teem Hub" width="114" height="40">
+      <img class="lp-foot-logo" src="/brand/logo-white.svg" alt="Teem Hub" width="110" height="38">
       <div class="lp-foot-links">
-        <a href="#features" (click)="jump($event, 'features')">Features</a>
-        <a href="#clubs" (click)="jump($event, 'clubs')">For clubs</a>
         <a routerLink="/help">Help</a>
         <a routerLink="/privacy">Privacy</a>
         <a routerLink="/terms">Terms</a>
-        @if (contact) { <a [href]="'mailto:' + contact">Contact</a> }
+        <a href="#contact" (click)="jump($event, 'contact', 'footer')">Talk to us</a>
+        <span>© Teem Hub Inc.</span>
       </div>
-      <span>Sample team data shown. Screens from the Teem Hub pilot build.</span>
     </div>
+    <div class="lp-in lp-foot-note">Screens show made-up teams.</div>
   </footer>
 </div>

@@ -9,7 +9,7 @@ export interface AppConfig {
   userPoolClientId?: string;
   apiUrl?: string;
   wsUrl?: string;
-  /** Landing page: where "Request an invite" and "Contact" go. Unset hides them. */
+  /** No longer used: the landing page has its own "Talk to us" form (POST /public/inquiry). */
   contactEmail?: string;
 }
 
