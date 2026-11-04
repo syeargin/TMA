@@ -16,7 +16,10 @@ Parameters:
   AlertEmail:
     Type: String
     Default: ""
-    Description: Optional. Email for the monthly budget alert. Leave empty to skip the budget.
+    Description: >
+      Optional. Gets the monthly budget alert and every alarm (R9), by email. Leave empty to skip
+      both. After the first deploy with it set, AWS emails a confirmation link: click it, or alarms
+      won't arrive.
   MonthlyBudgetUsd:
     Type: Number
     Default: 20
@@ -653,6 +656,8 @@ Resources:
   ApiErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
       AlarmName: !Sub "${AppPrefix}-${Env}-api-5xx"
       AlarmDescription: The Team Hub API returned server errors.
       Namespace: AWS/ApiGateway
@@ -1082,6 +1087,8 @@ Resources:
   PlannerErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
       AlarmName: !Sub "${AppPrefix}-${Env}-planner-errors"
       AlarmDescription: The scheduled-email planner failed.
       Namespace: AWS/Lambda
@@ -1142,6 +1149,8 @@ Resources:
   FeedSyncErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
       AlarmName: !Sub "${AppPrefix}-${Env}-feed-sync-errors"
       AlarmDescription: The calendar feed sync job failed (one team's feed failing doesn't count; that shows on its panel).
       Namespace: AWS/Lambda
@@ -1239,6 +1248,8 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Condition: SendsMail
     Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
       AlarmName: !Sub "${AppPrefix}-${Env}-mail-complaint"
       AlarmDescription: Someone marked a team email as spam. The team's Delivery health tab shows who and which message.
       Namespace: !Sub "TeamHub/${Env}"
@@ -1254,6 +1265,8 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Condition: SendsMail
     Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
       AlarmName: !Sub "${AppPrefix}-${Env}-mail-bounces"
       AlarmDescription: More than 2% of an hour's team email bounced (counted once at least 20 went out). Check the teams' Delivery health tabs.
       Metrics:
@@ -1275,6 +1288,8 @@ Resources:
   MailFailuresAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
       AlarmName: !Sub "${AppPrefix}-${Env}-mail-errors"
       AlarmDescription: The email sender failed (after its retries, emails stay queued or marked failed).
       Namespace: AWS/Lambda
@@ -1296,6 +1311,8 @@ Resources:
   FanoutIteratorAgeAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
       AlarmName: !Sub "${AppPrefix}-${Env}-fanout-lag"
       AlarmDescription: Live updates are running more than a minute behind the table.
       Namespace: AWS/Lambda
@@ -1311,6 +1328,8 @@ Resources:
   FanoutErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
       AlarmName: !Sub "${AppPrefix}-${Env}-fanout-errors"
       AlarmDescription: The live-update fan-out function is failing.
       Namespace: AWS/Lambda
@@ -1318,6 +1337,140 @@ Resources:
       Dimensions: [{ Name: FunctionName, Value: !Ref FanoutFunction }]
       Statistic: Sum
       Period: 300
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  # ---------- Alarm notifications (R9) ----------
+  # Every alarm emails AlertEmail when it goes off and again when it clears. The address gets a
+  # confirmation email from AWS after the first deploy: alarms reach it only once that link is clicked.
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Condition: HasAlertEmail
+    Properties:
+      TopicName: !Sub "${AppPrefix}-${Env}-alarms"
+      DisplayName: !Sub "Teem Hub ${Env} alarms"
+      Subscription: [{ Protocol: email, Endpoint: !Ref AlertEmail }]
+      Tags: [{ Key: app, Value: team-hub }, { Key: env, Value: !Ref Env }]
+
+  # Sign-up and first sign-in run through these two triggers: when they fail, new families can't get in.
+  SignInErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      AlarmName: !Sub "${AppPrefix}-${Env}-signin-errors"
+      AlarmDescription: The sign-up or account-confirmation trigger failed, so someone couldn't create their account or join their team. Check the PreSignUp and PostConfirmation logs.
+      Metrics:
+        - Id: pre
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: AWS/Lambda, MetricName: Errors, Dimensions: [{ Name: FunctionName, Value: !Ref PreSignUpFunction }] }, Period: 300, Stat: Sum }
+        - Id: post
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: AWS/Lambda, MetricName: Errors, Dimensions: [{ Name: FunctionName, Value: !Ref PostConfirmationFunction }] }, Period: 300, Stat: Sum }
+        - Id: total
+          Label: Sign-in trigger errors
+          ReturnData: true
+          Expression: "pre + post"
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  # Errors the API's 5xx count can miss: a crash or timeout in the API function itself.
+  ApiFunctionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      AlarmName: !Sub "${AppPrefix}-${Env}-api-function-errors"
+      AlarmDescription: The API function crashed or timed out at least 3 times in 5 minutes. Check the ApiFunction logs for "unhandled".
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions: [{ Name: FunctionName, Value: !Ref ApiFunction }]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  # Lambda refusing to start the API (the account's concurrency is used up): every request fails.
+  ApiThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      AlarmName: !Sub "${AppPrefix}-${Env}-api-throttled"
+      AlarmDescription: Lambda turned away API requests because too many were running at once. People see errors until it clears.
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions: [{ Name: FunctionName, Value: !Ref ApiFunction }]
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  # The table refusing reads or writes (on-demand tables can still throttle on a sudden burst).
+  TableThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      AlarmName: !Sub "${AppPrefix}-${Env}-table-throttled"
+      AlarmDescription: DynamoDB throttled reads or writes on the Teem Hub table in 2 of the last 3 five-minute periods. Saves may be failing.
+      Metrics:
+        - Id: reads
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: AWS/DynamoDB, MetricName: ReadThrottleEvents, Dimensions: [{ Name: TableName, Value: !Ref TeamHubTable }] }, Period: 300, Stat: Sum }
+        - Id: writes
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: AWS/DynamoDB, MetricName: WriteThrottleEvents, Dimensions: [{ Name: TableName, Value: !Ref TeamHubTable }] }, Period: 300, Stat: Sum }
+        - Id: total
+          Label: Throttled requests
+          ReturnData: true
+          Expression: "FILL(reads, 0) + FILL(writes, 0)"
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 2
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  # Everything else that runs on its own: the retention purge, live-update sign-in and subscriptions,
+  # and CSP reports. Any of them failing a few times in 15 minutes is worth a look.
+  BackgroundErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      OKActions: !If [HasAlertEmail, [!Ref AlarmTopic], !Ref AWS::NoValue]
+      AlarmName: !Sub "${AppPrefix}-${Env}-background-errors"
+      AlarmDescription: A background function failed at least 3 times in 15 minutes (retention purge, live-update connect, subscribe or disconnect, or CSP reports). The graph in the alarm shows which.
+      Metrics:
+        - Id: purge
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: AWS/Lambda, MetricName: Errors, Dimensions: [{ Name: FunctionName, Value: !Ref PurgeFunction }] }, Period: 900, Stat: Sum }
+        - Id: wsauth
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: AWS/Lambda, MetricName: Errors, Dimensions: [{ Name: FunctionName, Value: !Ref WsAuthorizerFunction }] }, Period: 900, Stat: Sum }
+        - Id: wsconn
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: AWS/Lambda, MetricName: Errors, Dimensions: [{ Name: FunctionName, Value: !Ref WsConnectFunction }] }, Period: 900, Stat: Sum }
+        - Id: wsdisc
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: AWS/Lambda, MetricName: Errors, Dimensions: [{ Name: FunctionName, Value: !Ref WsDisconnectFunction }] }, Period: 900, Stat: Sum }
+        - Id: wsmsg
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: AWS/Lambda, MetricName: Errors, Dimensions: [{ Name: FunctionName, Value: !Ref WsMessagesFunction }] }, Period: 900, Stat: Sum }
+        - Id: csp
+          ReturnData: false
+          MetricStat: { Metric: { Namespace: AWS/Lambda, MetricName: Errors, Dimensions: [{ Name: FunctionName, Value: !Ref CspReportFunction }] }, Period: 900, Stat: Sum }
+        - Id: total
+          Label: Background function errors
+          ReturnData: true
+          Expression: "FILL(purge, 0) + FILL(wsauth, 0) + FILL(wsconn, 0) + FILL(wsdisc, 0) + FILL(wsmsg, 0) + FILL(csp, 0)"
       EvaluationPeriods: 1
       Threshold: 3
       ComparisonOperator: GreaterThanOrEqualToThreshold
