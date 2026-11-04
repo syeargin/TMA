@@ -8,7 +8,7 @@ import { box, button, esc, frame, h1, list, p, textPart } from "./frame.js";
 import { sampleStaff, sampleWeekly, staffDigest, weekly, type StaffData, type WeeklyData } from "./digests.js";
 import { announcement, availability, dues, packet, payment, samples, type AnnouncementData, type AvailabilityData, type DuesData, type PacketData, type PaymentData } from "./reminder-mail.js";
 import { change, feedAlert, feedSamples, type ChangeData, type FeedAlertData } from "./feed-mail.js";
-import { feedbackNew, feedbackReply, feedbackSamples, teamQuestion, type FeedbackNewData, type FeedbackReplyData, type TeamQuestionData } from "./feedback-mail.js";
+import { feedbackNew, feedbackReply, feedbackSamples, inquiryReceived, teamQuestion, type FeedbackNewData, type FeedbackReplyData, type InquiryReceivedData, type TeamQuestionData } from "./feedback-mail.js";
 
 export type Rendered = { subject: string; fromName: string; html: string; text: string };
 
@@ -27,7 +27,7 @@ export type MailData = {
   weekly: WeeklyData; staffDigest: StaffData;
   packet: PacketData; availability: AvailabilityData; dues: DuesData; payment: PaymentData; announcement: AnnouncementData;
   change: ChangeData; feedAlert: FeedAlertData;
-  teamQuestion: TeamQuestionData; feedbackNew: FeedbackNewData; feedbackReply: FeedbackReplyData;
+  teamQuestion: TeamQuestionData; feedbackNew: FeedbackNewData; feedbackReply: FeedbackReplyData; inquiryReceived: InquiryReceivedData;
 };
 export type LiveMessage = keyof MailData;
 
@@ -182,7 +182,7 @@ function mfaReset(d: MfaResetData): Rendered {
   return { subject: "Your Teem Hub two-step sign-in was reset", fromName: "Teem Hub", html, text };
 }
 
-const RENDER: { [K in LiveMessage]: (d: MailData[K]) => Rendered } = { invite, clubInvite, accountDeleted, mfaReset, weekly, staffDigest, packet, availability, dues, payment, announcement, change, feedAlert, teamQuestion, feedbackNew, feedbackReply };
+const RENDER: { [K in LiveMessage]: (d: MailData[K]) => Rendered } = { invite, clubInvite, accountDeleted, mfaReset, weekly, staffDigest, packet, availability, dues, payment, announcement, change, feedAlert, teamQuestion, feedbackNew, feedbackReply, inquiryReceived };
 
 export function render<K extends LiveMessage>(msg: K, data: MailData[K]): Rendered {
   return RENDER[msg](data);
@@ -201,7 +201,7 @@ export function sample(msg: LiveMessage, siteUrl: string, email: string): MailDa
     case "weekly": return sampleWeekly(siteUrl);
     case "staffDigest": return sampleStaff(siteUrl);
     case "change": case "feedAlert": return feedSamples[msg](siteUrl);
-    case "teamQuestion": case "feedbackNew": case "feedbackReply": return feedbackSamples[msg](siteUrl);
+    case "teamQuestion": case "feedbackNew": case "feedbackReply": case "inquiryReceived": return feedbackSamples[msg](siteUrl);
     default: return samples[msg](siteUrl);
   }
 }

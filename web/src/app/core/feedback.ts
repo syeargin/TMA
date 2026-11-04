@@ -14,7 +14,11 @@ export interface MyFeedback {
   id: string; ref: string; kind: FeedbackKind; route: 'team' | 'teemhub'; status: FeedbackStatus; message: string;
   teamName: string | null; sentTo: string[]; createdAt: string; replies: { at: string; byName: string; message: string }[];
 }
-export interface InboxItem extends Omit<MyFeedback, 'replies' | 'teamName'> {
+/** "Talk to us" on the front page. */
+export interface Inquiry { role: 'club' | 'team' | 'parent'; org: string; sport: string; teams?: '1' | '2-9' | '10-39' | '40+'; coordinatorEmail?: string; source?: string }
+export type InquiryBody = Omit<Inquiry, 'source'> & { name: string; email: string; message?: string; source?: string; website?: string };
+export interface InboxItem extends Omit<MyFeedback, 'replies' | 'teamName' | 'kind'> {
+  kind: FeedbackKind | 'inquiry'; inquiry?: Inquiry;
   email: string; name: string; teamId?: string; teamName?: string; clubId?: string; roles?: string[];
   page?: { path: string; title: string }; error?: { code: string; message: string; at: string };
   device?: string; version?: string; hasShot: boolean; updatedAt: string; firstReplyAt?: string;
@@ -103,6 +107,8 @@ export class FeedbackService {
   send(body: SendBody, signedIn: boolean) {
     return this.api.call<Sent>('POST', signedIn ? '/feedback' : '/public/feedback', body);
   }
+  /** "Talk to us" on the front page. */
+  inquire(body: InquiryBody) { return this.api.call<{ ref: string }>('POST', '/public/inquiry', body); }
   mine() { return this.api.call<{ items: MyFeedback[] }>('GET', '/me/feedback').then((r) => r.items); }
 
   // Site owners

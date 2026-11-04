@@ -21,6 +21,7 @@ export const MESSAGES = {
   teamQuestion:    { channel: "email", label: "Questions from families", help: "A family's question about the team, sent to its coordinators. Replying answers the family directly.", required: true, live: true },
   feedbackNew:     { channel: "email", label: "New feedback (site owners)", help: "Tells site owners about a new question, problem report or idea sent to Teem Hub.", required: true, live: true },
   feedbackReply:   { channel: "email", label: "Replies to your feedback", help: "A site owner's answer to a question, problem report or idea you sent.", required: true, live: true },
+  inquiryReceived: { channel: "email", label: "Talk to us confirmation", help: "Confirms a message sent from \"Talk to us\" on the front page. Replies go to support.", required: true, live: true },
   changeText:      { channel: "text", label: "Cancelled or moved", help: "Last-minute changes.", required: false, live: false },
   gameDayText:     { channel: "text", label: "Game-day morning", help: "Arrival time and where to meet.", required: false, live: false },
   waveText:        { channel: "text", label: "Wave or court posted", help: "Tournament schedule posted.", required: false, live: false },

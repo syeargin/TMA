@@ -14,13 +14,18 @@ export type TeamQuestionData = {
   ref: string; teamName: string; teamId: string; colors?: { primary?: string; accent?: string };
   fromName: string; fromEmail: string; fromRole: string; message: string; page?: string; siteUrl: string;
 };
+type MailKind = "question" | "problem" | "idea" | "inquiry";
 export type FeedbackNewData = {
-  ref: string; kind: "question" | "problem" | "idea"; route: "team" | "teemhub"; id: string;
+  /** For inquiries: "Club inquiry" or "Team inquiry", and what they told us (club, sport, teams). */
+  title?: string; about?: string;
+  ref: string; kind: MailKind; route: "team" | "teemhub"; id: string;
   fromName: string; fromEmail: string; where: string; message: string; error?: string; shot: boolean; siteUrl: string;
 };
-export type FeedbackReplyData = { ref: string; firstName?: string; kind: "question" | "problem" | "idea"; original: string; reply: string; byName: string; siteUrl: string };
+export type FeedbackReplyData = { ref: string; firstName?: string; kind: MailKind; original: string; reply: string; byName: string; siteUrl: string };
 
-const KIND: Record<FeedbackNewData["kind"], string> = { question: "Question", problem: "Problem", idea: "Idea" };
+export type InquiryReceivedData = { ref: string; firstName?: string; org: string; summary: string; message?: string; parent: boolean; siteUrl: string };
+
+const KIND: Record<MailKind, string> = { question: "Question", problem: "Problem", idea: "Idea", inquiry: "Inquiry" };
 
 /** To a team's coordinators. Replying to the email answers the family directly (Reply-To). */
 export function teamQuestion(d: TeamQuestionData): Rendered {
@@ -46,14 +51,15 @@ export function teamQuestion(d: TeamQuestionData): Rendered {
 /** To site owners: a new question, problem or idea. */
 export function feedbackNew(d: FeedbackNewData): Rendered {
   const link = `${base(d.siteUrl)}/admin/feedback?item=${encodeURIComponent(d.id)}`;
-  const label = d.route === "team" ? "Team question (copy)" : KIND[d.kind];
+  const label = d.title ?? (d.route === "team" ? "Team question (copy)" : KIND[d.kind]);
   const html = frame({
     preheader: d.message.slice(0, 140),
     context: "Site admin · Feedback",
     body: [
       h1(`${label} · ${d.ref}`),
       p(`From <strong>${esc(d.fromName)}</strong> (${esc(d.fromEmail)}) · ${esc(d.where)}`),
-      box(words(d.message)),
+      d.about ? p(`<strong>${esc(d.about)}</strong>`) : "",
+      d.message ? box(words(d.message)) : "",
       d.error ? p(`Error: ${esc(d.error)}`, true) : "",
       d.shot ? p("Includes a screenshot.", true) : "",
       button(link, d.route === "team" ? "Open in Site admin" : "Open and reply"),
@@ -61,14 +67,15 @@ export function feedbackNew(d: FeedbackNewData): Rendered {
     ].join(""),
     footer: [`Turn these off in Site admin › Feedback. Teem Hub · ${privacy(d.siteUrl)}`]
   });
-  const text = textPart([`${label} · ${d.ref}`, `From ${d.fromName} (${d.fromEmail}) · ${d.where}`, "", d.message, "", d.error ? `Error: ${d.error}` : false, `Open: ${link}`]);
-  return { subject: `${label} ${d.ref}: ${d.message.replace(/\s+/g, " ").slice(0, 60)}`, fromName: "Teem Hub", html, text };
+  const text = textPart([`${label} · ${d.ref}`, `From ${d.fromName} (${d.fromEmail}) · ${d.where}`, d.about ?? false, "", d.message, "", d.error ? `Error: ${d.error}` : false, `Open: ${link}`]);
+  return { subject: `${label} ${d.ref}: ${(d.about ?? d.message).replace(/\s+/g, " ").slice(0, 60)}`, fromName: "Teem Hub", html, text };
 }
 
 /** A site owner's reply to the person who wrote in. */
 export function feedbackReply(d: FeedbackReplyData): Rendered {
   const hi = d.firstName ? `Hi ${d.firstName},` : "Hi,";
-  const what = d.kind === "idea" ? "your idea" : d.kind === "problem" ? "the problem you reported" : "your question";
+  const what = d.kind === "idea" ? "your idea" : d.kind === "problem" ? "the problem you reported" : d.kind === "inquiry" ? "Teem Hub for your team" : "your question";
+  const inquiry = d.kind === "inquiry";
   const html = frame({
     preheader: d.reply.slice(0, 140),
     context: "Teem Hub support",
@@ -78,18 +85,42 @@ export function feedbackReply(d: FeedbackReplyData): Rendered {
       p(words(d.reply)),
       p(`— ${esc(d.byName)}, Teem Hub`),
       p(`<strong>You wrote</strong> (${esc(d.ref)}):`, true),
-      box(words(d.original)),
-      p(`Something else? Use <strong>Questions &amp; feedback</strong> at the bottom of any page. Your messages and replies are on <a href="${esc(base(d.siteUrl))}/account" style="color:#15294D">your Account page</a>.`, true)
+      d.original ? box(words(d.original)) : "",
+      inquiry ? p("Reply to this email any time: it comes straight to us.", true) : p(`Something else? Use <strong>Questions &amp; feedback</strong> at the bottom of any page. Your messages and replies are on <a href="${esc(base(d.siteUrl))}/account" style="color:#15294D">your Account page</a>.`, true)
     ].join(""),
     footer: [`A reply to a message you sent. Teem Hub · ${privacy(d.siteUrl)}`]
   });
   const text = textPart([hi, "", d.reply, "", `— ${d.byName}, Teem Hub`, "", `You wrote (${d.ref}):`, d.original, "",
-    `Something else? Use Questions & feedback at the bottom of any page. Your messages: ${base(d.siteUrl)}/account`]);
+    inquiry ? "Reply to this email any time: it comes straight to us." : `Something else? Use Questions & feedback at the bottom of any page. Your messages: ${base(d.siteUrl)}/account`]);
   return { subject: `Re: ${what} (${d.ref})`, fromName: "Teem Hub", html, text };
+}
+
+/** To someone who used "Talk to us" on the front page: so it doesn't feel lost. Replies go to support (Reply-To). */
+export function inquiryReceived(d: InquiryReceivedData): Rendered {
+  const hi = d.firstName ? `Hi ${d.firstName},` : "Hi,";
+  const next = d.parent
+    ? `Thanks for telling us about ${d.org}. Teams join Teem Hub through their coordinator or club, so we'll reach out to them, and we'll reply to you soon.`
+    : `Thanks for telling us about ${d.org}. We'll reply soon to set up a time for a short walk-through on a demo team.`;
+  const html = frame({
+    preheader: "We got your message. We'll reply soon.",
+    context: "Thanks for getting in touch",
+    body: [
+      h1("We got your message"),
+      p(esc(hi)),
+      p(esc(next)),
+      box(`${esc(d.summary)}${d.message ? `<br>${words(d.message)}` : ""}`),
+      p("— Sam, Teem Hub"),
+      p(`Reference ${esc(d.ref)}. Reply to this email any time: it comes straight to us.`, true)
+    ].join(""),
+    footer: [`You sent this from the Teem Hub front page. We use it only to reply. Teem Hub · ${privacy(d.siteUrl)}`]
+  });
+  const text = textPart([hi, "", next, "", d.summary, d.message ?? false, "", "— Sam, Teem Hub", "", `Reference ${d.ref}. Reply to this email any time: it comes straight to us.`]);
+  return { subject: "We got your message (Teem Hub)", fromName: "Teem Hub", html, text };
 }
 
 export const feedbackSamples = {
   teamQuestion: (siteUrl: string): TeamQuestionData => ({ ref: "TH-1040", teamName: "Test 13 Blue", teamId: "test-13", fromName: "Mia Stone", fromEmail: "mom@example.com", fromRole: "parent of Ava", message: "Do we need to bring our own volleyballs to the Fall Classic?", page: "Fall Classic", siteUrl }),
   feedbackNew: (siteUrl: string): FeedbackNewData => ({ ref: "TH-1042", kind: "problem", route: "teemhub", id: "sample", fromName: "Mia Stone", fromEmail: "mom@example.com", where: "Test 13 Blue · Parent · Fall Classic · Travel plans · iPhone", message: "Tried to save our hotel for the Fall Classic and it said it didn't save. Tried twice.", error: "That didn't save (save_failed)", shot: true, siteUrl }),
+  inquiryReceived: (siteUrl: string): InquiryReceivedData => ({ ref: "TH-1051", firstName: "Pat", org: "Summit Volleyball Club", summary: "Club director · Summit Volleyball Club · Volleyball · 10–39 teams", message: "We run 24 teams and use a spreadsheet for everything. Season starts in December.", parent: false, siteUrl }),
   feedbackReply: (siteUrl: string): FeedbackReplyData => ({ ref: "TH-1042", firstName: "Mia", kind: "problem", original: "Tried to save our hotel for the Fall Classic and it said it didn't save.", reply: "Thanks, we found the problem and fixed it this morning. Your hotel should save now.", byName: "Sam", siteUrl })
 };

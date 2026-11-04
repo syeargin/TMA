@@ -10,6 +10,7 @@ import { requirePlatformAdmin } from "../context.js";
 import { badRequest, conflict, forbidden, json, notFound, parseBody, type HttpError } from "../http.js";
 import type { Router } from "../router.js";
 import { getItem, ID, newId, now, queryAll } from "../util.js";
+import { SUPPORT_EMAIL } from "../../shared/privacy.js";
 
 /**
  * Questions & feedback (lib/feedback.ts): send one (signed in, or signed out from the sign-in page),
@@ -37,6 +38,25 @@ const signedOut = base.extend({
   website: z.string().max(200).optional()
 });
 
+/** "Talk to us" on the front page. */
+const inquiry = z.object({
+  role: z.enum(F.INQUIRY_ROLES),
+  name: z.string().trim().min(1, "Enter your name.").max(80),
+  email: z.string().trim().toLowerCase().email("Check the email: it needs a domain, like yourclub.org.").max(200),
+  org: z.string().trim().min(2, "Enter your club or team's name.").max(120),
+  sport: line(40).optional(),
+  teams: z.enum(F.TEAM_COUNTS).optional(),
+  coordinatorEmail: z.union([z.literal(""), z.string().trim().toLowerCase().email("Check the coordinator's email, or leave it empty.").max(200)]).optional(),
+  message: line(4000).optional(),
+  source: line(80).optional(),
+  website: z.string().max(200).optional()
+});
+const ROLE_LABEL: Record<F.Inquiry["role"], string> = { club: "Club director or admin", team: "Team coordinator or coach", parent: "Parent" };
+const TEAMS_LABEL: Record<string, string> = { "1": "1 team", "2-9": "2–9 teams", "10-39": "10–39 teams", "40+": "40+ teams" };
+/** "Club director or admin · Summit VBC · Volleyball · 10–39 teams" */
+export const inquirySummary = (q: F.Inquiry) =>
+  [ROLE_LABEL[q.role], q.org, q.sport, q.teams ? TEAMS_LABEL[q.teams] : "", q.coordinatorEmail ? `coordinator: ${q.coordinatorEmail}` : ""].filter(Boolean).join(" · ");
+
 function shotOf(raw?: string): { mime: string; data: string } | undefined {
   if (!raw) return undefined;
   const m = SHOT.exec(raw);
@@ -44,7 +64,7 @@ function shotOf(raw?: string): { mime: string; data: string } | undefined {
   return { mime: m[1], data: m[2] };
 }
 
-const where = (f: F.Feedback) => [f.teamName, f.roles?.length ? f.roles.join(", ") : "", f.page?.title, f.device].filter(Boolean).join(" · ") || "Signed out";
+const where = (f: F.Feedback) => f.inquiry ? `Front page · Talk to us${f.inquiry.source ? ` (${f.inquiry.source})` : ""}` : [f.teamName, f.roles?.length ? f.roles.join(", ") : "", f.page?.title, f.device].filter(Boolean).join(" · ") || "Signed out";
 
 /** Tells site owners: anything for Teem Hub, and team questions to those who asked for copies. */
 async function notifyOwners(f: F.Feedback) {
@@ -53,7 +73,7 @@ async function notifyOwners(f: F.Feedback) {
     if (!o.settings.emailNew || (f.route === "team" && !o.settings.teamQuestions) || o.sub === f.sub) continue;
     const { id, queued } = await queueEmail({
       msg: "feedbackNew", to: o.email, dedupe: `fb:${f.id}:owner:${o.sub}`,
-      data: { ref: f.ref, kind: f.kind, route: f.route, id: f.id, fromName: f.name, fromEmail: f.email, where: where(f), message: f.message, error: f.error ? `${f.error.message} (${f.error.code})` : undefined, shot: f.hasShot, siteUrl: siteUrl() }
+      data: { ...(f.inquiry ? { title: F.label(f), about: inquirySummary(f.inquiry) } : {}), ref: f.ref, kind: f.kind, route: f.route, id: f.id, fromName: f.name, fromEmail: f.email, where: where(f), message: f.message, error: f.error ? `${f.error.message} (${f.error.code})` : undefined, shot: f.hasShot, siteUrl: siteUrl() }
     });
     if (queued) ids.push(id);
   }
@@ -204,6 +224,8 @@ export function feedbackRoutes(r: Router) {
     const firstName = f.sub ? String((await getItem(keys.profile(f.sub)))?.firstName ?? "") : f.name.includes("@") ? "" : (f.name.split(" ")[0] ?? "");
     const { id, queued } = await queueEmail({
       msg: "feedbackReply", to: f.email, dedupe: `fb:${f.id}:reply:${at}`, by: caller.sub,
+      // Someone without an account can only answer by email, so their answer goes to support.
+      ...(f.kind === "inquiry" ? { replyTo: SUPPORT_EMAIL } : {}),
       data: { ref: f.ref, firstName: firstName || undefined, kind: f.kind, original: f.message, reply: message, byName, siteUrl: siteUrl() }
     });
     const replies = [...(f.replies ?? []), { at, by: caller.sub, byName, message }];
@@ -231,5 +253,32 @@ export function feedbackPublicRoutes(r: Router) {
     };
     await send(f, shot);
     return json(201, { id: f.id, ref: f.ref, route: "teemhub", sentTo: [], email: f.email });
+  });
+
+  r.on("POST", "/public/inquiry", async ({ body, event }) => {
+    const b = parseBody(inquiry, body);
+    if (b.website) return json(201, { ref: "TH-0000" });
+    const ip = String(event.requestContext?.http?.sourceIp ?? "");
+    if (!(await F.underLimit(`email:${b.email}`)) || (ip && !(await F.underLimit(`ip:${ip}`)))) throw tooMany();
+    const at = now();
+    const q: F.Inquiry = {
+      role: b.role, org: b.org, sport: b.sport ?? "",
+      ...(b.role !== "parent" && b.teams ? { teams: b.teams } : {}),
+      ...(b.role === "parent" && b.coordinatorEmail ? { coordinatorEmail: b.coordinatorEmail } : {}),
+      ...(b.source ? { source: b.source } : {})
+    };
+    const f: F.Feedback = {
+      id: newId("fb"), ref: await F.nextRef(), kind: "inquiry", route: "teemhub", status: "new", message: b.message ?? "",
+      email: b.email, name: b.name, inquiry: q, hasShot: false, ownerCopy: true, createdAt: at, updatedAt: at, replies: []
+    };
+    await F.save(f);
+    const ids = await notifyOwners(f);
+    const mine = await queueEmail({
+      msg: "inquiryReceived", to: f.email, dedupe: `fb:${f.id}:received`, replyTo: SUPPORT_EMAIL,
+      data: { ref: f.ref, firstName: b.name.split(/\s+/)[0] || undefined, org: q.org, summary: inquirySummary(q), message: f.message || undefined, parent: q.role === "parent", siteUrl: siteUrl() }
+    });
+    if (mine.queued) ids.push(mine.id);
+    await dispatch(ids);
+    return json(201, { ref: f.ref });
   });
 }

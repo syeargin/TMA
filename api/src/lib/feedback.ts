@@ -21,7 +21,14 @@ export const SHOT_DAYS = 60;
 export const KEEP_DAYS = 365;
 export const DAILY_LIMIT = 10;
 export const KINDS = ["question", "problem", "idea"] as const;
-export type Kind = (typeof KINDS)[number];
+/** What people send from the site, plus "inquiry": a club or team asking about Teem Hub (the front page's Talk to us). */
+export type Kind = (typeof KINDS)[number] | "inquiry";
+export const INQUIRY_ROLES = ["club", "team", "parent"] as const;
+export const TEAM_COUNTS = ["1", "2-9", "10-39", "40+"] as const;
+export type Inquiry = {
+  role: (typeof INQUIRY_ROLES)[number]; org: string; sport: string; teams?: (typeof TEAM_COUNTS)[number];
+  coordinatorEmail?: string; source?: string;
+};
 export const STATUSES = ["new", "waiting", "planned", "closed"] as const;
 export type Status = (typeof STATUSES)[number];
 export type Route = "team" | "teemhub";
@@ -36,6 +43,8 @@ export type Feedback = {
   createdAt: string; updatedAt: string; firstReplyAt?: string; replies: Reply[];
   /** Who it went to, for team questions (coordinators' names). */
   sentTo?: string[];
+  /** Club and team inquiries from the front page. */
+  inquiry?: Inquiry;
 };
 export type OwnerSettings = { teamQuestions: boolean; emailNew: boolean };
 
@@ -137,4 +146,6 @@ export async function owners(): Promise<{ sub: string; email: string; firstName:
 }
 
 /** "Problem", "Team question"… */
-export const label = (f: Pick<Feedback, "kind" | "route">) => (f.route === "team" ? "Team question" : f.kind === "question" ? "Question" : f.kind === "problem" ? "Problem" : "Idea");
+export const label = (f: Pick<Feedback, "kind" | "route" | "inquiry">) =>
+  f.kind === "inquiry" ? (f.inquiry?.role === "club" ? "Club inquiry" : "Team inquiry")
+    : f.route === "team" ? "Team question" : f.kind === "question" ? "Question" : f.kind === "problem" ? "Problem" : "Idea";
