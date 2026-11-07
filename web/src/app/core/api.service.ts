@@ -137,6 +137,9 @@ export class ApiService {
   emailInvite(teamId: string, email: string) { return this.call<{ email: string; expires: string }>('POST', `/teams/${enc(teamId)}/invites/${enc(email)}/send`); }
   /** Emails every waiting invite that was never emailed (imports save invites without emailing them). */
   emailWaitingInvites(teamId: string) { return this.call<{ queued: number }>('POST', `/teams/${enc(teamId)}/invites/send-waiting`); }
+  /** "Trouble signing up?": where their sign-up got to, and the fix for a stuck one. */
+  signUpState(teamId: string, email: string) { return this.call<{ state: 'none' | 'unfinished' | 'unlinked' | 'ready'; startedAt: string | null }>('GET', `/teams/${enc(teamId)}/invites/${enc(email)}/signup`); }
+  fixSignUp(teamId: string, email: string) { return this.call<{ done: 'reset' | 'linked'; emailed?: boolean }>('POST', `/teams/${enc(teamId)}/invites/${enc(email)}/signup`); }
   cancelInvite(teamId: string, email: string) { return this.call('DELETE', `/teams/${enc(teamId)}/invites/${enc(email)}`); }
   updateMember(teamId: string, sub: string, v: { roles: Role[]; pid?: string; firstName?: string; lastName?: string }) { return this.call('PUT', `/teams/${enc(teamId)}/members/${enc(sub)}`, v); }
   removeMember(teamId: string, sub: string) { return this.call('DELETE', `/teams/${enc(teamId)}/members/${enc(sub)}`); }

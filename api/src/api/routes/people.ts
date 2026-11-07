@@ -8,6 +8,8 @@ import { forgetSeen } from "../../lib/usage.js";
 import { checkId, clean, deleteItem, getItem, now, optStr, putItem, queryAll } from "../util.js";
 import { isExpired } from "../../lib/invites.js";
 import { dispatch, queueTeamInvite } from "../../lib/mail/invite-mail.js";
+import { deleteSignIn, findSignIn } from "../../lib/cognito.js";
+import { linkNewAccount } from "../../lib/link-account.js";
 
 const roles = z.array(z.enum(ROLES)).min(1).max(ROLES.length).transform((r) => [...new Set(r)]);
 const inviteSchema = z.object({
@@ -37,6 +39,20 @@ async function activeMembers(teamId: string) {
     .filter((m) => m.status === "active")
     // Memberships written at sign-up in Phase 1 have no "sub" attribute; the key always has it.
     .map((m): Record<string, unknown> => ({ ...m, sub: String(m.SK).slice("MEMBER#".length) }));
+}
+
+type SignUpState = "none" | "unfinished" | "unlinked" | "ready";
+async function signUpState(rawEmail: string, teamId: string) {
+  const email = normEmail(rawEmail);
+  const invite = await getItem(keys.invite(email, teamId));
+  if (!invite) throw notFound("That invite isn't waiting any more. It may have been accepted.");
+  const signIn = await findSignIn(email);
+  let state: SignUpState = "none";
+  if (signIn) {
+    const profile = await getItem(keys.profile(signIn.sub));
+    state = profile ? "ready" : signIn.status === "UNCONFIRMED" ? "unfinished" : "unlinked";
+  }
+  return { state, signIn, invite };
 }
 
 export function peopleRoutes(r: Router) {
@@ -113,6 +129,44 @@ export function peopleRoutes(r: Router) {
     await dispatch(ids);
     console.log(JSON.stringify({ msg: "invites emailed", teamId: a.teamId, by: caller.sub, count: ids.length }));
     return json(202, { queued: ids.length });
+  });
+
+  /**
+   * "Trouble signing up?" on a waiting invite: what state their sign-in is in.
+   *   none        nobody has started signing up with this email: email the invite again
+   *   unfinished  they started but never entered the emailed code (Cognito UNCONFIRMED): reset it
+   *   unlinked    their email is verified but the account was never set up (the trigger failed): finish it
+   *   ready       they have a Teem Hub account: the invite joins them the next time they open the app
+   */
+  r.on("GET", "/teams/{teamId}/invites/{email}/signup", async ({ caller, params }) => {
+    const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.require("accounts");
+    const { state, signIn } = await signUpState(params.email, a.teamId);
+    return json(200, { state, startedAt: signIn?.createdAt ?? null });
+  });
+
+  r.on("POST", "/teams/{teamId}/invites/{email}/signup", async ({ caller, params }) => {
+    const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.require("accounts");
+    const { state, signIn, invite } = await signUpState(params.email, a.teamId);
+    if (state === "unfinished" && signIn) {
+      // Only a sign-in that was never verified and has no Teem Hub account: nothing else is lost.
+      await deleteSignIn(signIn.username);
+      const minTtl = Math.floor(Date.now() / 1000) + RESEND_DAYS * 86400;
+      const renewed = Number(invite.ttl) < minTtl ? { ...invite, ttl: minTtl } : invite;
+      if (renewed !== invite) await putItem(renewed);
+      const bad = invite.emailStatus === "bounced" || invite.emailStatus === "complained";
+      const id = bad ? null : await queueTeamInvite(renewed, a.clubId, caller.sub);
+      if (id) await dispatch([id]);
+      console.log(JSON.stringify({ msg: "sign-up reset", teamId: a.teamId, by: caller.sub, sub: signIn.sub }));
+      return json(200, { done: "reset", emailed: !!id });
+    }
+    if (state === "unlinked" && signIn) {
+      const r = await linkNewAccount(signIn.sub, normEmail(params.email));
+      console.log(JSON.stringify({ msg: "sign-up finished by admin", teamId: a.teamId, by: caller.sub, sub: signIn.sub, ...r }));
+      return json(200, { done: "linked" });
+    }
+    throw conflict(state === "none" ? "They haven't started signing up yet. Email the invite again." : "They already have an account. The invite joins them the next time they open Teem Hub.", state);
   });
 
   r.on("DELETE", "/teams/{teamId}/invites/{email}", async ({ caller, params }) => {

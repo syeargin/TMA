@@ -551,10 +551,10 @@ Resources:
         # Routes queue emails and hand them to the sender without waiting (Messaging M1).
         - LambdaInvokePolicy: { FunctionName: !Ref MailSenderFunction }
         # Is two-step sign-in on (club-admin and site-owner rights), the site owner's reset for a lost
-        # phone, and Delete my account (R4).
+        # phone, Delete my account (R4), and "Trouble signing up?" on an invite (find the sign-in by email).
         - Statement:
             - Effect: Allow
-              Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference, cognito-idp:AdminDeleteUser]
+              Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference, cognito-idp:AdminDeleteUser, cognito-idp:ListUsers]
               Resource: !GetAtt UserPool.Arn
       # One route per method (not ANY): browsers send CORS preflight OPTIONS requests without a
       # token, and an ANY route would send them to the JWT authorizer and fail. With no OPTIONS

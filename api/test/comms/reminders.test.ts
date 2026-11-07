@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi, onTestFinished } from "vitest";
 process.env.TABLE_NAME = "TeamHub-test-reminders";
 process.env.MAIL_TRANSPORT = "memory";
 process.env.SITE_URL = "https://dev.teemhub.net";
@@ -78,6 +78,9 @@ describe("tournament packet", () => {
 
 describe("availability reminder", () => {
   it("asks only families who haven't answered, with links that answer in one tap", async () => {
+    // Links stop working a few days after the practice, so the clock is set to the week they're sent.
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-02T12:00:00Z") });
+    onTestFinished(() => { vi.useRealTimers(); });
     expect((await turnOn({ availability: { on: true } })).status).toBe(200);
     // Sunday Nov 1, 6 PM Eastern (standard time from today) = 23:00 UTC, for Tuesday's practice.
     const r = await runPlanner(new Date("2026-11-01T23:05:00Z"));

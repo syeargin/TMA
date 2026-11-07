@@ -31,6 +31,8 @@ export class Members extends Page {
   readonly invites = signal<Invite[]>([]);
   readonly memberForms = signal(new Map<string, MemberForm>());
   readonly confirming = signal<string | null>(null);
+  /** "Trouble signing up?" on one invite: what the sign-in system says about that email. */
+  readonly trouble = signal<{ email: string; state: 'none' | 'unfinished' | 'unlinked' | 'ready'; startedAt: string | null } | null>(null);
   readonly roles = ROLES;
   /** Finance and Food only show while their feature is on, unless this person already has the role. */
   roleShown(r: string, has: readonly string[] = []) {
@@ -134,6 +136,27 @@ export class Members extends Page {
     if (!i.ttl) return '';
     return new Date(i.ttl * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
+
+  checkSignUp(i: Invite) {
+    if (this.trouble()?.email === i.email) { this.trouble.set(null); return; }
+    return this.run(async () => {
+      const r = await this.api.signUpState(this.store.teamId(), i.email);
+      this.trouble.set({ email: i.email, ...r });
+    });
+  }
+
+  fixSignUp(i: Invite) {
+    return this.run(async () => {
+      const r = await this.api.fixSignUp(this.store.teamId(), i.email);
+      this.trouble.set(null);
+      await this.reload();
+      this.notice.set(r.done === 'linked'
+        ? `Finished. ${i.email} is on the team now and can sign in.`
+        : r.emailed ? `Reset. We emailed the invite to ${i.email} again; they sign up from the start.` : `Reset. Ask ${i.email} to sign up again from their invite.`);
+    });
+  }
+
+  day(iso: string) { return new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric' }); }
 
   cancelInvite(email: string) { return this.confirmThen(`invite:${email}`, 'Invite cancelled.', () => this.api.cancelInvite(this.store.teamId(), email)); }
 

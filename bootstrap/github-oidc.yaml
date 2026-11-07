@@ -188,11 +188,11 @@ Resources:
             Action: [xray:PutTraceSegments, xray:PutTelemetryRecords, xray:GetSamplingRules, xray:GetSamplingTargets, xray:GetSamplingStatisticSummaries]
             Resource: "*"
           # The API checks whether someone has two-step sign-in on, resets it for a lost phone, and
-          # deletes a sign-in account when its owner asks (R4).
-          # Each role's own policy names its environment's user pool.
+          # deletes a sign-in account when its owner asks (R4), and finds a stuck sign-up by email
+          # ("Trouble signing up?" on an invite). Each role's own policy names its environment's user pool.
           - Sid: TwoStepSignIn
             Effect: Allow
-            Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference, cognito-idp:AdminDeleteUser]
+            Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference, cognito-idp:AdminDeleteUser, cognito-idp:ListUsers]
             Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
           - Sid: LiveUpdates
             Effect: Allow
@@ -544,11 +544,11 @@ Resources:
             Action: [xray:PutTraceSegments, xray:PutTelemetryRecords, xray:GetSamplingRules, xray:GetSamplingTargets, xray:GetSamplingStatisticSummaries]
             Resource: "*"
           # The API checks whether someone has two-step sign-in on, resets it for a lost phone, and
-          # deletes a sign-in account when its owner asks (R4).
-          # Each role's own policy names its environment's user pool.
+          # deletes a sign-in account when its owner asks (R4), and finds a stuck sign-up by email
+          # ("Trouble signing up?" on an invite). Each role's own policy names its environment's user pool.
           - Sid: TwoStepSignIn
             Effect: Allow
-            Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference, cognito-idp:AdminDeleteUser]
+            Action: [cognito-idp:AdminGetUser, cognito-idp:AdminSetUserMFAPreference, cognito-idp:AdminDeleteUser, cognito-idp:ListUsers]
             Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
           - Sid: LiveUpdates
             Effect: Allow
