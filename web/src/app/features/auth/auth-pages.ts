@@ -138,7 +138,15 @@ export class SignUp extends AuthPage {
     // Recorded on the account at first sign-in, so the notice isn't shown twice (privacyGuard).
     try { localStorage.setItem(PRIVACY_KEY, PRIVACY_VERSION); } catch { /* storage blocked: they'll be asked once */ }
     return this.run(async () => {
-      const step = await this.auth.createAccount(email, password);
+      let step: string;
+      try {
+        step = await this.auth.createAccount(email, password);
+      } catch (err) {
+        // Started signing up before but never entered the code: send a new one instead of a dead end.
+        if ((err as { name?: string }).name !== 'UsernameExistsException') throw err;
+        try { await this.auth.resendCode(email); } catch { throw err; }
+        return this.go('/verify', { notice: "You started signing up with this email before. We've emailed a new code: enter it to finish, then sign in with the password you chose the first time (or use Forgot password)." });
+      }
       return step === 'CONFIRM_SIGN_UP' ? this.go('/verify') : this.go(START_URL);
     });
   }

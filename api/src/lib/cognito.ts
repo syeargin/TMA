@@ -1,4 +1,4 @@
-import { AdminDeleteUserCommand, CognitoIdentityProviderClient, UserNotFoundException } from "@aws-sdk/client-cognito-identity-provider";
+import { AdminDeleteUserCommand, CognitoIdentityProviderClient, ListUsersCommand, UserNotFoundException } from "@aws-sdk/client-cognito-identity-provider";
 
 let client: CognitoIdentityProviderClient | undefined;
 export const cognito = () => (client ??= new CognitoIdentityProviderClient({}));
@@ -12,4 +12,16 @@ export async function deleteSignIn(username: string): Promise<void> {
   } catch (e) {
     if (!(e instanceof UserNotFoundException)) throw e;
   }
+}
+
+export type SignIn = { username: string; sub: string; status: string; createdAt?: string };
+
+/** The sign-in for an email, if anyone has started signing up with it (null without a pool: tests mock this). */
+export async function findSignIn(email: string): Promise<SignIn | null> {
+  if (!poolId()) return null;
+  const r = await cognito().send(new ListUsersCommand({ UserPoolId: poolId(), Filter: `email = "${email.replace(/["\\]/g, "")}"`, Limit: 2 }));
+  const u = r.Users?.[0];
+  if (!u?.Username) return null;
+  const sub = u.Attributes?.find((a) => a.Name === "sub")?.Value ?? u.Username;
+  return { username: u.Username, sub, status: String(u.UserStatus ?? ""), createdAt: u.UserCreateDate?.toISOString() };
 }

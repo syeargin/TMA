@@ -140,6 +140,10 @@ main.narrow{max-width:480px}
 .btn.confirming{background:var(--bad);color:#fff;border-color:var(--bad)}
 .btn:disabled{opacity:.6;cursor:progress}
 .icon-btn{appearance:none;border:0;background:var(--btn-soft);width:32px;height:32px;border-radius:8px;font-size:20px;line-height:1;cursor:pointer;color:var(--ink)}
+.inv-row{flex-wrap:wrap}.inv-row>.grow{min-width:220px}
+.inv-actions{display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center}
+.signup-help{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0 0 10px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.signup-help p{margin:0}
 .link,.link-btn{appearance:none;border:0;background:none;padding:0;color:var(--navy);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-size:inherit}
 .link.confirm{color:var(--bad)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}

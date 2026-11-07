@@ -84,15 +84,43 @@
           </div>
         }
         @for (i of invites(); track i.email) {
-          <div class="li">
+          <div class="li inv-row">
             <div class="grow"><b>{{ fullName(i) || i.email }}</b>@if (i.expired) { <span class="pill p-warn">Expired</span> }@if (fullName(i)) { <div class="small muted">{{ i.email }}</div> }<div class="small muted">{{ roleList(i.roles) }}@if (i.pid) { · family: {{ playerLabel(i.pid) }}}@if (expires(i) && !i.expired) { · works until {{ expires(i) }}}</div>
               <th-email-status [status]="i.emailStatus" [at]="i.emailAt" [detail]="i.emailDetail" />
             </div>
+            <div class="inv-actions">
             @if (canEmail(i)) { <button class="link-btn small" type="button" (click)="emailInvite(i)" [disabled]="busy()">{{ i.emailStatus ? 'Email again' : 'Email invite' }}</button> }
+            <button class="link-btn small" type="button" (click)="checkSignUp(i)" [disabled]="busy()" [attr.aria-expanded]="trouble()?.email === i.email">Trouble signing up?</button>
             <button class="link-btn small" type="button" [class.confirm]="confirming() === 'invite:' + i.email" (click)="cancelInvite(i.email)">
               {{ confirming() === 'invite:' + i.email ? 'Tap again to confirm' : 'Cancel' }}
             </button>
+            </div>
           </div>
+          @if (trouble(); as t) {
+            @if (t.email === i.email) {
+              <div class="signup-help" role="status">
+                @switch (t.state) {
+                  @case ('unfinished') {
+                    <p><b>Their sign-up isn't finished.</b> They started @if (t.startedAt) {on {{ day(t.startedAt) }} }but never entered the code we emailed, so they can't sign in or sign up again.</p>
+                    <p class="small muted">Reset it to clear the half-made sign-up and email the invite again. They sign up from the start and enter the new code. Nothing on the team changes.</p>
+                    <button class="btn small primary" type="button" (click)="fixSignUp(i)" [disabled]="busy()">Reset their sign-up</button>
+                  }
+                  @case ('unlinked') {
+                    <p><b>Their account wasn't set up.</b> They verified their email, but joining the team didn't finish.</p>
+                    <p class="small muted">Finish it now and they'll be on the team the next time they sign in.</p>
+                    <button class="btn small primary" type="button" (click)="fixSignUp(i)" [disabled]="busy()">Finish their sign-up</button>
+                  }
+                  @case ('ready') {
+                    <p><b>They already have a Teem Hub account.</b> Ask them to sign in with {{ i.email }}; they join the team as soon as they open Teem Hub. If they've forgotten the password, "Forgot password?" on the sign-in page sends a code.</p>
+                  }
+                  @default {
+                    <p><b>They haven't started signing up.</b> Email the invite again and ask them to check spam. They need to sign up with {{ i.email }}.</p>
+                  }
+                }
+                <button class="link-btn small" type="button" (click)="trouble.set(null)">Close</button>
+              </div>
+            }
+          }
         } @empty {
           <div class="empty">No pending invites.</div>
         }
