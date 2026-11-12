@@ -1,3 +1,4 @@
+import type { DayType, Playbook, Wave } from '@shared/dayplans';
 import type { PlayerMark } from '@shared/attendance';
 import type { ExportRows } from './xlsx-fill';
 export type SetupExport = { kind: 'team' | 'club'; name: string; sheets: Record<string, ExportRows>; archived?: string[] };
@@ -181,6 +182,11 @@ export class ApiService {
     const { eid, mid, ...body } = m;
     return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}`, body);
   }
+  /** Tournament day plans (shared/dayplans.ts). */
+  savePlaybook(teamId: string, p: Playbook) { const { updatedAt: _a, updatedBy: _b, ...body } = p; return this.call<Playbook>('PUT', `/teams/${enc(teamId)}/dayplans`, body); }
+  setPlanDay(teamId: string, eid: string, day: string, v: { type: DayType; wave: Wave | null; agenda?: string[] }) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/dayplan/${enc(day)}`, v); }
+  saveOrderLink(teamId: string, eid: string, mid: string, v: { vendor?: string; orderLink: string }) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}/order-link`, v); }
+  myOrder(teamId: string, eid: string, mid: string, pid: string, state: 'added' | 'skip' | null) { return this.call('POST', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}/my-order`, { pid, state }); }
   deleteMeal(teamId: string, eid: string, mid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}`); }
   claimMeal(teamId: string, eid: string, mid: string, pid: string) { return this.call('POST', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}/claim`, { pid }); }
   releaseMeal(teamId: string, eid: string, mid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}/claim`); }

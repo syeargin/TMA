@@ -153,7 +153,7 @@ describe('help on a team page', () => {
     expect(mount('/teams/t13/schedule', ['coach'], ['attendance'])).not.toContain('Take practice attendance');
     TestBed.resetTestingModule();
     const meals = mount('/teams/t13/tournaments/e1/meals', ['parent']);
-    expect(meals[0]).toBe('Sign up to bring a meal');
+    expect(meals[0]).toBe('Team meals and group orders');
     expect(meals).toContain('Find the game-day sheet');
   });
 });

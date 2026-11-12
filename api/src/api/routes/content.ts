@@ -9,6 +9,7 @@ import { FEED_OWNED, OVERRIDABLE } from "../../shared/feed-rules.js";
 import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { cents, checkId, date, deleteItem, deleteMany, getItem, newId, now, optStr, putItem, queryAll, str } from "../util.js";
+import { MEAL_STYLES } from "../../shared/dayplans.js";
 
 const parent = z.object({ name: str(120), cell: optStr(40), email: z.string().trim().max(200).optional() });
 const playerSchema = z.object({
@@ -80,8 +81,12 @@ const agendaSchema = z.object({
 });
 const mealSchema = z.object({
   day: date.optional(), meal: str(60).min(1), time: optStr(40), plan: optStr(1000), costCents: cents.default(0),
-  claimedBy: z.string().max(64).nullable().optional()
-});
+  claimedBy: z.string().max(64).nullable().optional(),
+  // Day plans (shared/dayplans.ts): how the meal happens, and the details for a delivered or court meal.
+  style: z.enum(MEAL_STYLES).optional(), vendor: optStr(80), orderLink: optStr(500), orderBy: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).optional(),
+  address: optStr(300), headcount: z.number().int().min(0).max(200).optional(), familyOrders: z.boolean().optional(),
+  optional: z.boolean().optional(), fromPlan: z.boolean().optional()
+}).refine((m) => !m.orderLink || /^https:\/\//i.test(m.orderLink), "The group order link needs to start with https://.");
 const claimSchema = z.object({ pid: str(64).min(1) });
 const announcementSchema = z.object({ text: str(4000).min(1), pinned: z.boolean().default(false), /** "Also email the team" (Messaging M2b). */ email: z.boolean().default(false) });
 const taskSchema = z.object({ title: str(200).min(1), desc: optStr(1000), owner: optStr(120), status: z.enum(["To do", "In progress", "Done", "N/A"]).default("To do"), order: z.number().int().min(0).max(9999).optional() });
@@ -311,7 +316,10 @@ export function contentRoutes(r: Router) {
     const m = parseBody(mealSchema, body);
     const existing = await getItem(keys.meal(a.teamId, eid, mid));
     const claimedBy = m.claimedBy === undefined ? (existing?.claimedBy ?? null) : m.claimedBy || null;
-    await putItem({ ...keys.meal(a.teamId, eid, mid), type: "Meal", ...m, claimedBy, updatedAt: now(), updatedBy: caller.sub });
+    // Kept across edits: families' "I've added my order" marks, and when the group order link went up.
+    const keep = existing ? Object.fromEntries(["orders", "linkAt", "claimedAt", "claimedBySub", "planDay"].filter((k) => existing[k] !== undefined).map((k) => [k, existing[k]])) : {};
+    const linkAt = m.orderLink && m.orderLink !== existing?.orderLink ? now() : keep.linkAt;
+    await putItem({ ...keys.meal(a.teamId, eid, mid), type: "Meal", ...keep, ...m, claimedBy, ...(linkAt && m.orderLink ? { linkAt } : {}), updatedAt: now(), updatedBy: caller.sub });
     return json(200, { mid });
   });
 

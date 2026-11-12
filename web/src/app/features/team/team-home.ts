@@ -1,8 +1,10 @@
+import { isJob } from '@shared/dayplans';
 import { AttendanceCard } from './attendance-card';
 import { Component, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { addDays, daysUntil, fmt, fmtRange, newId, pd, today } from '../../core/dates';
+import { orderByLabel, taskStart } from '../../core/tournament';
 import type { Announcement } from '../../core/models';
 import { money, pending } from '../../core/money';
 import { ScheduleItem, takesRsvp } from '../../core/schedule';
@@ -82,10 +84,32 @@ export class TeamHome {
     }
     if ((pid || this.store.can('meals')) && this.store.has('meals')) {
       const upcomingIds = new Set(this.store.tournaments().filter((e) => (e.endDate || e.date) >= t0).map((e) => e.eid));
-      const open = this.store.meals().filter((m) => !m.claimedBy && upcomingIds.has(m.eid));
+      const open = this.store.meals().filter((m) => !m.claimedBy && upcomingIds.has(m.eid) && !m.stale && (!m.style || isJob(m.style)));
       if (open.length) {
         const first = this.store.tournaments().find((e) => e.eid === open[0].eid)!;
         out.push({ title: `${open.length} team meal${open.length > 1 ? 's' : ''} need a family`, sub: `Starting with ${first.title}`, link: ['tournaments', first.eid, 'meals'], tone: 'warn' });
+      }
+    }
+    // Day plans: add your own order to a group order (once the link is posted, no earlier than the lead time),
+    // and start the group order when your family has the job.
+    if (pid && this.store.has('meals')) {
+      const lead = this.store.playbook().familyLeadHours;
+      const now = Date.now();
+      for (const m of this.store.meals()) {
+        const e = this.store.tournaments().find((x) => x.eid === m.eid);
+        if (!e || (e.endDate || e.date) < t0) continue;
+        if (m.claimedBy === pid && m.style === 'delivered' && !m.orderLink) {
+          out.push({ title: `Start the group order for ${m.meal.toLowerCase()}`, sub: `${e.title}${m.day ? ' · ' + fmt(m.day) : ''}${m.orderBy ? ' · order by ' + orderByLabel(m.orderBy) : ''}`, link: ['tournaments', e.eid, 'meals'], tone: 'warn' });
+          continue;
+        }
+        const start = taskStart(m, lead);
+        if (start == null || start > now || m.orders?.[pid] || this.store.rsvp(pid, e.eid) !== 'yes') continue;
+        if (m.orderBy && new Date(m.orderBy).getTime() < now) continue;
+        out.push({
+          title: `Add ${this.store.playerName(pid) || 'your player'}'s ${m.meal.toLowerCase()} order`,
+          sub: `${e.title}${m.day ? ' · ' + fmt(m.day) : ''}${m.vendor ? ' · ' + m.vendor + ' group order' : ''}${m.orderBy ? ' · by ' + orderByLabel(m.orderBy) : ''}`,
+          link: ['tournaments', e.eid, 'meals'], tone: 'warn'
+        });
       }
     }
     // A parent made a tournament's scorekeeper: straight to its matches.

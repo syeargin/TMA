@@ -41,6 +41,10 @@ export const keys = {
   matches: (t: string, eid: string) => ({ PK: `TEAM#${t}`, SK: `EVENT#${eid}#MATCHES` }),
   agenda: (t: string, eid: string) => ({ PK: `TEAM#${t}`, SK: `EVENT#${eid}#AGENDA` }),
   meal: (t: string, eid: string, mid: string) => ({ PK: `TEAM#${t}`, SK: `EVENT#${eid}#MEAL#${mid}` }),
+  /** A tournament's day plan: each date's kind and wave (shared/dayplans.ts). */
+  dayPlan: (t: string, eid: string) => ({ PK: `TEAM#${t}`, SK: `EVENT#${eid}#DAYPLAN` }),
+  /** The team's tournament day plans playbook (shared/dayplans.ts). */
+  playbook: (t: string) => ({ PK: `TEAM#${t}`, SK: "DAYPLANS" }),
   family: (t: string, pid: string) => ({ PK: `TEAM#${t}`, SK: `FAMILY#${pid}` }),
   payment: (t: string, payId: string) => ({ PK: `TEAM#${t}`, SK: `PAYMENT#${payId}` }),
   ledger: (t: string, lid: string) => ({ PK: `TEAM#${t}`, SK: `LEDGER#${lid}` }),

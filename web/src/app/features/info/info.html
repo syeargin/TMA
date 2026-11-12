@@ -12,6 +12,7 @@
     <button class="btn sm" type="button" (click)="settingsOpen.set(true)">Team settings</button>
   }
   @if (manageFeed) { <button class="btn sm" type="button" (click)="feedOpen.set(true)">Calendar feed</button> }
+  @if (store.can('meals') && store.has('meals')) { <button class="btn sm" type="button" (click)="plansOpen.set(true)">Tournament day plans</button> }
 </div>
 
 @if (store.feedAlert(); as fa) {
@@ -170,4 +171,8 @@
 
 @if (manageFeed) {
   <th-calendar-feed [open]="feedOpen()" (closed)="feedOpen.set(false)" />
+}
+
+@if (store.can('meals') && store.has('meals')) {
+  <th-day-plans-form [open]="plansOpen()" (closed)="plansOpen.set(false)" />
 }

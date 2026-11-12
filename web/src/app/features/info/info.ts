@@ -8,6 +8,7 @@ import { Messages } from '../../shared/messages';
 import { Sheet } from '../../shared/sheet';
 import { CalendarFeed } from './calendar-feed';
 import { SettingsForm } from './settings-form';
+import { DayPlansForm } from './day-plans-form';
 
 const STATUSES: TaskStatus[] = ['To do', 'In progress', 'Done', 'N/A'];
 const TONE: Record<TaskStatus, string> = { 'To do': 'p-bad', 'In progress': 'p-warn', Done: 'p-ok', 'N/A': 'p-mute' };
@@ -15,7 +16,7 @@ const TONE: Record<TaskStatus, string> = { 'To do': 'p-bad', 'In progress': 'p-w
 /** Team handbook, who does what, and the coordinator's task list; team settings for admins and coordinators. */
 @Component({
   selector: 'th-info',
-  imports: [ReactiveFormsModule, RouterLink, Sheet, Messages, SettingsForm, CalendarFeed],
+  imports: [ReactiveFormsModule, RouterLink, Sheet, Messages, SettingsForm, CalendarFeed, DayPlansForm],
   templateUrl: './info.html'
 })
 export class Info {
@@ -33,6 +34,7 @@ export class Info {
   get manageTasks() { return this.store.can('tasks'); }
   readonly settingsOpen = signal(false);
   readonly feedOpen = signal(false);
+  readonly plansOpen = signal(false);
   /** Calendar feed sync: admins and coordinators, while the feature is on. */
   get manageFeed() { return this.store.can('calendarFeed'); }
   constructor() {

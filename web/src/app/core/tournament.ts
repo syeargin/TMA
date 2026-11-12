@@ -1,4 +1,5 @@
 import { addDays, tmin } from './dates';
+import { familyTaskFrom } from '@shared/dayplans';
 import type { Meal, Player, RefAssign, RefSet } from './models';
 
 export const REF_SETS: RefSet[] = ['s1', 's2', 's3'];
@@ -52,3 +53,17 @@ export function duties(e: { cartPid?: string; ballsPid?: string; dutyPid?: strin
   if (cart && cart === balls) return [{ label: 'Balls & cart', pid: cart }];
   return [{ label: 'Ball cart', pid: cart }, { label: 'Volleyballs', pid: balls }].filter((d) => d.pid);
 }
+
+/** "Fri 6:00 PM" from "2027-01-29T18:00". */
+export function orderByLabel(v?: string): string {
+  if (!v) return '';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return v;
+  return d.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+}
+/** When this meal's "add your order" to-do starts for families (ms), or null without a link. */
+export function taskStart(m: Meal, leadHours: number): number | null {
+  if (!m.familyOrders || !m.orderLink) return null;
+  return familyTaskFrom(m.linkAt ? Date.parse(m.linkAt) : Date.now(), m.orderBy ? new Date(m.orderBy).getTime() : null, leadHours);
+}
+

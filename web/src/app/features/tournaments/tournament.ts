@@ -11,18 +11,18 @@ import { RsvpButtons, RsvpCounts } from '../schedule/rsvp';
 import { AddToCalendar } from '../../shared/add-to-calendar';
 import { Agenda } from './agenda';
 import { GameDay } from './game-day';
-import { Meals } from './meals';
+import { DayPlan } from './day-plan';
 import { Matches } from './matches';
 import { RefJobs } from './ref-jobs';
 import { TravelPlans } from './travel';
 
 type Section = 'gameday' | 'matches' | 'ref' | 'meals' | 'travel' | 'agenda';
-const LABELS: Record<Section, string> = { gameday: 'Game day', matches: 'Matches', ref: 'Ref jobs', meals: 'Meals', travel: 'Travel', agenda: 'Agenda' };
+const LABELS: Record<Section, string> = { gameday: 'Game day', matches: 'Matches', ref: 'Ref jobs', meals: 'Day plan', travel: 'Travel', agenda: 'Agenda' };
 
 /** /teams/:id/tournaments/:eid[/:section] */
 @Component({
   selector: 'th-tournament',
-  imports: [MapLink, RouterLink, AddToCalendar, RsvpButtons, RsvpCounts, EventForm, GameDay, Matches, RefJobs, Meals, TravelPlans, Agenda],
+  imports: [MapLink, RouterLink, AddToCalendar, RsvpButtons, RsvpCounts, EventForm, GameDay, Matches, RefJobs, DayPlan, TravelPlans, Agenda],
   template: `
     <a class="link-btn small" [routerLink]="['/teams', store.teamId(), 'tournaments']" style="display:inline-block;margin-bottom:10px">‹ All tournaments</a>
     @if (event(); as e) {
@@ -64,7 +64,7 @@ const LABELS: Record<Section, string> = { gameday: 'Game day', matches: 'Matches
       @switch (current()) {
         @case ('matches') { <th-matches [event]="e" /> }
         @case ('ref') { <th-ref-jobs [event]="e" /> }
-        @case ('meals') { <th-meals [event]="e" /> }
+        @case ('meals') { <th-day-plan [event]="e" /> }
         @case ('travel') { <th-travel [event]="e" /> }
         @case ('agenda') { <th-agenda [event]="e" /> }
         @default { <th-game-day [event]="e" (edit)="editing.set(true)" /> }
@@ -97,8 +97,10 @@ export class Tournament {
   readonly sections = computed<Section[]>(() => {
     const s = this.store;
     const travel = !!this.event()?.travel && s.has('travel');
-    return (['gameday', 'matches', 'ref', 'meals', 'travel', 'agenda'] as Section[]).filter((x) =>
-      x === 'gameday' || (x === 'matches' && s.has('matches')) || (x === 'ref' && s.has('refjobs')) || (x === 'meals' && s.has('meals')) || ((x === 'travel' || x === 'agenda') && travel));
+    return (['gameday', 'meals', 'ref', 'travel', 'matches', 'agenda'] as Section[]).filter((x) =>
+      x === 'gameday' || (x === 'matches' && s.has('matches')) || (x === 'ref' && s.has('refjobs')) || (x === 'meals' && s.has('meals')) || (x === 'travel' && travel)
+      // The old free-form agenda: only while a tournament still has one (day plans replace it).
+      || (x === 'agenda' && travel && !!s.agenda()[this.eid()]?.days?.length));
   });
   readonly current = computed<Section>(() => {
     const s = (this.section() || 'gameday') as Section;
