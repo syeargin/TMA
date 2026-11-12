@@ -107,18 +107,36 @@ export function playbookOf(saved?: Partial<Playbook> | null): Playbook {
 }
 
 export type PlanDay = { type: DayType; wave?: Wave; agenda?: string[] };
-export type EventDayPlan = { days: Record<string, PlanDay> };
+/** noArrival: a travel tournament without the arrival day before it (the team travels the morning of). */
+export type EventDayPlan = { days: Record<string, PlanDay>; noArrival?: boolean };
+
+const shift = (d: string, n: number) => { const t = new Date(`${d}T12:00:00Z`); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+
+/** The tournament's own dates, as listed on the schedule (at most 10). */
+export function listedDates(date: string, endDate?: string): string[] {
+  const out: string[] = [];
+  for (let d = date; d <= (endDate || date) && out.length < 10; d = shift(d, 1)) out.push(d);
+  return out;
+}
 
 /**
- * What kind of day each date is, until someone changes it: local tournaments are all play days; a travel
- * tournament of three or more days arrives on the first and leaves on the last; two days are play then last.
+ * The days a day plan covers: the listed dates, and for a travel tournament the arrival day before the
+ * listed start (unless the team turned it off). The schedule's dates don't change.
  */
-export function defaultDayType(travel: boolean, dates: string[], date: string): DayType {
+export function planDates(travel: boolean, date: string, endDate?: string, noArrival = false): string[] {
+  const listed = listedDates(date, endDate);
+  return travel && !noArrival ? [shift(date, -1), ...listed] : listed;
+}
+
+/**
+ * What kind of day each date is, until someone changes it: local tournaments are all play days. On a travel
+ * tournament the day before the listed start is the arrival day, the last listed date is the last day, and
+ * the dates between are play days.
+ */
+export function defaultDayType(travel: boolean, listed: string[], date: string): DayType {
   if (!travel) return "play";
-  const i = dates.indexOf(date);
-  if (dates.length >= 3 && i === 0) return "arrival";
-  if (dates.length >= 2 && i === dates.length - 1) return "last";
-  return "play";
+  if (date < listed[0]) return "arrival";
+  return date === listed[listed.length - 1] ? "last" : "play";
 }
 
 /** The playbook entry for a day, or null while a play or last day's wave isn't posted. */

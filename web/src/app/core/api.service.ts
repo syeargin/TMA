@@ -185,6 +185,7 @@ export class ApiService {
   /** Tournament day plans (shared/dayplans.ts). */
   savePlaybook(teamId: string, p: Playbook) { const { updatedAt: _a, updatedBy: _b, ...body } = p; return this.call<Playbook>('PUT', `/teams/${enc(teamId)}/dayplans`, body); }
   setPlanDay(teamId: string, eid: string, day: string, v: { type: DayType; wave: Wave | null; agenda?: string[] }) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/dayplan/${enc(day)}`, v); }
+  setArrival(teamId: string, eid: string, arrival: boolean) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/dayplan`, { arrival }); }
   saveOrderLink(teamId: string, eid: string, mid: string, v: { vendor?: string; orderLink: string }) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}/order-link`, v); }
   myOrder(teamId: string, eid: string, mid: string, pid: string, state: 'added' | 'skip' | null) { return this.call('POST', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}/my-order`, { pid, state }); }
   deleteMeal(teamId: string, eid: string, mid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}/meals/${enc(mid)}`); }

@@ -1,14 +1,14 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import {
-  DAY_TYPE_LABELS, MEAL_SLOTS, MEAL_STYLES, STYLE_LABELS, STYLE_SHORT, budgetOf, defaultDayType, isJob, orderDeadline,
+  DAY_TYPE_LABELS, MEAL_SLOTS, MEAL_STYLES, STYLE_LABELS, STYLE_SHORT, budgetOf, defaultDayType, isJob, listedDates, orderDeadline, planDates,
   planKey, type DayTemplate, type DayType, type MealStyle, type Wave
 } from '@shared/dayplans';
 import { fmt, newId, today } from '../../core/dates';
 import type { Meal, TeamEvent } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { ToastService } from '../../core/toast.service';
-import { MEAL_KINDS, money, orderByLabel, safeUrl, taskStart, toCents, tournamentDays } from '../../core/tournament';
+import { MEAL_KINDS, money, orderByLabel, safeUrl, taskStart, toCents } from '../../core/tournament';
 import { Messages } from '../../shared/messages';
 import { Sheet } from '../../shared/sheet';
 
@@ -34,12 +34,19 @@ type Line = { kind: 'meal'; meal: string; style: MealStyle; optional?: boolean }
 
     @if (canPlan) {
       <div class="dp-controls">
-        @if (event().travel) {
+        @if (event().travel && !isArrivalDay()) {
           <label class="dp-ctl">Day
             <select [value]="info().type" (change)="setType($any($event.target).value)" [disabled]="busy()">
               @for (t of dayTypes; track t[0]) { <option [value]="t[0]" [selected]="t[0] === info().type">{{ t[1] }}</option> }
             </select>
           </label>
+        }
+        @if (event().travel && isArrivalDay()) {
+          <div class="dp-ctl"><span>Arrival day</span><span class="small muted" style="font-weight:400">The day before the tournament starts. Not on the schedule.</span></div>
+          <button class="link-btn small" type="button" (click)="setArrival(false)" [disabled]="busy()">No arrival day: we travel that morning</button>
+        }
+        @if (event().travel && noArrival()) {
+          <button class="link-btn small" type="button" (click)="setArrival(true)" [disabled]="busy()">+ Add an arrival day ({{ fmt(arrivalDate(), { weekday: 'short' }) }})</button>
         }
         @if (needsWave()) {
           <div class="dp-ctl"><span>{{ fmt(day(), { weekday: 'long' }) }} wave</span>
@@ -75,7 +82,7 @@ type Line = { kind: 'meal'; meal: string; style: MealStyle; optional?: boolean }
       <div class="card dp-tl">
         @for (l of waiting() ? [] : lines(); track $index) {
           <div class="dp-it dp-line">
-            @if (l.kind === 'meal') { <b>{{ l.meal }}</b> <span class="pill" [class]="'pill dp-s-' + l.style">{{ labels[l.style] }}</span> }
+            @if (l.kind === 'meal') { <b>{{ l.meal }}</b> <span class="pill" [class]="'pill dp-s-' + l.style">{{ labels[l.style] }}</span>@if (l.optional) { <span class="pill p-mute">Optional</span> } }
             @else { <span>{{ l.text }}</span> }
           </div>
         }
@@ -140,6 +147,12 @@ type Line = { kind: 'meal'; meal: string; style: MealStyle; optional?: boolean }
                 </div>
               </div>
             }
+          </div>
+        }
+        @if (pendingJobs()) {
+          <div class="dp-it dp-line">
+            @if (canPlan) { <button class="btn sm primary" type="button" (click)="startDay()" [disabled]="busy()">Open the meal jobs</button><span class="small muted">So families can sign up for this day's team meals.</span> }
+            @else { <span class="small muted">Sign-ups open once the coach or food coordinator sets up this day.</span> }
           </div>
         }
         @if (!lines().length && !dayMeals().length) { <div class="dp-it muted">Nothing planned for this day yet.</div> }
@@ -257,13 +270,19 @@ export class DayPlan {
   readonly short = STYLE_SHORT;
   readonly styles = MEAL_STYLES;
   readonly isJob = isJob;
-  readonly dayTypes = Object.entries(DAY_TYPE_LABELS) as [DayType, string][];
+  /** The listed tournament days can be play days or the last day; the arrival day is the day before. */
+  readonly dayTypes = (Object.entries(DAY_TYPE_LABELS) as [DayType, string][]).filter(([t]) => t !== 'arrival');
   readonly mealNames = [...new Set([...MEAL_SLOTS, ...MEAL_KINDS])];
   get food() { return this.store.can('meals'); }
   get canPlan() { return this.store.can('schedule') || this.store.can('meals'); }
   get myPid() { return this.store.myPid(); }
 
-  readonly dates = computed(() => tournamentDays(this.event().date, this.event().endDate));
+  readonly noArrival = computed(() => !!this.store.dayPlans()[this.event().eid]?.noArrival);
+  readonly listed = computed(() => listedDates(this.event().date, this.event().endDate));
+  /** The listed dates, plus the arrival day before a travel tournament (unless it's turned off). */
+  readonly dates = computed(() => planDates(!!this.event().travel, this.event().date, this.event().endDate, this.noArrival()));
+  readonly arrivalDate = computed(() => planDates(true, this.event().date)[0]);
+  isArrivalDay() { return !!this.event().travel && this.day() < this.event().date; }
   readonly day = signal('');
   constructor() {
     // Start on today when the tournament is on, otherwise its first day.
@@ -276,7 +295,7 @@ export class DayPlan {
 
   infoOf(d: string) {
     const s = this.saved()[d];
-    return { type: s?.type ?? defaultDayType(!!this.event().travel, this.dates(), d), wave: s?.wave as Wave | undefined, agenda: s?.agenda };
+    return { type: s?.type ?? defaultDayType(!!this.event().travel, this.listed(), d), wave: s?.wave as Wave | undefined, agenda: s?.agenda };
   }
   readonly info = computed(() => this.infoOf(this.day()));
   readonly needsWave = computed(() => !(this.event().travel && this.info().type === 'arrival'));
@@ -297,7 +316,11 @@ export class DayPlan {
     const meals = t.meals.filter((m) => withJobs || !isJob(m.style)).map((m) => ({ kind: 'meal' as const, meal: m.meal, style: m.style, optional: m.optional }));
     return [...meals, ...(agenda ?? t.agenda).map((text) => ({ kind: 'agenda' as const, text }))];
   }
-  readonly lines = computed(() => this.linesFor(this.templateFor(this.info().wave), this.info().agenda, false));
+  /** Until a day is saved its jobs aren't made yet, so the plan's own meals show instead. */
+  readonly unsaved = computed(() => !this.saved()[this.day()]);
+  readonly lines = computed(() => this.linesFor(this.templateFor(this.info().wave), this.info().agenda, this.unsaved()));
+  readonly pendingJobs = computed(() => this.unsaved() && !this.waiting() && (this.templateFor(this.info().wave)?.meals ?? []).some((m) => isJob(m.style)));
+  async startDay() { await this.apply({ type: this.info().type, wave: this.info().wave ?? null }, 'Meal jobs added for ' + fmt(this.day(), { weekday: 'long' })); }
   readonly meals = computed(() => this.store.meals().filter((m) => m.eid === this.event().eid));
   readonly dayMeals = computed(() => this.meals().filter((m) => m.day === this.day())
     .sort((a, b) => (SLOT_ORDER[a.meal] ?? 9) - (SLOT_ORDER[b.meal] ?? 9) || a.meal.localeCompare(b.meal)));
@@ -337,6 +360,12 @@ export class DayPlan {
       const lo = Math.min(costOf('am'), costOf('pm')), hi = Math.max(costOf('am'), costOf('pm'));
       return { day: d, text: 'wave not posted', amount: lo === hi ? money(lo) : `${money(lo)}–${money(hi)}`, range: true, lo, hi };
     }
+    if (!this.saved()[d] && !jobs.length) {
+      // Not set up yet (an arrival day): what the plan would cost.
+      const planned = (this.templateFor(i.wave, d)?.meals ?? []).filter((m) => isJob(m.style));
+      const c = planned.reduce((s, m) => s + budgetOf(this.pb().budgets, m.style) * this.head().total, 0);
+      if (planned.length) return { day: d, text: planned.map((m) => `${m.meal.toLowerCase()} ${STYLE_SHORT[m.style].toLowerCase()}${m.optional ? ' (optional)' : ''}`).join(', '), amount: money(c), range: false, lo: c, hi: c };
+    }
     const sum = jobs.reduce((s, m) => s + this.estimate(m), 0);
     return { day: d, text: jobs.length ? jobs.map((m) => `${m.meal.toLowerCase()} ${STYLE_SHORT[m.style!].toLowerCase()}${m.optional ? ' (optional)' : ''}`).join(', ') : 'no team meals', amount: money(sum), range: false, lo: sum, hi: sum };
   }));
@@ -351,6 +380,12 @@ export class DayPlan {
   async setWave(wave: Wave | null) {
     if ((this.info().wave ?? null) === wave) return;
     await this.apply({ type: this.info().type, wave }, wave ? `${fmt(this.day(), { weekday: 'long' })}: ${wave.toUpperCase()} wave. The day plan is filled in.` : 'Wave cleared');
+  }
+  async setArrival(on: boolean) {
+    this.busy.set(true);
+    const ok = await this.store.setArrival(this.event().eid, on);
+    this.busy.set(false);
+    if (ok && on) this.day.set(this.arrivalDate());
   }
   async setType(type: DayType) { await this.apply({ type, wave: this.info().wave ?? null }, `${fmt(this.day(), { weekday: 'long' })} is now ${DAY_TYPE_LABELS[type].toLowerCase()}`); }
   private async apply(v: { type: DayType; wave: Wave | null }, done: string) {

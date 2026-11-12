@@ -7,7 +7,7 @@ import { badRequest, forbidden, json, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { checkId, date, deleteItem, getItem, newId, now, optStr, putItem, queryAll, str } from "../util.js";
 import {
-  DAY_TYPES, MEAL_SLOTS, MEAL_STYLES, PLAN_KEYS, defaultDayType, isJob, orderDeadline, planKey, playbookOf,
+  DAY_TYPES, MEAL_SLOTS, MEAL_STYLES, PLAN_KEYS, defaultDayType, isJob, listedDates, orderDeadline, planDates, planKey, playbookOf,
   type EventDayPlan, type PlanDay, type Playbook
 } from "../../shared/dayplans.js";
 
@@ -43,17 +43,6 @@ const orderLinkSchema = z.object({
 const myOrderSchema = z.object({ pid: str(64).min(1), state: z.enum(["added", "skip"]).nullable() });
 
 type Item = Record<string, unknown>;
-
-/** Every date of a tournament (at most 10). */
-function datesOf(e: Item): string[] {
-  const out: string[] = [];
-  const start = String(e.date), end = String(e.endDate || e.date);
-  for (let d = start; d <= end && out.length < 10; ) {
-    out.push(d);
-    const n = new Date(`${d}T12:00:00Z`); n.setUTCDate(n.getUTCDate() + 1); d = n.toISOString().slice(0, 10);
-  }
-  return out;
-}
 
 /**
  * Sets one day's kind and wave, and makes its meal jobs match the playbook:
@@ -100,7 +89,7 @@ export async function applyDay(teamId: string, e: Item, day: string, set: PlanDa
   const saved2 = (await getItem(keys.dayPlan(teamId, eid))) as EventDayPlan | undefined;
   const days = { ...(saved2?.days ?? {}) };
   days[day] = { type: set.type, ...(set.wave ? { wave: set.wave } : {}), agenda: set.agenda ?? template?.agenda ?? [] };
-  await putItem({ ...keys.dayPlan(teamId, eid), type: "DayPlan", days, updatedAt: at, updatedBy: by });
+  await putItem({ ...(saved2 ?? {}), ...keys.dayPlan(teamId, eid), type: "DayPlan", days, updatedAt: at, updatedBy: by });
   return { days, changed };
 }
 
@@ -124,12 +113,40 @@ export function dayPlanRoutes(r: Router) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(params.day)) throw badRequest("Use a date like 2026-01-30.");
     const e = await getItem(keys.event(a.teamId, eid));
     if (!e || e.kind !== "tournament") throw notFound("That tournament isn't on the schedule any more.");
-    const dates = datesOf({ ...e, eid });
-    if (!dates.includes(params.day)) throw badRequest("That date isn't part of this tournament.");
+    const plan = (await getItem(keys.dayPlan(a.teamId, eid))) as EventDayPlan | undefined;
+    const dates = planDates(!!e.travel, String(e.date), e.endDate ? String(e.endDate) : undefined, !!plan?.noArrival);
+    if (!dates.includes(params.day)) throw badRequest("That date isn't part of this tournament's day plan.");
     const b = parseBody(daySchema, body);
     const set: PlanDay = { type: b.type, ...(b.wave ? { wave: b.wave } : {}), ...(b.agenda ? { agenda: b.agenda } : {}) };
     const out = await applyDay(a.teamId, { ...e, eid }, params.day, set, caller.sub);
     return json(200, out);
+  });
+
+  /** A travel tournament's arrival day (the day before it starts): on by default; off when the team travels that morning. */
+  r.on("PUT", "/teams/{teamId}/events/{eid}/dayplan", async ({ caller, params, body }) => {
+    const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    if (!a.can("schedule") && !a.can("meals")) throw forbidden("Only coaches, coordinators and food coordinators can set the day plan.");
+    a.requireFeature("meals");
+    const eid = checkId(params.eid, "event");
+    const e = await getItem(keys.event(a.teamId, eid));
+    if (!e || e.kind !== "tournament") throw notFound("That tournament isn't on the schedule any more.");
+    const { arrival } = parseBody(z.object({ arrival: z.boolean() }), body);
+    const saved = (await getItem(keys.dayPlan(a.teamId, eid))) as (EventDayPlan & Item) | undefined;
+    const days = { ...(saved?.days ?? {}) };
+    const before = listedDates(String(e.date))[0];
+    const arrivalDay = planDates(true, before)[0];
+    if (!arrival) {
+      // Its meal jobs go: removed if nobody took them, kept and flagged if a family has one.
+      const at = now();
+      const meals = await queryAll({ KeyConditionExpression: "PK = :p AND begins_with(SK, :m)", ExpressionAttributeValues: { ":p": `TEAM#${a.teamId}`, ":m": `EVENT#${eid}#MEAL#` } });
+      for (const m of meals.filter((x) => x.fromPlan && x.planDay === arrivalDay)) {
+        if (!m.claimedBy && !m.orderLink) await deleteItem({ PK: String(m.PK), SK: String(m.SK) });
+        else await putItem({ ...m, stale: true, updatedAt: at, updatedBy: caller.sub });
+      }
+      delete days[arrivalDay];
+    }
+    await putItem({ ...(saved ?? {}), ...keys.dayPlan(a.teamId, eid), type: "DayPlan", days, noArrival: !arrival, updatedAt: now(), updatedBy: caller.sub });
+    return json(200, { days, noArrival: !arrival });
   });
 
   /** The family doing a meal job (or a food coordinator) posts the group order link and service. */
@@ -168,4 +185,4 @@ export function dayPlanRoutes(r: Router) {
   });
 }
 
-export { datesOf, defaultDayType };
+export { defaultDayType };

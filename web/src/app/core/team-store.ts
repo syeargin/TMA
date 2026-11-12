@@ -330,6 +330,7 @@ export class TeamStore implements OnDestroy {
   claimMeal(m: Meal, pid: string) { return this.save("Thanks! It's yours.", (t) => this.api.claimMeal(t, m.eid, m.mid, pid)); }
   savePlaybook(p: Playbook) { return this.save('Day plans saved', (t) => this.api.savePlaybook(t, p)); }
   setPlanDay(eid: string, day: string, v: { type: DayType; wave: Wave | null; agenda?: string[] }, done = 'Day plan updated') { return this.save(done, (t) => this.api.setPlanDay(t, eid, day, v)); }
+  setArrival(eid: string, on: boolean) { return this.save(on ? 'Arrival day added' : 'Arrival day removed', (t) => this.api.setArrival(t, eid, on)); }
   saveOrderLink(m: Meal, v: { vendor?: string; orderLink: string }) { return this.save(v.orderLink ? 'Group order link saved. Families can add their orders now.' : 'Link removed', (t) => this.api.saveOrderLink(t, m.eid, m.mid, v)); }
   myOrder(m: Meal, pid: string, state: 'added' | 'skip' | null) {
     return this.save(state === 'added' ? 'Marked as added' : state === 'skip' ? "Got it: not eating with the team" : 'Undone', (t) => this.api.myOrder(t, m.eid, m.mid, pid, state));

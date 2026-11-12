@@ -24,7 +24,7 @@ function render(opts: { roles?: string[]; pid?: string; meals?: Meal[]; days?: R
     headcount: () => ({ players: 12, coaches: 2, total: 14 }),
     dayPlans: () => ({ sq: { days: opts.days ?? {} } }),
     meals: () => opts.meals ?? [],
-    setPlanDay: vi.fn(() => Promise.resolve(true)), myOrder: vi.fn(() => Promise.resolve(true)), claimMeal: vi.fn(() => Promise.resolve(true)),
+    setPlanDay: vi.fn(() => Promise.resolve(true)), setArrival: vi.fn(() => Promise.resolve(true)), myOrder: vi.fn(() => Promise.resolve(true)), claimMeal: vi.fn(() => Promise.resolve(true)),
     releaseMeal: vi.fn(() => Promise.resolve(true)), saveOrderLink: vi.fn(() => Promise.resolve(true)), saveMeal: vi.fn(() => Promise.resolve(true)), deleteMeal: vi.fn()
   };
   TestBed.configureTestingModule({ imports: [DayPlan], providers: [provideRouter([]), { provide: TeamStore, useValue: store }] });
@@ -42,19 +42,26 @@ const dinner: Meal = {
 describe('tournament day plan', () => {
   it('shows each day by kind, and both possible plans while the wave is not posted', () => {
     const { el } = render();
-    expect([...el.querySelectorAll('.dp-day')].map((d) => [...d.children].map((c) => c.textContent!.trim()).join(' '))).toEqual(['Fri Arrival', 'Sat Play day · wave TBD', 'Sun Last day · wave TBD']);
-    // Friday is the arrival day: no wave needed, the plan shows at once.
+    expect([...el.querySelectorAll('.dp-day')].map((d) => [...d.children].map((c) => c.textContent!.trim()).join(' '))).toEqual(['Thu Arrival', 'Fri Play day · wave TBD', 'Sat Play day · wave TBD', 'Sun Last day · wave TBD']);
+    // Thursday, the day before it starts, is the arrival day: no wave needed, the plan shows at once.
     expect(text(el)).toContain('Check in at the hotel');
-    (el.querySelectorAll('.dp-day')[1] as HTMLButtonElement).click();
+    (el.querySelectorAll('.dp-day')[2] as HTMLButtonElement).click();
     TestBed.tick();
     expect(text(el)).toContain("Saturday's wave isn't posted yet");
     expect(text(el)).toContain('If AM wave');
     expect(text(el)).toContain('If PM wave');
   });
 
+  it('lets the coach drop the arrival day when the team travels that morning', () => {
+    const { el, store } = render({ roles: ['coach'] });
+    const off = [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.includes('No arrival day'))!;
+    off.click();
+    expect(store.setArrival).toHaveBeenCalledWith('sq', false);
+  });
+
   it('lets the coach set the wave', async () => {
     const { el, store } = render({ roles: ['coach'] });
-    (el.querySelectorAll('.dp-day')[1] as HTMLButtonElement).click();
+    (el.querySelectorAll('.dp-day')[2] as HTMLButtonElement).click();
     TestBed.tick();
     const pm = [...el.querySelectorAll<HTMLButtonElement>('.chip')].find((b) => b.textContent!.trim() === 'PM')!;
     pm.click();
@@ -64,7 +71,7 @@ describe('tournament day plan', () => {
 
   it('gives a family the group order link and asks them to mark their order', () => {
     const { el, store } = render({ pid: 'p2', meals: [dinner], days: { '2027-01-30': { type: 'play', wave: 'pm', agenda: ['Dinner at the venue'] } } });
-    (el.querySelectorAll('.dp-day')[1] as HTMLButtonElement).click();
+    (el.querySelectorAll('.dp-day')[2] as HTMLButtonElement).click();
     TestBed.tick();
     expect(text(el)).toContain('Order for 14 · DoorDash');
     expect(text(el)).toContain("Ava's family");
@@ -78,7 +85,7 @@ describe('tournament day plan', () => {
 
   it('lets the family with the job post the link, and shows the budget', () => {
     const { el } = render({ pid: 'p1', meals: [{ ...dinner, orderLink: undefined }], days: { '2027-01-30': { type: 'play', wave: 'pm' } } });
-    (el.querySelectorAll('.dp-day')[1] as HTMLButtonElement).click();
+    (el.querySelectorAll('.dp-day')[2] as HTMLButtonElement).click();
     TestBed.tick();
     expect(el.querySelector('form.dp-link')).toBeTruthy();
     expect(text(el)).toContain('14 × $20 = $280');
