@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { WORK_GROUP_LABELS, onDuty, workList } from '@shared/matches';
 import {
   DAY_TYPE_LABELS, MEAL_SLOTS, MEAL_STYLES, STYLE_LABELS, STYLE_SHORT, budgetOf, defaultDayType, isJob, listedDates, orderDeadline, planDates,
   agendaOf, minutesOf, planKey, templateItems, type AgendaItem, type DayTemplate, type DayType, type MealStyle, type PlanMeal, type Wave
@@ -19,7 +20,7 @@ type Line = { kind: 'meal'; meal: string; style: MealStyle; optional?: boolean }
 const SLOT_MINUTES: Record<string, number> = { Breakfast: 7 * 60, Lunch: 12 * 60, 'Between matches': 14 * 60, Dinner: 18 * 60 };
 type Entry = {
   key: string; kind: 'own' | 'item' | 'match' | 'planmeal' | 'meal'; time: string; sort: number;
-  own?: PlanMeal[]; item?: AgendaItem; meal?: Meal; planMeal?: PlanMeal; detail?: string; sub?: string;
+  own?: PlanMeal[]; item?: AgendaItem; meal?: Meal; planMeal?: PlanMeal; title?: string; detail?: string; sub?: string; work?: boolean;
 };
 
 /**
@@ -116,7 +117,7 @@ type Entry = {
                   @if (en.item!.note) { <span class="small muted">{{ en.item!.note }}</span> }
                 }
                 @case ('match') {
-                  <div><b>First match</b>@if (en.detail) { {{ en.detail }} } <span class="dp-src ok">From Matches</span></div>
+                  <div><b>{{ en.title }}</b>@if (en.detail) { {{ en.detail }} } <span class="dp-src ok">From Matches</span></div>
                   @if (en.sub) { <span class="small muted">{{ en.sub }}</span> }
                 }
                 @case ('planmeal') {
@@ -182,7 +183,7 @@ type Entry = {
             <div class="dp-act">
               @if (en.kind === 'item' && canPlan && !unsaved()) { <button class="link-btn small" type="button" (click)="openItem(en.item!)">Edit</button> }
               @if (en.kind === 'meal' && food) { <button class="link-btn small" type="button" (click)="openForm(en.meal!)">Edit</button> }
-              @if (en.kind === 'match') { <a class="small" [routerLink]="['/teams', store.teamId(), 'tournaments', event().eid, 'matches']">Matches ›</a> }
+              @if (en.kind === 'match') { <a class="small" [routerLink]="['/teams', store.teamId(), 'tournaments', event().eid, en.work ? 'ref' : 'matches']">{{ en.work ? 'Ref jobs ›' : 'Matches ›' }}</a> }
             </div>
           </div>
         }
@@ -395,15 +396,17 @@ export class DayPlan {
   readonly items = computed<AgendaItem[]>(() => this.unsaved()
     ? templateItems(this.templateFor(this.info().wave), (i) => `t${i}`)
     : agendaOf(this.saved()[this.day()]).filter((a) => !a.removed));
-  /** The first match of the day, from the match tracker (when matches are entered). */
-  readonly firstMatch = computed(() => {
-    if (!this.store.has('matches')) return null;
+  /** Every match of the day with a time, from Matches: the ones the team plays and the ones it works. */
+  readonly dayMatches = computed(() => {
+    if (!this.store.has('matches')) return [];
     const doc = this.store.matches()[this.event().eid];
-    const list = Object.values(doc?.matches ?? {}).filter((m) => m.date === this.day()).sort((a, b) => a.n - b.n);
-    const first = list.find((m) => m.time) ?? null;
-    if (!first) return null;
-    const count = doc?.slots?.[this.day()] ?? list.length;
-    return { time: first.time!, detail: [first.opponent ? `vs ${first.opponent}` : '', first.court ? (/court/i.test(first.court) ? first.court : `Court ${first.court}`) : ''].filter(Boolean).join(' · '), sub: count > 1 ? `${count} matches today` : '' };
+    const court = (c?: string) => (c ? (/court/i.test(c) ? c : `Court ${c}`) : '');
+    const play = Object.values(doc?.matches ?? {}).filter((m) => m.date === this.day() && m.time)
+      .map((m) => ({ id: `${m.date}-${m.n}`, time: m.time!, work: false, title: 'We play', detail: [m.opponent ? `vs ${m.opponent}` : '', court(m.court)].filter(Boolean).join(' · '), sub: '' }));
+    const work = workList(doc).filter((w) => w.date === this.day() && w.time)
+      .map((w) => ({ id: w.id, time: w.time!, work: true, title: 'We work', detail: [w.teams.filter(Boolean).join(' v '), court(w.court)].filter(Boolean).join(' · '),
+        sub: `${WORK_GROUP_LABELS[w.group]}: ${onDuty(this.store.players(), w.group).map((p) => p.first).join(', ')}` }));
+    return [...play, ...work];
   });
   /** One timeline: untimed things first ("Any time"), then everything by time. */
   readonly entries = computed<Entry[]>(() => {
@@ -412,8 +415,7 @@ export class DayPlan {
     const own = (t?.meals ?? []).filter((m) => !isJob(m.style));
     if (own.length && !this.waiting()) out.push({ key: 'own', kind: 'own', time: '', sort: -1, own });
     for (const a of this.waiting() ? [] : this.items()) out.push({ key: 'i' + a.id, kind: 'item', time: a.time ?? '', sort: minutesOf(a.time) ?? -1, item: a });
-    const fm = this.firstMatch();
-    if (fm) out.push({ key: 'match', kind: 'match', time: fm.time, sort: minutesOf(fm.time) ?? 9999, detail: fm.detail, sub: fm.sub });
+    for (const m of this.dayMatches()) out.push({ key: 'x' + m.id, kind: 'match', time: m.time, sort: minutesOf(m.time) ?? 9999, title: m.title, detail: m.detail, sub: m.sub, work: m.work });
     if (this.unsaved() && !this.waiting()) for (const m of (t?.meals ?? []).filter((x) => isJob(x.style))) out.push({ key: 'pm' + m.meal, kind: 'planmeal', time: '', sort: SLOT_MINUTES[m.meal] ?? 9999, planMeal: m });
     for (const m of this.dayMeals()) out.push({ key: 'm' + m.mid, kind: 'meal', time: m.time ?? '', sort: minutesOf(m.time) ?? SLOT_MINUTES[m.meal] ?? 9999, meal: m });
     return out.sort((a, b) => a.sort - b.sort);
@@ -425,7 +427,7 @@ export class DayPlan {
     const n = this.entries().find((e) => e.time && e.sort >= mins && e.kind !== 'own');
     if (!n) return null;
     const left = n.sort - mins;
-    const what = n.kind === 'item' ? n.item!.what : n.kind === 'match' ? 'First match' : n.meal?.meal ?? n.planMeal?.meal ?? '';
+    const what = n.kind === 'item' ? n.item!.what : n.kind === 'match' ? `${n.title} ${n.detail ?? ''}`.trim() : n.meal?.meal ?? n.planMeal?.meal ?? '';
     return { time: n.time, what, where: n.item?.where ?? '', in: left < 1 ? 'now' : left < 60 ? `in ${left} min` : `in ${Math.floor(left / 60)} hr ${left % 60 ? (left % 60) + ' min' : ''}`.trim() };
   });
   addedBy(sub?: string) { const n = sub ? this.store.authorName(sub) : ''; return n ? `Added by ${n}` : 'Added by hand'; }
