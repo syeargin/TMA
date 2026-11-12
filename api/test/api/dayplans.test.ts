@@ -7,7 +7,7 @@ const { handler } = await import("../../src/api/handler.js");
 const { ddb, TABLE } = await import("../../src/lib/db.js");
 const { keys } = await import("../../src/lib/keys.js");
 const { PutCommand, GetCommand } = await import("@aws-sdk/lib-dynamodb");
-const { DEFAULT_PLAYBOOK, familyTaskFrom, defaultDayType, planKey } = await import("../../src/shared/dayplans.js");
+const { DEFAULT_PLAYBOOK, familyTaskFrom, defaultDayType, planDates, planKey } = await import("../../src/shared/dayplans.js");
 
 async function call(method: string, path: string, sub: string, body?: unknown) {
   const r = await handler(event(method, path, sub, body));
@@ -32,7 +32,11 @@ beforeAll(async () => {
 describe("day plan rules", () => {
   it("knows each kind of day and when families get the order to-do", () => {
     const d = ["2027-01-29", "2027-01-30", "2027-01-31"];
-    expect(d.map((x) => defaultDayType(true, d, x))).toEqual(["arrival", "play", "last"]);
+    // Travel: the arrival day is the day before the listed start; the schedule's dates don't change.
+    expect(planDates(true, "2027-01-29", "2027-01-31")).toEqual(["2027-01-28", ...d]);
+    expect(planDates(true, "2027-01-29", "2027-01-31", true)).toEqual(d);
+    expect(planDates(false, "2026-12-12")).toEqual(["2026-12-12"]);
+    expect(["2027-01-28", ...d].map((x) => defaultDayType(true, d, x))).toEqual(["arrival", "play", "play", "last"]);
     expect(defaultDayType(false, d, d[0])).toBe("play");
     expect(planKey(true, "play")).toBeNull();
     expect(planKey(true, "arrival")).toBe("travel-arrival");
@@ -107,10 +111,24 @@ describe("tournament day plans", () => {
     expect(bundle.dayPlans.hc.days["2026-12-12"].wave).toBe("am");
   });
 
+  it("plans the arrival day before a travel tournament, and can turn it off", async () => {
+    const r = await call("PUT", `/teams/${T}/events/sq/dayplan/2027-01-28`, COACH, { type: "arrival" });
+    expect(r.status).toBe(200);
+    const dinner = (await meals()).find((m) => m.eid === "sq" && m.day === "2027-01-28")!;
+    expect(dinner).toMatchObject({ meal: "Dinner", style: "restaurant", optional: true });
+    // The team drives in the morning instead: the untaken dinner goes, and the day is off the plan.
+    const off = await call("PUT", `/teams/${T}/events/sq/dayplan`, COACH, { arrival: false });
+    expect(off.body.noArrival).toBe(true);
+    expect((await meals()).some((m) => m.eid === "sq" && m.day === "2027-01-28")).toBe(false);
+    expect((await call("PUT", `/teams/${T}/events/sq/dayplan/2027-01-28`, COACH, { type: "arrival" })).status).toBe(400);
+    expect((await call("PUT", `/teams/${T}/events/sq/dayplan`, COACH, { arrival: true })).body.noArrival).toBe(false);
+  });
+
   it("refuses dates outside the tournament and families setting the plan", async () => {
     expect((await call("PUT", `/teams/${T}/events/sq/dayplan/2027-02-02`, COACH, { type: "play", wave: "am" })).status).toBe(400);
     expect((await call("PUT", `/teams/${T}/events/sq/dayplan/2027-01-31`, LEE, { type: "last", wave: "am" })).status).toBe(403);
     const plan = (await ddb.send(new GetCommand({ TableName: TABLE, Key: keys.dayPlan(T, "sq") }))).Item;
     expect(Object.keys(plan!.days)).toEqual(["2027-01-30"]);
+    expect((await call("PUT", `/teams/${T}/events/hc/dayplan/2026-12-11`, COACH, { type: "play", wave: "am" })).status).toBe(400);
   });
 });
