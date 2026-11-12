@@ -1,4 +1,5 @@
 import type { DayType, Playbook, Wave } from '@shared/dayplans';
+import type { WorkGroup, WorkMatch } from '@shared/matches';
 export type PlanItemBody = { what: string; time?: string; where?: string; note?: string; cal?: boolean };
 import type { PlayerMark } from '@shared/attendance';
 import type { ExportRows } from './xlsx-fill';
@@ -174,6 +175,10 @@ export class ApiService {
 
   saveMatch(teamId: string, eid: string, mid: string, m: { time?: string; court?: string; opponent?: string; format: number; sets: { us: number; them: number }[]; result: string }) { return this.call<{ match: Match }>('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/matches/${enc(mid)}`, m); }
   clearMatch(teamId: string, eid: string, mid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}/matches/${enc(mid)}`); }
+  /** Matches the team works (refs): add ('new') or change, remove, and set or rotate its ref jobs. */
+  saveWork(teamId: string, eid: string, wid: string, w: { date: string; teams: [string, string]; time?: string; court?: string; matchNo?: string; group?: WorkGroup | null }) { return this.call<{ work: WorkMatch }>('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/work/${enc(wid)}`, w); }
+  deleteWork(teamId: string, eid: string, wid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}/work/${enc(wid)}`); }
+  saveWorkJobs(teamId: string, eid: string, wid: string, v: { jobs: RefAssign } | { rotate: true }) { return this.call<{ work: WorkMatch }>('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/work/${enc(wid)}/jobs`, v); }
   setMatchSlots(teamId: string, eid: string, date: string, slots: number) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/matchslots`, { date, slots }); }
   setScorekeeper(teamId: string, eid: string, sub: string | null) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/scorekeeper`, { sub }); }
   saveRefJobs(teamId: string, eid: string, assign: RefAssign) { return this.call('PUT', `/teams/${enc(teamId)}/events/${enc(eid)}/refjobs`, { assign }); }

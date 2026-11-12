@@ -1,9 +1,10 @@
 import { Component, ViewEncapsulation, computed, inject, input, signal } from '@angular/core';
-import { FORMATS, FORMAT_LABELS, MAX_SLOTS, matchProblem, pointDiff, record, setsWon, suggestedResult, tournamentDays, tournamentView, type Format, type Match, type Result } from '@shared/matches';
+import { FORMATS, FORMAT_LABELS, MAX_SLOTS, WORK_GROUP_LABELS, matchProblem, minutesOfDay, nextGroup, pointDiff, record, setsWon, suggestedResult, tournamentDays, tournamentView, workList, type Format, type Match, type Result, type WorkGroup, type WorkMatch } from '@shared/matches';
 import { fmt, fmtRange } from '../../core/dates';
 import type { TeamEvent } from '../../core/models';
 import { fullName } from '../../core/me.service';
 import { TeamStore } from '../../core/team-store';
+import { RouterLink } from '@angular/router';
 import { Sheet } from '../../shared/sheet';
 import { ShareResults, tournamentShare, type ShareCard } from '../stats/share-results';
 
@@ -13,7 +14,7 @@ const MAX_SETS = 5;
 /** A tournament's Matches section: each day's matches, the tournament summary, scores and the scorekeeper. */
 @Component({
   selector: 'th-matches',
-  imports: [Sheet, ShareResults],
+  imports: [Sheet, ShareResults, RouterLink],
   styleUrl: '../stats/matches.css',
   encapsulation: ViewEncapsulation.None,
   template: `
@@ -70,19 +71,36 @@ const MAX_SETS = 5;
           @if (d.totals.played) { <span class="mt-res" [class.w]="d.totals.won > d.totals.lost" [class.l]="d.totals.won < d.totals.lost" [class.t]="d.totals.won === d.totals.lost">{{ rec(d.totals) }}</span> }
           <span class="muted small">{{ d.rows.length }} {{ d.rows.length === 1 ? 'match' : 'matches' }}@if (d.totals.played) { · sets {{ d.totals.setsWon }}–{{ d.totals.setsLost }} }</span>
           <span class="spacer"></span>
-          @if (canScore() && d.rows.length < maxSlots) { <button class="btn sm" type="button" (click)="addRow(d.date, d.rows.length)">Add match</button> }
+          @if (canWork()) { <button class="btn sm" type="button" (click)="openAdd(d.date)">Add match</button> }
+          @else if (canScore() && d.rows.length < maxSlots) { <button class="btn sm" type="button" (click)="addRow(d.date, d.rows.length)">Add match</button> }
         </div>
         <div class="card-b">
           <div class="table-wrap">
             <table class="mt-table">
               <thead><tr><th>#</th><th>Time</th><th>Court</th><th>Opponent</th><th>Set scores (us–them)</th><th>Sets</th><th>Result</th><th><span class="sr-only">Actions</span></th></tr></thead>
               <tbody>
-                @for (r of d.rows; track r.id) {
+                @for (x of merged(d.date, d.rows); track x.key) {
+                  @if (x.work; as w) {
+                    <tr class="mt-work">
+                      <td class="muted tn c-n">{{ w.matchNo || '' }}</td>
+                      <td class="tn c-hide">@if (w.time) { {{ w.time }} } @else { <span class="muted">TBD</span> }</td>
+                      <td class="c-hide">@if (w.court) { Ct {{ w.court }} } @else { <span class="muted">–</span> }</td>
+                      <td class="c-opp"><span class="mt-kind work">We work</span> <b>{{ teamsOf(w) }}</b>
+                        <div class="mt-meta muted small">{{ w.time || 'Time TBD' }}@if (w.court) { · Ct {{ w.court }} }</div></td>
+                      <td colspan="3" class="c-sets"><span class="mt-grp" [class]="'mt-grp g-' + w.group">{{ groupLabel(w.group) }}</span>@if (w.auto) { <span class="muted small"> auto</span> }
+                        @if (jobSummary(w); as js) { <div class="muted small">{{ js }}</div> }</td>
+                      <td class="mt-act">
+                        <a class="link-btn small" [routerLink]="['/teams', store.teamId(), 'tournaments', event().eid, 'ref']">Ref jobs</a>
+                        @if (canWork()) { <button class="link-btn small" type="button" style="margin-left:8px" (click)="openWork(w)">Edit</button> }
+                      </td>
+                    </tr>
+                  } @else {
+                  @let r = x.row!;
                   <tr [class.mt-next]="nextRow()?.id === r.id">
                     <td class="muted tn c-n">{{ r.n }}</td>
                     <td class="tn c-hide">@if (r.match?.time) { {{ r.match!.time }} } @else { <span class="muted">TBD</span> }</td>
                     <td class="c-hide">@if (r.match?.court) { Ct {{ r.match!.court }} } @else { <span class="muted">–</span> }</td>
-                    <td class="c-opp">@if (r.match?.opponent) { <b>{{ r.match!.opponent }}</b> } @else { <span class="muted">Opponent TBD</span> }
+                    <td class="c-opp">@if (hasWork()) { <span class="mt-kind">We play</span> }@if (r.match?.opponent) { <b>{{ r.match!.opponent }}</b> } @else { <span class="muted">Opponent TBD</span> }
                       <div class="mt-meta muted small">{{ r.match?.time || 'Time TBD' }}@if (r.match?.court) { · Ct {{ r.match!.court }} }</div></td>
                     <td class="c-sets">
                       @if (r.match?.sets?.length) {
@@ -100,10 +118,11 @@ const MAX_SETS = 5;
                     <td class="mt-act">
                       @if (canScore()) {
                         <button class="link-btn small" type="button" (click)="open(d.date, r.n)">{{ r.match?.result ? 'Edit' : 'Enter score' }}</button>
-                        @if (staff() && !r.match && $last && d.rows.length > 1) { <button class="link-btn small" type="button" style="margin-left:8px" (click)="removeRow(d.date, d.rows.length)">Remove</button> }
+                        @if (staff() && !r.match && r.n === d.rows.length && d.rows.length > 1) { <button class="link-btn small" type="button" style="margin-left:8px" (click)="removeRow(d.date, d.rows.length)">Remove</button> }
                       }
                     </td>
                   </tr>
+                  }
                 }
               </tbody>
             </table>
@@ -111,6 +130,65 @@ const MAX_SETS = 5;
           @if (canScore() && $first) { <p class="hint" style="margin:0">Each day starts with 3 match rows. Use “Add match” for more.</p> }
         </div>
       </section>
+    }
+
+    @if (hasWork()) {
+      <section class="card">
+        <div class="card-b row mt-tally" style="padding-top:12px">
+          <b>Work this tournament</b>
+          @for (g of tally(); track g.group) { <span><span class="mt-grp" [class]="'mt-grp g-' + g.group">{{ groupLabel(g.group) }}</span> {{ g.n }} match{{ g.n === 1 ? '' : 'es' }}</span> }
+          <span class="muted small">The next one goes to {{ groupLabel(upNext()) }}. Pick a group on any match to change it.</span>
+        </div>
+      </section>
+    }
+
+    @if (canWork()) {
+      <th-sheet [heading]="work()?.id ? 'Edit the match we work' : 'Add a match · ' + day(work()?.date ?? event().date)" [open]="!!work()" (closed)="work.set(null)">
+        @if (work(); as w) {
+          <form class="mt-form" (submit)="$event.preventDefault(); saveWork()" novalidate>
+            @if (!w.id) {
+              <div class="mt-seg" role="group" aria-label="Kind of match">
+                <button type="button" [attr.aria-pressed]="w.kind === 'play'" (click)="setWork('kind', 'play')">We play</button>
+                <button type="button" [attr.aria-pressed]="w.kind === 'work'" (click)="setWork('kind', 'work')">We work (ref)</button>
+              </div>
+            }
+            @if (w.kind === 'play') {
+              <p class="muted small">Adds a row for a match the team plays. Enter the opponent, time and court now, and the score when it's played.</p>
+              <div class="row"><button class="btn primary" type="button" (click)="addPlay()" [disabled]="busy() || playRows(w.date) >= maxSlots">Add the match we play</button><button class="btn ghost" type="button" (click)="work.set(null)">Cancel</button></div>
+            } @else {
+              <fieldset class="group"><legend>Teams playing</legend>
+                <div class="mt-vs">
+                  <input id="mt-w-a" [value]="w.a" (input)="setWork('a', $any($event.target).value)" placeholder="Lakeside 13 Gold" [attr.list]="'mt-teams'" aria-label="First team">
+                  <span class="muted">v</span>
+                  <input id="mt-w-b" [value]="w.b" (input)="setWork('b', $any($event.target).value)" placeholder="Coastal 13 Red" [attr.list]="'mt-teams'" aria-label="Second team">
+                </div>
+                <datalist id="mt-teams">@for (t of knownTeams(); track t) { <option [value]="t"></option> }</datalist>
+                <p class="hint" style="margin:4px 0 0">Pick from teams already entered, or type a name.</p>
+              </fieldset>
+              <div class="mt-three">
+                <label>Day<select [value]="w.date" (change)="setWork('date', $any($event.target).value)">@for (dd of days(); track dd) { <option [value]="dd" [selected]="dd === w.date">{{ day(dd) }}</option> }</select></label>
+                <label>Time<input id="mt-w-time" [value]="w.time" (input)="setWork('time', $any($event.target).value)" placeholder="8:00 AM"></label>
+                <label>Court<input id="mt-w-court" [value]="w.court" (input)="setWork('court', $any($event.target).value)" placeholder="6"></label>
+                <label>Match #<input id="mt-w-no" [value]="w.matchNo" (input)="setWork('matchNo', $any($event.target).value)" placeholder="1"></label>
+              </div>
+              <fieldset class="group"><legend>Who works it</legend>
+                <div class="mt-seg" role="group" aria-label="Who works it">
+                  <button type="button" [attr.aria-pressed]="w.group === null" (click)="setWork('group', null)">{{ groupLabel(autoGroup(w.id)) }} · auto</button>
+                  @for (g of groupChoices; track g) { <button type="button" [attr.aria-pressed]="w.group === g" (click)="setWork('group', g)">{{ groupLabel(g) }}</button> }
+                </div>
+                <p class="hint" style="margin:4px 0 0">Auto keeps the work even: {{ tallyText() }}. Their jobs per set are filled by rotation; change them on Ref jobs.</p>
+              </fieldset>
+              @if (workError()) { <p class="hint warn" role="alert">{{ workError() }}</p> }
+              <div class="row">
+                <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : w.id ? 'Save' : 'Add match' }}</button>
+                <button class="btn ghost" type="button" (click)="work.set(null)">Cancel</button>
+                <span class="spacer"></span>
+                @if (w.id) { <button class="btn" type="button" [class.danger]="!confirmClear()" [class.confirming]="confirmClear()" (click)="removeWork()">{{ confirmClear() ? 'Tap again to remove' : 'Remove' }}</button> }
+              </div>
+            }
+          </form>
+        }
+      </th-sheet>
     }
 
     <th-sheet [heading]="draftHeading()" [open]="!!draft()" (closed)="draft.set(null)">
@@ -283,6 +361,73 @@ export class Matches {
     if (!f) return;
     if (!this.confirmClear()) { this.confirmClear.set(true); return; }
     if (await this.store.clearMatch(f.eid, f.id)) this.draft.set(null);
+  }
+
+  // ----- matches the team works (refs) -----
+  readonly groupChoices: WorkGroup[] = ['A', 'B', 'all'];
+  readonly canWork = computed(() => !this.store.readOnly() && (this.store.can('scores') || this.store.can('refjobs')));
+  readonly works = computed(() => workList(this.doc()));
+  readonly hasWork = computed(() => this.works().length > 0);
+  readonly hasB = computed(() => this.store.players().some((p) => p.refTeam === 'B'));
+  groupLabel(g: WorkGroup) { return WORK_GROUP_LABELS[g]; }
+  autoGroup(except?: string) { return nextGroup(this.doc(), this.hasB(), except); }
+  readonly upNext = computed(() => this.autoGroup());
+  readonly tally = computed(() => (['A', 'B', 'all'] as WorkGroup[]).map((group) => ({ group, n: this.works().filter((w) => w.group === group).length })).filter((g) => g.n || g.group !== 'all'));
+  tallyText() { return this.tally().map((g) => `${this.groupLabel(g.group)} has ${g.n} so far`).join(', '); }
+  teamsOf(w: WorkMatch) { return w.teams.filter(Boolean).join(' v '); }
+  jobSummary(w: WorkMatch) {
+    const first = Object.entries(w.jobs ?? {}).map(([pid, j]) => (j.s1 && j.s1 !== 'Off' ? `${j.s1} ${this.store.playerName(pid)}` : '')).filter(Boolean);
+    return first.length ? `Set 1: ${first.join(' · ')}` : '';
+  }
+  /** Teams already typed on this tournament (opponents and work matches), for the team pickers. */
+  readonly knownTeams = computed(() => [...new Set([...Object.values(this.doc()?.matches ?? {}).map((m) => m.opponent ?? ''), ...this.works().flatMap((w) => w.teams)].map((t) => t.trim()).filter(Boolean))].sort());
+  /** One day's rows, playing and working, in time order (rows without a time keep their place). */
+  merged(date: string, rows: { n: number; id: string; match: Match | null }[]) {
+    const key = (t: string | undefined, i: number) => minutesOfDay(t) ?? 10000 + i;
+    const out = [
+      ...rows.map((r, i) => ({ key: r.id, k: key(r.match?.time, i), row: r, work: null as WorkMatch | null })),
+      ...this.works().filter((w) => w.date === date).map((w, i) => ({ key: w.id, k: key(w.time, i + 0.5), row: null, work: w }))
+    ];
+    return out.sort((a, b) => a.k - b.k);
+  }
+  playRows(date: string) { return this.view().days.find((d) => d.date === date)?.rows.length ?? 0; }
+
+  readonly work = signal<{ id: string; kind: 'play' | 'work'; date: string; a: string; b: string; time: string; court: string; matchNo: string; group: WorkGroup | null } | null>(null);
+  readonly workError = signal('');
+  openAdd(date: string) { this.confirmClear.set(false); this.workError.set(''); this.work.set({ id: '', kind: 'work', date, a: '', b: '', time: '', court: '', matchNo: '', group: null }); }
+  openWork(w: WorkMatch) {
+    this.confirmClear.set(false); this.workError.set('');
+    this.work.set({ id: w.id, kind: 'work', date: w.date, a: w.teams[0], b: w.teams[1], time: w.time ?? '', court: w.court ?? '', matchNo: w.matchNo ?? '', group: w.auto ? null : w.group });
+  }
+  setWork(k: string, v: string | null) { this.work.update((w) => (w ? { ...w, [k]: v } : w)); }
+  async addPlay() {
+    const w = this.work();
+    if (!w) return;
+    const n = this.playRows(w.date);
+    this.busy.set(true);
+    const ok = await this.store.setMatchSlots(this.event().eid, w.date, n + 1, '');
+    this.busy.set(false);
+    if (!ok) return;
+    this.work.set(null);
+    this.open(w.date, n + 1);
+  }
+  async saveWork() {
+    const w = this.work();
+    if (!w) return;
+    if (!w.a.trim() && !w.b.trim()) { this.workError.set('Enter the teams playing (at least one).'); return; }
+    if (w.time.trim() && minutesOfDay(w.time) === null) { this.workError.set('Use a time like 8:00 AM.'); return; }
+    this.busy.set(true);
+    const ok = await this.store.saveWork(this.event().eid, w.id || 'new', {
+      date: w.date, teams: [w.a.trim(), w.b.trim()], time: w.time.trim() || undefined, court: w.court.trim() || undefined, matchNo: w.matchNo.trim() || undefined, group: w.group
+    }, w.id ? 'Saved' : 'Match added. Ref jobs are filled in.');
+    this.busy.set(false);
+    if (ok) this.work.set(null);
+  }
+  async removeWork() {
+    const w = this.work();
+    if (!w?.id) return;
+    if (!this.confirmClear()) { this.confirmClear.set(true); return; }
+    if (await this.store.deleteWork(this.event().eid, w.id)) this.work.set(null);
   }
 
   // ----- rows -----

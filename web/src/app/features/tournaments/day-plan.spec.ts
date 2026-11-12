@@ -84,7 +84,7 @@ describe('tournament day plan', () => {
     expect(store.myOrder).toHaveBeenCalledWith(dinner, 'p2', null);
   });
 
-  it('shows one timeline in time order, with the first match from Matches', () => {
+  it('shows one timeline in time order, with the matches from Matches', () => {
     const { el } = render({
       meals: [{ ...dinner, time: '5:30 PM' }],
       matches: { sq: { slots: { '2027-01-30': 3 }, matches: { a: { date: '2027-01-30', n: 1, time: '3:00 PM', court: '6', opponent: 'Coastal 13 Red', format: 3, sets: [] } } } },
@@ -101,7 +101,7 @@ describe('tournament day plan', () => {
     expect(times).toEqual(['Any time', '1:15 PM', '3:00 PM', '5:30 PM', '7:30 PM']);
     expect(rows[1]).toContain('Meet in the hotel lobby');
     expect(rows[2]).toContain('vs Coastal 13 Red · Court 6');
-    expect(rows[2]).toContain('3 matches today');
+    expect(rows[2]).toContain('We play');
     expect(rows[4]).toContain('Added by Coach Kim');
     expect(rows.join(' ')).not.toContain('Dinner at the venue');
   });

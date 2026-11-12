@@ -24,7 +24,72 @@ export type Match = {
   result?: Result | "";
   updatedAt?: string; updatedBy?: string;
 };
-export type MatchDoc = { matches?: Record<string, Match>; slots?: Record<string, number>; scorekeeper?: string };
+/** A match the team works (refs) instead of plays: two other teams, and which of our ref groups is on duty. */
+export type RefSet = "s1" | "s2" | "s3";
+export type RefAssign = Record<string, Partial<Record<RefSet, string>>>;
+export type WorkGroup = "A" | "B" | "all";
+export type WorkMatch = {
+  id: string; date: string; time?: string; court?: string;
+  /** The match's number on the pool sheet. */
+  matchNo?: string;
+  teams: [string, string];
+  group: WorkGroup;
+  /** The group was picked automatically (to keep the work even). */
+  auto?: boolean;
+  /** Each on-duty player's job per set. */
+  jobs?: RefAssign;
+  /** How many times "Rotate again" moved the jobs on. */
+  shift?: number;
+  updatedAt?: string; updatedBy?: string;
+};
+export type MatchDoc = { matches?: Record<string, Match>; slots?: Record<string, number>; scorekeeper?: string; work?: Record<string, WorkMatch> };
+
+export const REF_SETS: RefSet[] = ["s1", "s2", "s3"];
+export const REF_JOBS = ["Book", "Score", "Libero", "Lines", "Off", "Playing"];
+export const WORK_GROUP_LABELS: Record<WorkGroup, string> = { A: "Group A", B: "Group B", all: "Whole team" };
+const ROTATION = ["Book", "Score", "Libero", "Lines", "Lines", "Off"];
+
+/** The players on duty: the group's (each player's ref group, A unless set), or everyone. */
+export function onDuty<P extends { pid: string; refTeam?: string }>(players: readonly P[], group: WorkGroup): P[] {
+  return group === "all" ? [...players] : players.filter((p) => (p.refTeam === "B" ? "B" : "A") === group);
+}
+
+/**
+ * Each player covers one job per set, rotating so the jobs move around. `offset` shifts the start, so a
+ * group that works several matches doesn't give the same player the book every time.
+ */
+export function rotateJobs(pids: readonly string[], offset = 0): RefAssign {
+  const out: RefAssign = {};
+  const n = pids.length;
+  pids.forEach((pid, i) => {
+    out[pid] = {};
+    REF_SETS.forEach((s, si) => { out[pid][s] = ROTATION[(i + offset + si * 2) % n] || "Off"; });
+  });
+  return out;
+}
+
+/** Work matches in time order (then as entered). */
+export const workList = (doc: MatchDoc | undefined) =>
+  Object.values(doc?.work ?? {}).sort((a, b) => a.date.localeCompare(b.date) || (minutesOfDay(a.time) ?? 9999) - (minutesOfDay(b.time) ?? 9999) || a.id.localeCompare(b.id));
+
+/** The group the next work match goes to: the one with fewer so far (A first), or the whole team without a B group. */
+export function nextGroup(doc: MatchDoc | undefined, hasB: boolean, except?: string): WorkGroup {
+  if (!hasB) return "all";
+  const list = workList(doc).filter((w) => w.id !== except);
+  const a = list.filter((w) => w.group === "A").length, b = list.filter((w) => w.group === "B").length;
+  return b < a ? "B" : "A";
+}
+
+/** Minutes after midnight for "8:00 AM" or "13:30"; null without a time. */
+export function minutesOfDay(t?: string): number | null {
+  const m = /^\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?\s*$/i.exec(t ?? "");
+  if (!m) return null;
+  let h = +m[1];
+  const min = +(m[2] ?? 0);
+  if (h > 23 || min > 59) return null;
+  if (m[3]) h = (h % 12) + (m[3].toUpperCase() === "PM" ? 12 : 0);
+  return h * 60 + min;
+}
 
 export const matchId = (date: string, n: number) => `${date}-${n}`;
 export const MATCH_ID = /^(\d{4}-\d{2}-\d{2})-(\d{1,2})$/;

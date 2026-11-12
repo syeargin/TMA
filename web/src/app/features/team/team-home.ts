@@ -1,4 +1,5 @@
 import { isJob } from '@shared/dayplans';
+import { workList } from '@shared/matches';
 import { AttendanceCard } from './attendance-card';
 import { Component, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -110,6 +111,24 @@ export class TeamHome {
           sub: `${e.title}${m.day ? ' · ' + fmt(m.day) : ''}${m.vendor ? ' · ' + m.vendor + ' group order' : ''}${m.orderBy ? ' · by ' + orderByLabel(m.orderBy) : ''}`,
           link: ['tournaments', e.eid, 'meals'], tone: 'warn'
         });
+      }
+    }
+    // Matches the team works: each family's jobs, from the day before.
+    if (pid && this.store.has('matches')) {
+      const soon = addDays(t0, 1);
+      for (const e of this.store.tournaments()) {
+        if ((e.endDate || e.date) < t0 || e.date > soon) continue;
+        for (const w of workList(this.store.matches()[e.eid])) {
+          const j = w.jobs?.[pid];
+          if (w.date < t0 || w.date > soon || !j) continue;
+          const jobs = (['s1', 's2', 's3'] as const).map((s, i) => (j[s] && j[s] !== 'Off' ? `set ${i + 1} ${j[s]!.toLowerCase()}` : '')).filter(Boolean);
+          if (!jobs.length) continue;
+          out.push({
+            title: `${this.store.playerName(pid) || 'Your player'} works ${w.matchNo ? 'match ' + w.matchNo : 'a match'}${w.time ? ' · ' + w.time : ''}`,
+            sub: `${w.date === t0 ? 'Today' : 'Tomorrow'}${w.court ? ' · Court ' + w.court : ''} · ${w.teams.filter(Boolean).join(' v ')} · ${jobs.join(', ')}`,
+            link: ['tournaments', e.eid, 'ref'], tone: 'warn'
+          });
+        }
       }
     }
     // A parent made a tournament's scorekeeper: straight to its matches.

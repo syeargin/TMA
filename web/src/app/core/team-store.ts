@@ -320,6 +320,9 @@ export class TeamStore implements OnDestroy {
   travelOf(pid: string, eid: string): Travel | null { return this.family()[pid]?.travel?.[eid] ?? null; }
   saveMatch(eid: string, mid: string, m: Parameters<ApiService['saveMatch']>[3]) { return this.save('Match saved', (t) => this.api.saveMatch(t, eid, mid, m)); }
   clearMatch(eid: string, mid: string) { return this.save('Match cleared', (t) => this.api.clearMatch(t, eid, mid)); }
+  saveWork(eid: string, wid: string, w: Parameters<ApiService['saveWork']>[3], done = 'Saved') { return this.save(done, (t) => this.api.saveWork(t, eid, wid, w)); }
+  deleteWork(eid: string, wid: string) { return this.save('Removed', (t) => this.api.deleteWork(t, eid, wid)); }
+  saveWorkJobs(eid: string, wid: string, v: Parameters<ApiService['saveWorkJobs']>[3], done = '') { return this.save(done, (t) => this.api.saveWorkJobs(t, eid, wid, v)); }
   setMatchSlots(eid: string, date: string, slots: number, done: string) { return this.save(done, (t) => this.api.setMatchSlots(t, eid, date, slots)); }
   setScorekeeper(eid: string, sub: string | null) { return this.save(sub ? 'Scorekeeper set' : 'Scorekeeper removed', (t) => this.api.setScorekeeper(t, eid, sub)); }
   saveRefJobs(eid: string, assign: RefAssign, done = '') { return this.save(done, (t) => this.api.saveRefJobs(t, eid, assign)); }

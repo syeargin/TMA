@@ -154,3 +154,46 @@ describe("entering scores", () => {
     expect(describeChange(`TEAM#${T}`, "EVENT#fc#MATCHES")).toEqual({ teamId: T, collection: "matches" });
   });
 });
+
+describe("work matches (the team refs)", () => {
+  const wurl = (wid: string) => `/teams/${T}/events/fc/work/${wid}`;
+  it("rotates jobs inside the group, starting somewhere new each time", () => {
+    const one = M.rotateJobs(["a", "b", "c", "d", "e"]);
+    expect(one).toMatchObject({ a: { s1: "Book", s2: "Libero", s3: "Lines" }, b: { s1: "Score", s2: "Lines", s3: "Book" } });
+    expect(M.rotateJobs(["a", "b", "c", "d", "e"], 1).a.s1).toBe("Score");
+    expect(M.onDuty([{ pid: "a" }, { pid: "b", refTeam: "B" }], "B").map((p) => p.pid)).toEqual(["b"]);
+    expect(M.minutesOfDay("1:00 PM")).toBe(780);
+  });
+
+  it("adds a work match with the group picked to keep the work even, and its jobs filled", async () => {
+    await put({ ...keys.player(T, "p3"), type: "Player", first: "Cam", refTeam: "B" });
+    await put({ ...keys.player(T, "p4"), type: "Player", first: "Dee", refTeam: "B" });
+    const one = await call("PUT", wurl("new"), COACH, { date: "2026-11-14", time: "8:00 AM", court: "6", matchNo: "1", teams: ["Lakeside 13 Gold", "Coastal 13 Red"] });
+    expect(one.status).toBe(200);
+    expect(one.body.work).toMatchObject({ group: "A", auto: true, teams: ["Lakeside 13 Gold", "Coastal 13 Red"] });
+    expect(Object.keys(one.body.work.jobs).sort()).toEqual(["p1", "p2"]);
+    const two = await call("PUT", wurl("new"), COACH, { date: "2026-11-15", time: "10:00 AM", teams: ["Riverside", "Harbor"] });
+    expect(two.body.work.group).toBe("B");
+    expect(Object.keys(two.body.work.jobs).sort()).toEqual(["p3", "p4"]);
+    // Picked by hand: the whole team, everyone gets a job.
+    const three = await call("PUT", wurl(two.body.work.id), COACH, { date: "2026-11-15", time: "10:00 AM", teams: ["Riverside", "Harbor"], group: "all" });
+    expect(three.body.work).toMatchObject({ group: "all", auto: false });
+    expect(Object.keys(three.body.work.jobs).length).toBe(4);
+    const doc = (await bundle(MIA)).matches.fc as MatchDoc;
+    expect(Object.keys(doc.work!).length).toBe(2);
+  });
+
+  it("changes and rotates jobs, and only staff manage work matches", async () => {
+    const doc = (await bundle(COACH)).matches.fc as MatchDoc;
+    const w = M.workList(doc)[0];
+    expect((await call("PUT", wurl(w.id), MIA, { date: w.date, teams: w.teams })).status).toBe(403);
+    const set = await call("PUT", `${wurl(w.id)}/jobs`, COACH, { jobs: { p1: { s1: "Lines", s2: "" } } });
+    expect(set.body.work.jobs).toEqual({ p1: { s1: "Lines" } });
+    expect((await call("PUT", `${wurl(w.id)}/jobs`, COACH, { jobs: { p1: { s1: "Juggling" } } })).status).toBe(400);
+    const rot = await call("PUT", `${wurl(w.id)}/jobs`, COACH, { rotate: true });
+    expect(Object.keys(rot.body.work.jobs).sort()).toEqual(["p1", "p2"]);
+    expect((await call("PUT", wurl("new"), COACH, { date: "2026-11-20", teams: ["X", "Y"] })).status).toBe(400);
+    expect((await call("DELETE", wurl(w.id), COACH)).status).toBe(204);
+    expect(Object.keys(((await bundle(COACH)).matches.fc as MatchDoc).work!).length).toBe(1);
+  });
+});

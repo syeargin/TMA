@@ -62,3 +62,18 @@ th-matches,th-stats,th-matches>*,th-stats>*{min-width:0}
   .mt-table .mt-act{grid-area:act;align-self:center}
   .mt-meta{display:block}
 }
+
+/* Matches the team works (refs) */
+.mt-work td{background:var(--surface-2)}
+.mt-work td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
+.mt-kind{display:inline-block;font-family:var(--f-cond,inherit);font-weight:700;letter-spacing:.05em;font-size:11px;text-transform:uppercase;border-radius:5px;padding:1px 6px;margin-right:6px;background:var(--btn-soft);color:var(--navy);vertical-align:1px}
+.mt-kind.work{background:var(--surface);color:var(--warn)}
+.mt-grp{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+.mt-grp.g-A{background:var(--ok-soft);color:var(--ok)}
+.mt-grp.g-B{background:#EFE7F8;color:#6B3FA0}
+.mt-grp.g-all{background:var(--sunken);color:var(--ink-2)}
+[data-theme="dark"] .mt-grp.g-B{background:#261C38;color:#C9A8EE}
+.mt-tally{flex-wrap:wrap;gap:8px 16px}
+.mt-vs{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}
+.mt-three{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:520px){.mt-three{grid-template-columns:1fr 1fr}}
