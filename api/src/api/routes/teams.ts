@@ -84,6 +84,8 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     settings: null as unknown, handbook: null as unknown,
     players: [] as Record<string, unknown>[], events: [] as unknown[], meals: [] as unknown[],
     refjobs: {} as Record<string, unknown>, matches: {} as Record<string, unknown>, agenda: {} as Record<string, unknown>,
+    /** Tournament day plans: the team's playbook (null until changed) and each tournament's days (shared/dayplans.ts). */
+    playbook: null as unknown, dayPlans: {} as Record<string, unknown>,
     family: {} as Record<string, unknown>, ledger: [] as unknown[], payments: [] as unknown[],
     announcements: [] as unknown[], tasks: [] as unknown[], members: [] as unknown[],
     /** Practice attendance: every player's marks for staff who take it, only their own player's for a family. */
@@ -111,6 +113,7 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
     const sk = String(it.SK);
     const c = clean(it)!;
     if (sk === "META#SETTINGS") out.settings = c;
+    else if (sk === "DAYPLANS") out.playbook = c;
     else if (sk === "META#HANDBOOK") out.handbook = c;
     // Calendar feed health for whoever looks after the feed (never the link itself).
     else if (sk === "FEED#SOURCE") {
@@ -131,6 +134,7 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
       else if (parts[2] === "REFJOBS") out.refjobs[eid] = c;
       else if (parts[2] === "MATCHES") out.matches[eid] = c;
       else if (parts[2] === "AGENDA") out.agenda[eid] = c;
+      else if (parts[2] === "DAYPLAN") out.dayPlans[eid] = c;
       else if (parts[2] === "MEAL") out.meals.push({ eid, mid: parts[3], ...c });
     }
     else if (sk.startsWith("FAMILY#")) {
@@ -173,7 +177,7 @@ export function bundle(items: Record<string, unknown>[], access: Awaited<ReturnT
   }
   // Switched-off features: nothing for anyone (the data stays saved).
   if (!access.has("fund")) { out.ledger = []; out.payments = []; }
-  if (!access.has("meals")) out.meals = [];
+  if (!access.has("meals")) { out.meals = []; out.playbook = null; out.dayPlans = {}; }
   if (!access.has("refjobs")) out.refjobs = {};
   if (!access.has("matches")) out.matches = {};
   if (!access.has("tasks")) out.tasks = [];

@@ -1,3 +1,4 @@
+import type { EventDayPlan, MealStyle, Playbook } from '@shared/dayplans';
 import type { MatchDoc } from '@shared/matches';
 import type { EventSource, FeedEvent, FeedRules, FilterSuggestion, PresetId, ReviewItem } from '@shared/feed-rules';
 import type { EmailStatus } from '@shared/messages';
@@ -162,6 +163,16 @@ export interface Agenda { note?: string; days: { label: string; items: AgendaIte
 export interface Meal {
   eid: string; mid: string; meal: string; day?: string; time?: string; plan?: string; costCents?: number;
   claimedBy?: string | null;
+  /** Day plans (shared/dayplans.ts): how it happens, and the order details for a delivered or court meal. */
+  style?: MealStyle; vendor?: string; orderLink?: string; orderBy?: string; address?: string; headcount?: number;
+  /** Ask each family to add their own order to the group order. */
+  familyOrders?: boolean; optional?: boolean; fromPlan?: boolean; planDay?: string;
+  /** When the group order link went up (server time). */
+  linkAt?: string;
+  /** Each family's part: added to the group order, or not eating with the team. */
+  orders?: Record<string, { state: 'added' | 'skip'; at?: string }>;
+  /** The day plan no longer has this meal, but a family already took it. */
+  stale?: boolean; styleChangedAt?: string;
 }
 export type MoneyKind = 'in' | 'out';
 /** Finance's record of money in or out. */
@@ -226,6 +237,9 @@ export interface TeamBundle {
   /** Match tracker per tournament (shared/matches.ts). */
   matches?: Record<string, MatchDoc>;
   agenda: Record<string, Agenda>;
+  /** Tournament day plans: the team's playbook (null until changed) and each tournament's days. */
+  playbook?: Partial<Playbook> | null;
+  dayPlans?: Record<string, EventDayPlan>;
   [key: string]: unknown;
 }
 

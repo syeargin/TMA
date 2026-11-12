@@ -164,16 +164,17 @@ export const HELP_TOPICS: HelpTopic[] = [
     feature: "travel", places: ["tournament:travel", "tournament"], related: ["game-day-sheet", "meal-signup"]
   },
   {
-    id: "meal-signup", role: "parent", title: "Sign up to bring a meal",
-    summary: "Pick an open team meal at a tournament and say your family will take it.",
-    keywords: ["meal", "food", "snack", "snacks", "lunch", "dinner", "breakfast", "potluck", "bring food", "volunteer", "sign up"],
+    id: "meal-signup", role: "parent", title: "Team meals and group orders",
+    summary: "Take a team meal job, or add your player's order to the team's group order.",
+    keywords: ["meal", "food", "snack", "snacks", "lunch", "dinner", "breakfast", "potluck", "bring food", "volunteer", "sign up", "group order", "order", "ezcater", "doordash", "delivered", "day plan", "wave"],
     steps: [
-      "Open the **Tournaments** tab, tap the tournament, then **Meals**.",
-      "Find a meal no one has taken yet and tap **We'll take it**.",
-      "Changed plans? Tap **Release** on your meal so another family can take it."
+      "Open the **Tournaments** tab, tap the tournament, then **Day plan**. Each day shows the agenda and its team meals.",
+      "A meal that needs a family says **Needs a family**: tap **We'll take it** to do it. Changed plans? Tap **Hand this job back**.",
+      "Doing a delivered meal? Start a group order on any delivery service, paste its link and tap **Save link**.",
+      "When a meal has a group order, tap **Add your order**, then **I've added it** (or say your player isn't eating with the team)."
     ],
-    tips: ["The food coordinator sees who has every meal, and the weekly email lists meals still open."],
-    shot: { file: "meal-signup.webp", alt: "A tournament's meals with one open meal and the We'll take it button" },
+    tips: ["Meals and the agenda fill in once the coach sets the day's wave, AM or PM. Until then you see what each one would mean.", "Your Home page shows a to-do when it's time to add your order: when the link is posted, or two days before the deadline."],
+    shot: { file: "meal-signup.webp", alt: "A tournament's day plan with a delivered dinner and the Add your order button" },
     go: { label: "Open tournaments", path: "tournaments" },
     feature: "meals", places: ["tournament:meals", "tournament"], related: ["game-day-sheet", "travel-plans"]
   },

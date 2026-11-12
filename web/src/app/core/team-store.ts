@@ -7,6 +7,7 @@ import { clubAllows, FEATURES, Feature, isOn, type ClubFeature } from '@shared/f
 import { ApiError, ApiService } from './api.service';
 import { explain } from './errors';
 import { LiveService } from './live.service';
+import { playbookOf, type DayType, type Playbook, type Wave } from '@shared/dayplans';
 import type { Agenda, Announcement, Handbook, Settings, Task, LedgerEntry, Meal, Member, MoneyKind, Occurrence, Payment, Player, RefAssign, Rsvp, TeamBundle, TeamEvent, Travel } from './models';
 import { duesFor, fundStats } from './money';
 import { fullName } from './me.service';
@@ -123,6 +124,16 @@ export class TeamStore implements OnDestroy {
     return this.tournaments().filter((e) => this.matches()[e.eid]?.scorekeeper === sub && (e.endDate || e.date) >= today());
   });
   readonly agenda = computed(() => this.bundle()?.agenda ?? {});
+  /** Tournament day plans: the team's playbook (defaults filled in) and each tournament's days. */
+  readonly playbook = computed(() => playbookOf(this.bundle()?.playbook));
+  readonly dayPlans = computed(() => this.bundle()?.dayPlans ?? {});
+  /** Who's counted for a tournament's team meals: players who answered In, plus the team's coaches. */
+  headcount(eid: string) {
+    const players = this.players().filter((p) => this.rsvp(p.pid, eid) === 'yes').length;
+    const coachMembers = new Set(this.members().filter((m) => m.roles.includes('coach')).map((m) => m.sub)).size;
+    const coaches = coachMembers || (this.settings()?.coaches ?? []).length;
+    return { players, coaches, total: players + coaches };
+  }
   /** Tournaments, soonest first. */
   readonly tournaments = computed(() => this.events().filter((e) => e.kind === 'tournament').sort((a, b) => a.date.localeCompare(b.date)));
   readonly teamName = computed(() => this.settings()?.teamName || this.teamId());
@@ -317,6 +328,12 @@ export class TeamStore implements OnDestroy {
   saveMeal(m: Meal, isNew: boolean) { return this.save(isNew ? 'Meal added' : 'Meal saved', (t) => this.api.saveMeal(t, m)); }
   deleteMeal(m: Meal) { return this.save('Meal removed', (t) => this.api.deleteMeal(t, m.eid, m.mid)); }
   claimMeal(m: Meal, pid: string) { return this.save("Thanks! It's yours.", (t) => this.api.claimMeal(t, m.eid, m.mid, pid)); }
+  savePlaybook(p: Playbook) { return this.save('Day plans saved', (t) => this.api.savePlaybook(t, p)); }
+  setPlanDay(eid: string, day: string, v: { type: DayType; wave: Wave | null; agenda?: string[] }, done = 'Day plan updated') { return this.save(done, (t) => this.api.setPlanDay(t, eid, day, v)); }
+  saveOrderLink(m: Meal, v: { vendor?: string; orderLink: string }) { return this.save(v.orderLink ? 'Group order link saved. Families can add their orders now.' : 'Link removed', (t) => this.api.saveOrderLink(t, m.eid, m.mid, v)); }
+  myOrder(m: Meal, pid: string, state: 'added' | 'skip' | null) {
+    return this.save(state === 'added' ? 'Marked as added' : state === 'skip' ? "Got it: not eating with the team" : 'Undone', (t) => this.api.myOrder(t, m.eid, m.mid, pid, state));
+  }
   releaseMeal(m: Meal) { return this.save('Meal reopened', (t) => this.api.releaseMeal(t, m.eid, m.mid)); }
   recordPayment(p: { kind: MoneyKind; cat: string; pid?: string; amountCents: number; date: string; desc: string }) {
     return this.save(p.kind === 'in' ? 'Payment recorded. Finance will confirm it.' : 'Request sent to finance', (t) => this.api.recordPayment(t, p));
