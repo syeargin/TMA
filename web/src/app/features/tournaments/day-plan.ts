@@ -1,8 +1,9 @@
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   DAY_TYPE_LABELS, MEAL_SLOTS, MEAL_STYLES, STYLE_LABELS, STYLE_SHORT, budgetOf, defaultDayType, isJob, listedDates, orderDeadline, planDates,
-  planKey, type DayTemplate, type DayType, type MealStyle, type Wave
+  agendaOf, minutesOf, planKey, templateItems, type AgendaItem, type DayTemplate, type DayType, type MealStyle, type PlanMeal, type Wave
 } from '@shared/dayplans';
 import { fmt, newId, today } from '../../core/dates';
 import type { Meal, TeamEvent } from '../../core/models';
@@ -14,6 +15,12 @@ import { Sheet } from '../../shared/sheet';
 
 const SLOT_ORDER: Record<string, number> = { Breakfast: 0, Lunch: 1, 'Between matches': 2, Dinner: 3 };
 type Line = { kind: 'meal'; meal: string; style: MealStyle; optional?: boolean } | { kind: 'agenda'; text: string };
+/** When a meal has no time, where it sorts in the day. */
+const SLOT_MINUTES: Record<string, number> = { Breakfast: 7 * 60, Lunch: 12 * 60, 'Between matches': 14 * 60, Dinner: 18 * 60 };
+type Entry = {
+  key: string; kind: 'own' | 'item' | 'match' | 'planmeal' | 'meal'; time: string; sort: number;
+  own?: PlanMeal[]; item?: AgendaItem; meal?: Meal; planMeal?: PlanMeal; detail?: string; sub?: string;
+};
 
 /**
  * A tournament's day plan: each day's agenda and team meals in one timeline (shared/dayplans.ts).
@@ -22,7 +29,7 @@ type Line = { kind: 'meal'; meal: string; style: MealStyle; optional?: boolean }
  */
 @Component({
   selector: 'th-day-plan',
-  imports: [ReactiveFormsModule, Sheet, Messages],
+  imports: [ReactiveFormsModule, RouterLink, Sheet, Messages],
   template: `
     <div class="dp-days" role="tablist" aria-label="Tournament days">
       @for (d of dates(); track d) {
@@ -58,8 +65,20 @@ type Line = { kind: 'meal'; meal: string; style: MealStyle; optional?: boolean }
           </div>
         }
         <span class="spacer"></span>
+        <button class="btn sm" type="button" (click)="openItem(null)">Add to the day</button>
         @if (food) { <button class="btn sm" type="button" (click)="openForm(null)">Add meal</button> }
       </div>
+      @if (confirmWave(); as c) {
+        <div class="dp-confirm" role="alertdialog" aria-label="Confirm the wave change">
+          <b>Change {{ fmt(day(), { weekday: 'long' }) }} to {{ c.wave ? c.wave.toUpperCase() + ' wave' : 'wave not posted' }}?</b>
+          <ul>
+            <li>Lines from the day plan switch to the {{ c.wave ? c.wave.toUpperCase() : 'new' }} version.</li>
+            @for (k of c.kept; track k) { <li><b>Kept:</b> {{ k }}</li> }
+            @for (k of c.flagged; track k) { <li><b>Kept and flagged:</b> {{ k }}</li> }
+          </ul>
+          <div class="row"><button class="btn sm primary" type="button" (click)="doWave(c.wave)" [disabled]="busy()">Change it</button><button class="btn sm" type="button" (click)="confirmWave.set(null)">Cancel</button></div>
+        </div>
+      }
     }
 
     @if (waiting()) {
@@ -78,75 +97,93 @@ type Line = { kind: 'meal'; meal: string; style: MealStyle; optional?: boolean }
       </div>
       @if (dayMeals().length) { <h3 class="dp-h">Already planned for {{ fmt(day(), { weekday: 'long' }) }}</h3> }
     }
+    @if (next(); as n) {
+      <div class="dp-next"><span class="label">Next · {{ n.in }}</span><b>{{ n.time }} · {{ n.what }}</b>@if (n.where) { <span>{{ n.where }}</span> }</div>
+    }
     @if (!waiting() || dayMeals().length) {
       <div class="card dp-tl">
-        @for (l of waiting() ? [] : lines(); track $index) {
-          <div class="dp-it dp-line">
-            @if (l.kind === 'meal') { <b>{{ l.meal }}</b> <span class="pill" [class]="'pill dp-s-' + l.style">{{ labels[l.style] }}</span>@if (l.optional) { <span class="pill p-mute">Optional</span> } }
-            @else { <span>{{ l.text }}</span> }
-          </div>
-        }
-        @for (m of dayMeals(); track m.mid) {
-          <div class="dp-it dp-meal" [class.mine]="m.claimedBy && m.claimedBy === myPid">
-            <div class="row">
-              <b>{{ m.meal }}</b>
-              @if (m.style) { <span class="pill" [class]="'pill dp-s-' + m.style">{{ labels[m.style] }}</span> }
-              @if (m.optional) { <span class="pill p-mute">Optional</span> }
-              @if (m.time) { <span class="small muted">{{ m.time }}</span> }
-              <span class="spacer"></span>
-              @if (cost(m); as c) { <span class="small muted tn">{{ c }}</span> }
-            </div>
-            @if (m.stale) { <p class="small dp-stale">No longer in the day plan, but {{ familyName(m.claimedBy) }} already has it. @if (food) { Edit or remove it if it's not needed. }</p> }
-            @if (m.plan) { <p class="small muted">{{ m.plan }}</p> }
-            @if (isJob(m.style) || m.claimedBy !== undefined) {
-              <div class="dp-job">
-                <div class="row">
-                  <span>{{ jobText(m) }}</span>
-                  <span class="spacer"></span>
-                  @if (m.claimedBy) { <span class="pill p-ok">{{ familyName(m.claimedBy) }}</span> }
-                  @else { <span class="pill p-warn">Needs a family</span> }
-                </div>
-
-                @if (m.orderLink && link(m); as href) {
-                  <div class="row dp-order">
-                    <a class="btn sm primary" [href]="href" target="_blank" rel="noopener">Add your order ↗</a>
-                    @if (myPid && m.familyOrders) {
-                      @switch (orderState(m)) {
-                        @case ('added') { <span class="pill p-ok">✓ {{ store.playerName(myPid) }}'s order added</span><button class="link-btn small" type="button" (click)="store.myOrder(m, myPid, null)">Undo</button> }
-                        @case ('skip') { <span class="pill p-mute">{{ store.playerName(myPid) }} isn't eating with the team</span><button class="link-btn small" type="button" (click)="store.myOrder(m, myPid, null)">Undo</button> }
-                        @default {
-                          <button class="btn sm" type="button" (click)="store.myOrder(m, myPid, 'added')">I've added it</button>
-                          <button class="link-btn small" type="button" (click)="store.myOrder(m, myPid, 'skip')">{{ store.playerName(myPid) }} isn't eating with the team</button>
-                        }
-                      }
-                    }
+        @for (en of entries(); track en.key) {
+          <div class="dp-it dp-row" [class.dp-meal]="en.kind === 'meal'" [class.mine]="en.kind === 'meal' && !!myPid && en.meal!.claimedBy === myPid">
+            <span class="dp-t" [class.any]="!en.time">{{ en.time || (en.kind === 'meal' ? '' : 'Any time') }}</span>
+            <div class="dp-body">
+              @switch (en.kind) {
+                @case ('own') {
+                  <div class="row">@for (o of en.own!; track o.meal) { <span><b>{{ o.meal }}</b> <span class="pill" [class]="'pill dp-s-' + o.style">{{ labels[o.style] }}</span>@if (o.optional) { <span class="pill p-mute">Optional</span> }</span> }</div>
+                }
+                @case ('item') {
+                  <div><b>{{ en.item!.what }}</b> <span class="dp-src" [class.hand]="!en.item!.fromPlan">{{ en.item!.fromPlan ? 'From the day plan' : addedBy(en.item!.by) }}</span>@if (en.item!.cal) { <span class="dp-src">📅 In the calendar</span> }</div>
+                  @if (en.item!.where) { <a class="small" [href]="mapOf(en.item!.where)" target="_blank" rel="noopener">{{ en.item!.where }}</a> }
+                  @if (en.item!.note) { <span class="small muted">{{ en.item!.note }}</span> }
+                }
+                @case ('match') {
+                  <div><b>First match</b>@if (en.detail) { {{ en.detail }} } <span class="dp-src ok">From Matches</span></div>
+                  @if (en.sub) { <span class="small muted">{{ en.sub }}</span> }
+                }
+                @case ('planmeal') {
+                  <div><b>{{ en.planMeal!.meal }}</b> <span class="pill" [class]="'pill dp-s-' + en.planMeal!.style">{{ labels[en.planMeal!.style] }}</span>@if (en.planMeal!.optional) { <span class="pill p-mute">Optional</span> }</div>
+                }
+                @case ('meal') {
+                  @let m = en.meal!;
+                  <div class="row">
+                    <b>{{ m.meal }}</b>
+                    @if (m.style) { <span class="pill" [class]="'pill dp-s-' + m.style">{{ labels[m.style] }}</span> }
+                    @if (m.optional) { <span class="pill p-mute">Optional</span> }
+                    <span class="spacer"></span>
+                    @if (cost(m); as c) { <span class="small muted tn">{{ c }}</span> }
                   </div>
-                }
-                @if (m.familyOrders && (food || m.claimedBy === myPid)) {
-                  <span class="small muted">{{ progress(m) }}</span>
-                }
-
-                @if (myPid && m.claimedBy === myPid && m.style === 'delivered') {
-                  <form class="dp-link" (submit)="saveLink($event, m)">
-                    <div class="two">
-                      <label>Delivery service<input [id]="'dp-vendor-' + m.mid" name="vendor" [value]="m.vendor ?? ''" placeholder="ezCater, DoorDash, Grubhub…"></label>
-                      <label>Group order link<input [id]="'dp-link-' + m.mid" name="link" type="url" [value]="m.orderLink ?? ''" placeholder="https://…"></label>
+                  @if (m.stale) { <p class="small dp-stale">No longer in the day plan, but {{ familyName(m.claimedBy) }} already has it. @if (food) { Edit or remove it if it's not needed. }</p> }
+                  @if (m.plan) { <p class="small muted">{{ m.plan }}</p> }
+                  @if (isJob(m.style) || m.claimedBy !== undefined) {
+                    <div class="dp-job">
+                      <div class="row">
+                        <span>{{ jobText(m) }}</span>
+                        <span class="spacer"></span>
+                        @if (m.claimedBy) { <span class="pill p-ok">{{ familyName(m.claimedBy) }}</span> }
+                        @else { <span class="pill p-warn">Needs a family</span> }
+                      </div>
+                      @if (m.orderLink && link(m); as href) {
+                        <div class="row dp-order">
+                          <a class="btn sm primary" [href]="href" target="_blank" rel="noopener">Add your order ↗</a>
+                          @if (myPid && m.familyOrders) {
+                            @switch (orderState(m)) {
+                              @case ('added') { <span class="pill p-ok">✓ {{ store.playerName(myPid) }}'s order added</span><button class="link-btn small" type="button" (click)="store.myOrder(m, myPid, null)">Undo</button> }
+                              @case ('skip') { <span class="pill p-mute">{{ store.playerName(myPid) }} isn't eating with the team</span><button class="link-btn small" type="button" (click)="store.myOrder(m, myPid, null)">Undo</button> }
+                              @default {
+                                <button class="btn sm" type="button" (click)="store.myOrder(m, myPid, 'added')">I've added it</button>
+                                <button class="link-btn small" type="button" (click)="store.myOrder(m, myPid, 'skip')">{{ store.playerName(myPid) }} isn't eating with the team</button>
+                              }
+                            }
+                          }
+                        </div>
+                      }
+                      @if (m.familyOrders && (food || m.claimedBy === myPid)) { <span class="small muted">{{ progress(m) }}</span> }
+                      @if (myPid && m.claimedBy === myPid && m.style === 'delivered') {
+                        <form class="dp-link" (submit)="saveLink($event, m)">
+                          <div class="two">
+                            <label>Delivery service<input [id]="'dp-vendor-' + m.mid" name="vendor" [value]="m.vendor ?? ''" placeholder="ezCater, DoorDash, Grubhub…"></label>
+                            <label>Group order link<input [id]="'dp-link-' + m.mid" name="link" type="url" [value]="m.orderLink ?? ''" placeholder="https://…"></label>
+                          </div>
+                          <div class="row">
+                            <button class="btn sm primary" type="submit" [disabled]="busy()">Save link</button>
+                            <span class="small muted">Start a group order, then paste its share link. Every family sees "Add your order".</span>
+                          </div>
+                        </form>
+                      }
+                      <div class="row">
+                        @if (!m.claimedBy && myPid) { <button class="btn sm red" type="button" (click)="store.claimMeal(m, myPid)">We'll take it</button> }
+                        @if (m.claimedBy && (m.claimedBy === myPid || food)) { <button class="link-btn small" type="button" (click)="store.releaseMeal(m)">{{ m.claimedBy === myPid ? 'Hand this job back' : 'Reopen' }}</button> }
+                        @if (howTo() && (m.claimedBy === myPid || food)) { <a class="small" [href]="howTo()" target="_blank" rel="noopener">How to order team meals</a> }
+                      </div>
                     </div>
-                    <div class="row">
-                      <button class="btn sm primary" type="submit" [disabled]="busy()">Save link</button>
-                      <span class="small muted">Start a group order, then paste its share link. Every family sees "Add your order".</span>
-                    </div>
-                  </form>
+                  }
                 }
-
-                <div class="row">
-                  @if (!m.claimedBy && myPid) { <button class="btn sm red" type="button" (click)="store.claimMeal(m, myPid)">We'll take it</button> }
-                  @if (m.claimedBy && (m.claimedBy === myPid || food)) { <button class="link-btn small" type="button" (click)="store.releaseMeal(m)">{{ m.claimedBy === myPid ? 'Hand this job back' : 'Reopen' }}</button> }
-                  @if (food) { <button class="link-btn small" type="button" (click)="openForm(m)">Edit</button> }
-                  @if (howTo() && (m.claimedBy === myPid || food)) { <a class="small" [href]="howTo()" target="_blank" rel="noopener">How to order team meals</a> }
-                </div>
-              </div>
-            }
+              }
+            </div>
+            <div class="dp-act">
+              @if (en.kind === 'item' && canPlan && !unsaved()) { <button class="link-btn small" type="button" (click)="openItem(en.item!)">Edit</button> }
+              @if (en.kind === 'meal' && food) { <button class="link-btn small" type="button" (click)="openForm(en.meal!)">Edit</button> }
+              @if (en.kind === 'match') { <a class="small" [routerLink]="['/teams', store.teamId(), 'tournaments', event().eid, 'matches']">Matches ›</a> }
+            </div>
           </div>
         }
         @if (pendingJobs()) {
@@ -155,7 +192,7 @@ type Line = { kind: 'meal'; meal: string; style: MealStyle; optional?: boolean }
             @else { <span class="small muted">Sign-ups open once the coach or food coordinator sets up this day.</span> }
           </div>
         }
-        @if (!lines().length && !dayMeals().length) { <div class="dp-it muted">Nothing planned for this day yet.</div> }
+        @if (!entries().length) { <div class="dp-it muted">Nothing planned for this day yet.</div> }
       </div>
     }
 
@@ -178,6 +215,28 @@ type Line = { kind: 'meal'; meal: string; style: MealStyle; optional?: boolean }
         <div class="row dp-total"><b>Estimated</b><span class="spacer"></span><b class="tn">{{ total() }}</b></div>
         <span class="small muted">{{ head().players }} players answered In · {{ head().coaches }} coach{{ head().coaches === 1 ? '' : 'es' }}. Budgets come from the team's day plans.</span>
       </div>
+    }
+
+    @if (canPlan) {
+      <th-sheet [heading]="editingItem() ? 'Edit ' + (editingItem()!.what) : 'Add to ' + fmt(day(), { weekday: 'long' })" [open]="itemOpen()" (closed)="itemOpen.set(false)">
+        <form [formGroup]="itemForm" (ngSubmit)="saveItem()" novalidate>
+          <th-messages [error]="itemError()" />
+          <div class="dp-two-time">
+            <label>Time<input id="dp-it-time" formControlName="time" placeholder="7:30 PM"><span class="hint">Optional</span></label>
+            <label>What<input id="dp-it-what" formControlName="what" placeholder="Team meeting"></label>
+          </div>
+          <label>Where<input id="dp-it-where" formControlName="where" placeholder="Hotel lobby, or an address"><span class="hint">Optional. Becomes a map link.</span></label>
+          <label>Note<textarea id="dp-it-note" formControlName="note" rows="2" placeholder="Bring the ball cart"></textarea></label>
+          <label class="check-row"><input id="dp-it-cal" type="checkbox" formControlName="cal"> Add it to the team calendar</label>
+          <span class="hint">Shows in families' subscribed calendars, like practices do. Only items with a time.</span>
+          <div class="form-actions">
+            <button class="btn primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Save' }}</button>
+            <button class="btn ghost" type="button" (click)="itemOpen.set(false)">Cancel</button>
+            <span class="spacer"></span>
+            @if (editingItem()) { <button class="btn" type="button" [class.danger]="!confirmItemDelete()" [class.confirming]="confirmItemDelete()" (click)="removeItem()">{{ confirmItemDelete() ? 'Tap again to remove' : 'Remove' }}</button> }
+          </div>
+        </form>
+      </th-sheet>
     }
 
     @if (food) {
@@ -241,6 +300,20 @@ type Line = { kind: 'meal'; meal: string; style: MealStyle; optional?: boolean }
     .dp-tl{display:flex;flex-direction:column;padding:0}
     .dp-it{padding:10px 14px;border-top:1px solid var(--line-2);display:flex;flex-direction:column;gap:6px}
     .dp-it:first-child{border-top:0}
+    .dp-row{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:10px;align-items:start}
+    .dp-t{font-weight:700;font-size:13.5px;font-variant-numeric:tabular-nums;padding-top:1px}
+    .dp-t.any{color:var(--ink-3);font-weight:600}
+    .dp-body{display:flex;flex-direction:column;gap:6px;min-width:0}
+    .dp-act{display:flex;gap:8px;align-items:center;padding-top:1px}
+    .dp-src{font-size:11.5px;font-weight:700;border-radius:4px;padding:1px 6px;background:var(--sunken);color:var(--ink-2);white-space:nowrap;margin-left:4px}
+    .dp-src.hand{background:var(--accent-soft);color:var(--accent-text)}
+    .dp-src.ok{background:var(--ok-soft);color:var(--ok)}
+    .dp-next{background:var(--btn);color:var(--btn-ink);border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:2px}
+    .dp-next .label{color:inherit;opacity:.8}
+    .dp-confirm{background:var(--warn-soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:-4px 0 12px;font-size:14px}
+    .dp-confirm ul{margin:6px 0 8px;padding-left:18px}
+    .dp-two-time{display:grid;grid-template-columns:130px minmax(0,1fr);gap:10px}
+    @media (max-width:520px){.dp-row{grid-template-columns:62px minmax(0,1fr)}.dp-act{grid-column:2}}
     .dp-it.row,.dp-line{flex-direction:row;align-items:center;flex-wrap:wrap;gap:8px}
     .dp-meal.mine{background:var(--surface-2)}
     .dp-job{border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:9px 11px;display:flex;flex-direction:column;gap:8px;font-size:14px}
@@ -311,14 +384,52 @@ export class DayPlan {
     return i.wave ? `${i.wave.toUpperCase()} wave` : (this.event().travel ? `${type} · wave TBD` : 'Wave TBD');
   }
   /** What a plan shows that isn't a job: meals on your own (or none), then the agenda lines. */
-  linesFor(t: DayTemplate | null, agenda?: string[], withJobs = true): Line[] {
-    if (!t) return (agenda ?? []).map((text) => ({ kind: 'agenda', text }));
-    const meals = t.meals.filter((m) => withJobs || !isJob(m.style)).map((m) => ({ kind: 'meal' as const, meal: m.meal, style: m.style, optional: m.optional }));
-    return [...meals, ...(agenda ?? t.agenda).map((text) => ({ kind: 'agenda' as const, text }))];
+  linesFor(t: DayTemplate | null): Line[] {
+    if (!t) return [];
+    const meals = t.meals.map((m) => ({ kind: 'meal' as const, meal: m.meal, style: m.style, optional: m.optional }));
+    return [...meals, ...templateItems(t, (i) => `t${i}`).map((a) => ({ kind: 'agenda' as const, text: a.time ? `${a.time} · ${a.what}` : a.what }))];
   }
   /** Until a day is saved its jobs aren't made yet, so the plan's own meals show instead. */
   readonly unsaved = computed(() => !this.saved()[this.day()]);
-  readonly lines = computed(() => this.linesFor(this.templateFor(this.info().wave), this.info().agenda, this.unsaved()));
+  /** The day's items: saved ones, or the playbook's until the day is set up. */
+  readonly items = computed<AgendaItem[]>(() => this.unsaved()
+    ? templateItems(this.templateFor(this.info().wave), (i) => `t${i}`)
+    : agendaOf(this.saved()[this.day()]).filter((a) => !a.removed));
+  /** The first match of the day, from the match tracker (when matches are entered). */
+  readonly firstMatch = computed(() => {
+    if (!this.store.has('matches')) return null;
+    const doc = this.store.matches()[this.event().eid];
+    const list = Object.values(doc?.matches ?? {}).filter((m) => m.date === this.day()).sort((a, b) => a.n - b.n);
+    const first = list.find((m) => m.time) ?? null;
+    if (!first) return null;
+    const count = doc?.slots?.[this.day()] ?? list.length;
+    return { time: first.time!, detail: [first.opponent ? `vs ${first.opponent}` : '', first.court ? (/court/i.test(first.court) ? first.court : `Court ${first.court}`) : ''].filter(Boolean).join(' · '), sub: count > 1 ? `${count} matches today` : '' };
+  });
+  /** One timeline: untimed things first ("Any time"), then everything by time. */
+  readonly entries = computed<Entry[]>(() => {
+    const t = this.templateFor(this.info().wave);
+    const out: Entry[] = [];
+    const own = (t?.meals ?? []).filter((m) => !isJob(m.style));
+    if (own.length && !this.waiting()) out.push({ key: 'own', kind: 'own', time: '', sort: -1, own });
+    for (const a of this.waiting() ? [] : this.items()) out.push({ key: 'i' + a.id, kind: 'item', time: a.time ?? '', sort: minutesOf(a.time) ?? -1, item: a });
+    const fm = this.firstMatch();
+    if (fm) out.push({ key: 'match', kind: 'match', time: fm.time, sort: minutesOf(fm.time) ?? 9999, detail: fm.detail, sub: fm.sub });
+    if (this.unsaved() && !this.waiting()) for (const m of (t?.meals ?? []).filter((x) => isJob(x.style))) out.push({ key: 'pm' + m.meal, kind: 'planmeal', time: '', sort: SLOT_MINUTES[m.meal] ?? 9999, planMeal: m });
+    for (const m of this.dayMeals()) out.push({ key: 'm' + m.mid, kind: 'meal', time: m.time ?? '', sort: minutesOf(m.time) ?? SLOT_MINUTES[m.meal] ?? 9999, meal: m });
+    return out.sort((a, b) => a.sort - b.sort);
+  });
+  /** On the day itself: the next thing with a time. */
+  readonly next = computed(() => {
+    if (this.day() !== today()) return null;
+    const d = new Date(), mins = d.getHours() * 60 + d.getMinutes();
+    const n = this.entries().find((e) => e.time && e.sort >= mins && e.kind !== 'own');
+    if (!n) return null;
+    const left = n.sort - mins;
+    const what = n.kind === 'item' ? n.item!.what : n.kind === 'match' ? 'First match' : n.meal?.meal ?? n.planMeal?.meal ?? '';
+    return { time: n.time, what, where: n.item?.where ?? '', in: left < 1 ? 'now' : left < 60 ? `in ${left} min` : `in ${Math.floor(left / 60)} hr ${left % 60 ? (left % 60) + ' min' : ''}`.trim() };
+  });
+  addedBy(sub?: string) { const n = sub ? this.store.authorName(sub) : ''; return n ? `Added by ${n}` : 'Added by hand'; }
+  mapOf(where: string) { return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([where, this.event().city].filter(Boolean).join(', '))}`; }
   readonly pendingJobs = computed(() => this.unsaved() && !this.waiting() && (this.templateFor(this.info().wave)?.meals ?? []).some((m) => isJob(m.style)));
   async startDay() { await this.apply({ type: this.info().type, wave: this.info().wave ?? null }, 'Meal jobs added for ' + fmt(this.day(), { weekday: 'long' })); }
   readonly meals = computed(() => this.store.meals().filter((m) => m.eid === this.event().eid));
@@ -377,9 +488,50 @@ export class DayPlan {
 
   // ----- setting the day -----
   readonly busy = signal(false);
+  readonly confirmWave = signal<{ wave: Wave | null; kept: string[]; flagged: string[] } | null>(null);
+  /** Once a day has things added by hand or jobs a family has, a change of wave asks first and says what's kept. */
   async setWave(wave: Wave | null) {
-    if ((this.info().wave ?? null) === wave) return;
+    if ((this.info().wave ?? null) === wave) { this.confirmWave.set(null); return; }
+    const kept = this.unsaved() ? [] : agendaOf(this.saved()[this.day()]).filter((a) => !a.removed && (!a.fromPlan || a.edited)).map((a) => `${a.what}${a.time ? ' · ' + a.time : ''}${a.fromPlan ? '' : ` (${this.addedBy(a.by).toLowerCase()})`}`);
+    const flagged = this.dayMeals().filter((m) => m.fromPlan && m.claimedBy).map((m) => `${m.meal} · ${this.familyName(m.claimedBy)} has it`);
+    if (kept.length || flagged.length) { this.confirmWave.set({ wave, kept, flagged }); return; }
+    await this.doWave(wave);
+  }
+  async doWave(wave: Wave | null) {
+    this.confirmWave.set(null);
     await this.apply({ type: this.info().type, wave }, wave ? `${fmt(this.day(), { weekday: 'long' })}: ${wave.toUpperCase()} wave. The day plan is filled in.` : 'Wave cleared');
+  }
+
+  // ----- items on the day (team meeting, leave for the venue…) -----
+  readonly itemOpen = signal(false);
+  readonly editingItem = signal<AgendaItem | null>(null);
+  readonly itemError = signal('');
+  readonly confirmItemDelete = signal(false);
+  readonly itemForm = this.fb.group({ time: '', what: '', where: '', note: '', cal: false });
+  openItem(a: AgendaItem | null) {
+    this.editingItem.set(a);
+    this.itemError.set('');
+    this.confirmItemDelete.set(false);
+    this.itemForm.reset({ time: a?.time ?? '', what: a?.what ?? '', where: a?.where ?? '', note: a?.note ?? '', cal: !!a?.cal });
+    this.itemOpen.set(true);
+  }
+  async saveItem() {
+    const v = this.itemForm.getRawValue();
+    const body = { what: v.what.trim(), time: v.time.trim() || undefined, where: v.where.trim() || undefined, note: v.note.trim() || undefined, cal: v.cal };
+    if (!body.what) { this.itemError.set('Say what it is, like "Team meeting".'); return; }
+    if (body.time && minutesOf(body.time) === null) { this.itemError.set('Use a time like 7:30 PM.'); return; }
+    if (body.cal && !body.time) { this.itemError.set('Add a time to put it in the team calendar.'); return; }
+    this.busy.set(true);
+    const a = this.editingItem();
+    const ok = a ? await this.store.savePlanItem(this.event().eid, this.day(), a.id, body) : await this.store.addPlanItem(this.event().eid, this.day(), body);
+    this.busy.set(false);
+    if (ok) this.itemOpen.set(false);
+  }
+  async removeItem() {
+    const a = this.editingItem();
+    if (!a) return;
+    if (!this.confirmItemDelete()) { this.confirmItemDelete.set(true); return; }
+    if (await this.store.deletePlanItem(this.event().eid, this.day(), a.id)) this.itemOpen.set(false);
   }
   async setArrival(on: boolean) {
     this.busy.set(true);

@@ -19,6 +19,8 @@ export type Team = {
   teamId: string; clubId: string; club: Club | null; settings: Row; teamName: string; features: FeatureMap;
   players: Row[]; events: Row[]; meals: Row[]; family: Record<string, Row>; ledger: Row[]; announcements: Row[]; tasks: Row[];
   members: Member[]; items: Item[];
+  /** Tournament day plans by event (shared/dayplans.ts). */
+  dayPlans?: Record<string, Row>;
 };
 
 export async function loadTeam(teamId: string, clubId: string): Promise<Team> {
@@ -35,6 +37,7 @@ export async function loadTeam(teamId: string, clubId: string): Promise<Team> {
       const parts = sk.split("#");
       if (parts.length === 2) t.events.push({ ...r, eid: parts[1] });
       else if (parts[2] === "MEAL") t.meals.push({ ...r, eid: parts[1], mid: parts[3] });
+      else if (parts[2] === "DAYPLAN") (t.dayPlans ??= {})[parts[1]] = r;
     }
     else if (sk.startsWith("FAMILY#")) t.family[sk.slice(7)] = r;
     else if (sk.startsWith("LEDGER#")) t.ledger.push(r);

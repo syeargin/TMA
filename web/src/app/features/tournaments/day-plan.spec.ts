@@ -14,14 +14,15 @@ beforeAll(() => {
 const text = (el: Element) => el.textContent!.replace(/\s+/g, ' ');
 const sq = { eid: 'sq', kind: 'tournament', title: 'Sunshine Qualifier', date: '2027-01-29', endDate: '2027-01-31', travel: true } as const;
 
-function render(opts: { roles?: string[]; pid?: string; meals?: Meal[]; days?: Record<string, unknown> } = {}) {
+function render(opts: { roles?: string[]; pid?: string; meals?: Meal[]; days?: Record<string, unknown>; matches?: Record<string, unknown> } = {}) {
   const roles = opts.roles ?? ['parent'];
   const store = {
     teamId: signal('t13'), playbook: () => DEFAULT_PLAYBOOK, has: () => true,
     can: (p: string) => (p === 'meals' && roles.includes('food')) || (p === 'schedule' && roles.includes('coach')),
     myPid: () => opts.pid ?? '', playerName: (pid: string) => ({ p1: 'Ava', p2: 'Mia' } as Record<string, string>)[pid] ?? '',
     players: () => [{ pid: 'p1', first: 'Ava' }, { pid: 'p2', first: 'Mia' }],
-    headcount: () => ({ players: 12, coaches: 2, total: 14 }),
+    headcount: () => ({ players: 12, coaches: 2, total: 14 }), authorName: (s: string) => (s === 'u-kim' ? 'Coach Kim' : ''),
+    matches: () => opts.matches ?? {}, addPlanItem: vi.fn(() => Promise.resolve(true)), savePlanItem: vi.fn(() => Promise.resolve(true)), deletePlanItem: vi.fn(() => Promise.resolve(true)),
     dayPlans: () => ({ sq: { days: opts.days ?? {} } }),
     meals: () => opts.meals ?? [],
     setPlanDay: vi.fn(() => Promise.resolve(true)), setArrival: vi.fn(() => Promise.resolve(true)), myOrder: vi.fn(() => Promise.resolve(true)), claimMeal: vi.fn(() => Promise.resolve(true)),
@@ -81,6 +82,55 @@ describe('tournament day plan', () => {
     const undo = [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.trim() === 'Undo')!;
     undo.click();
     expect(store.myOrder).toHaveBeenCalledWith(dinner, 'p2', null);
+  });
+
+  it('shows one timeline in time order, with the first match from Matches', () => {
+    const { el } = render({
+      meals: [{ ...dinner, time: '5:30 PM' }],
+      matches: { sq: { slots: { '2027-01-30': 3 }, matches: { a: { date: '2027-01-30', n: 1, time: '3:00 PM', court: '6', opponent: 'Coastal 13 Red', format: 3, sets: [] } } } },
+      days: { '2027-01-30': { type: 'play', wave: 'pm', agenda: [
+        { id: 'a1', what: 'Team photo', time: '7:30 PM', where: 'Hall C entrance', by: 'u-kim', cal: true },
+        { id: 'a2', what: 'Meet in the hotel lobby', time: '1:15 PM', fromPlan: true },
+        { id: 'a3', what: 'Dinner at the venue', fromPlan: true, removed: true }
+      ] } }
+    });
+    (el.querySelectorAll('.dp-day')[2] as HTMLButtonElement).click();
+    TestBed.tick();
+    const rows = [...el.querySelectorAll('.dp-row')].map((r) => text(r));
+    const times = [...el.querySelectorAll('.dp-row .dp-t')].map((t) => t.textContent!.trim());
+    expect(times).toEqual(['Any time', '1:15 PM', '3:00 PM', '5:30 PM', '7:30 PM']);
+    expect(rows[1]).toContain('Meet in the hotel lobby');
+    expect(rows[2]).toContain('vs Coastal 13 Red · Court 6');
+    expect(rows[2]).toContain('3 matches today');
+    expect(rows[4]).toContain('Added by Coach Kim');
+    expect(rows.join(' ')).not.toContain('Dinner at the venue');
+  });
+
+  it('adds an item to the day; the calendar box starts unticked', async () => {
+    const { el, store } = render({ roles: ['coach'], days: { '2027-01-30': { type: 'play', wave: 'pm', agenda: [] } } });
+    (el.querySelectorAll('.dp-day')[2] as HTMLButtonElement).click();
+    TestBed.tick();
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.trim() === 'Add to the day')!.click();
+    TestBed.tick();
+    const set = (id: string, v: string) => { const i = el.querySelector<HTMLInputElement>('#' + id)!; i.value = v; i.dispatchEvent(new Event('input')); };
+    expect(el.querySelector<HTMLInputElement>('#dp-it-cal')!.checked).toBe(false);
+    set('dp-it-time', '7:30 PM'); set('dp-it-what', 'Team photo'); set('dp-it-where', 'Hall C entrance');
+    el.querySelector<HTMLFormElement>('form')!.dispatchEvent(new Event('submit'));
+    await Promise.resolve();
+    expect(store.addPlanItem).toHaveBeenCalledWith('sq', '2027-01-30', { what: 'Team photo', time: '7:30 PM', where: 'Hall C entrance', note: undefined, cal: false });
+  });
+
+  it('asks before changing the wave once a day has things added by hand', async () => {
+    const { el, store } = render({ roles: ['coach'], days: { '2027-01-30': { type: 'play', wave: 'pm', agenda: [{ id: 'a1', what: 'Team photo', time: '7:30 PM', by: 'u-kim' }] } } });
+    (el.querySelectorAll('.dp-day')[2] as HTMLButtonElement).click();
+    TestBed.tick();
+    [...el.querySelectorAll<HTMLButtonElement>('.chip')].find((b) => b.textContent!.trim() === 'AM')!.click();
+    TestBed.tick();
+    expect(store.setPlanDay).not.toHaveBeenCalled();
+    expect(text(el)).toContain('Kept: Team photo · 7:30 PM');
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.trim() === 'Change it')!.click();
+    await Promise.resolve();
+    expect(store.setPlanDay).toHaveBeenCalledWith('sq', '2027-01-30', { type: 'play', wave: 'am' }, expect.any(String));
   });
 
   it('lets the family with the job post the link, and shows the budget', () => {

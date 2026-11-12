@@ -7,7 +7,8 @@ const { handler } = await import("../../src/api/handler.js");
 const { ddb, TABLE } = await import("../../src/lib/db.js");
 const { keys } = await import("../../src/lib/keys.js");
 const { PutCommand, GetCommand } = await import("@aws-sdk/lib-dynamodb");
-const { DEFAULT_PLAYBOOK, familyTaskFrom, defaultDayType, planDates, planKey } = await import("../../src/shared/dayplans.js");
+const { DEFAULT_PLAYBOOK, familyTaskFrom, defaultDayType, planDates, planKey, minutesOf } = await import("../../src/shared/dayplans.js");
+const { feedIcs } = await import("../../src/lib/calendar-feed.js");
 
 async function call(method: string, path: string, sub: string, body?: unknown) {
   const r = await handler(event(method, path, sub, body));
@@ -38,6 +39,7 @@ describe("day plan rules", () => {
     expect(planDates(false, "2026-12-12")).toEqual(["2026-12-12"]);
     expect(["2027-01-28", ...d].map((x) => defaultDayType(true, d, x))).toEqual(["arrival", "play", "play", "last"]);
     expect(defaultDayType(false, d, d[0])).toBe("play");
+    expect([minutesOf("7:30 PM"), minutesOf("12:00 AM"), minutesOf("19:05"), minutesOf("soon"), minutesOf("")]).toEqual([1170, 0, 1145, null, null]);
     expect(planKey(true, "play")).toBeNull();
     expect(planKey(true, "arrival")).toBe("travel-arrival");
     expect(planKey(true, "last", "am")).toBe("travel-last-am");
@@ -54,7 +56,8 @@ describe("tournament day plans", () => {
   it("fills in a PM play day's delivered dinner from the playbook, with the order deadline the day before", async () => {
     const r = await call("PUT", `/teams/${T}/events/sq/dayplan/2027-01-30`, COACH, { type: "play", wave: "pm" });
     expect(r.status).toBe(200);
-    expect(r.body.days["2027-01-30"]).toEqual({ type: "play", wave: "pm", agenda: DEFAULT_PLAYBOOK.plans["travel-pm"].agenda });
+    expect(r.body.days["2027-01-30"]).toMatchObject({ type: "play", wave: "pm" });
+    expect(r.body.days["2027-01-30"].agenda.map((a: { what: string }) => a.what)).toEqual(DEFAULT_PLAYBOOK.plans["travel-pm"].agenda);
     const dinner = (await meals()).filter((m) => m.eid === "sq" && m.day === "2027-01-30");
     expect(dinner).toHaveLength(1);
     expect(dinner[0]).toMatchObject({ meal: "Dinner", style: "delivered", fromPlan: true, familyOrders: true, vendor: "ezCater", orderBy: "2027-01-29T18:00", claimedBy: null });
@@ -124,11 +127,45 @@ describe("tournament day plans", () => {
     expect((await call("PUT", `/teams/${T}/events/sq/dayplan`, COACH, { arrival: true })).body.noArrival).toBe(false);
   });
 
+  it("adds timed items to a day, and keeps them (and edited playbook lines) when the wave changes", async () => {
+    const day = "2027-01-30";
+    const add = await call("POST", `/teams/${T}/events/sq/dayplan/${day}/items`, COACH, { what: "Team photo", time: "7:30 PM", where: "Hall C entrance", note: "Navy jerseys", cal: true });
+    expect(add.status).toBe(200);
+    expect((await call("POST", `/teams/${T}/events/sq/dayplan/${day}/items`, COACH, { what: "Late", time: "25:00" })).status).toBe(400);
+    expect((await call("POST", `/teams/${T}/events/sq/dayplan/${day}/items`, LEE, { what: "Pizza party" })).status).toBe(403);
+    let items = add.body.days[day].agenda as Record<string, any>[];
+    const meet = items.find((x) => x.what.startsWith("Meet in the hotel lobby"))!;
+    expect(meet.fromPlan).toBe(true);
+    // The coach gives the playbook's line a time, and removes another.
+    await call("PUT", `/teams/${T}/events/sq/dayplan/${day}/items/${meet.id}`, COACH, { what: "Meet in the hotel lobby", time: "1:15 PM" });
+    const atVenue = items.find((x) => x.what === "Dinner at the venue")!;
+    await call("DELETE", `/teams/${T}/events/sq/dayplan/${day}/items/${atVenue.id}`, COACH);
+    // AM wave, then back to PM: the hand-added photo and the edited line stay; the removed line stays removed.
+    await call("PUT", `/teams/${T}/events/sq/dayplan/${day}`, COACH, { type: "play", wave: "am" });
+    const back = await call("PUT", `/teams/${T}/events/sq/dayplan/${day}`, COACH, { type: "play", wave: "pm" });
+    items = (back.body.days[day].agenda as Record<string, any>[]).filter((x) => !x.removed);
+    expect(items.map((x) => [x.what, x.time ?? ""]).sort()).toEqual([["Meet in the hotel lobby", "1:15 PM"], ["Team photo", "7:30 PM"]].sort());
+    expect(items.find((x) => x.what === "Team photo")).toMatchObject({ where: "Hall C entrance", note: "Navy jerseys", cal: true });
+  });
+
+  it("puts calendar items in the subscribed calendar, only with a time", async () => {
+    const plan = (await ddb.send(new GetCommand({ TableName: TABLE, Key: keys.dayPlan(T, "sq") }))).Item!;
+    const events = [{ eid: "sq", kind: "tournament", title: "Sunshine Qualifier", location: "Convention Center" }];
+    const ics = feedIcs("X", [{ team: { teamId: T, teamName: "13 Navy", events, items: [], features: {}, dayPlans: { sq: plan } } as never, zone: "America/New_York", types: ["tournament"] as never, prefix: false }], "https://teemhub.net", new Date("2027-01-20T12:00:00Z"));
+    expect(ics).toContain("SUMMARY:13 Navy · Team photo");
+    expect(ics).toContain("DTSTART:20270131T003000Z"); // 7:30 PM Eastern
+    expect(ics).toContain("LOCATION:Hall C entrance");
+    expect(ics).not.toContain("Meet in the hotel lobby");
+    const practicesOnly = feedIcs("X", [{ team: { teamId: T, teamName: "13 Navy", events, items: [], features: {}, dayPlans: { sq: plan } } as never, zone: "America/New_York", types: ["practice"] as never, prefix: false }], "https://teemhub.net", new Date("2027-01-20T12:00:00Z"));
+    expect(practicesOnly).not.toContain("Team photo");
+  });
+
   it("refuses dates outside the tournament and families setting the plan", async () => {
     expect((await call("PUT", `/teams/${T}/events/sq/dayplan/2027-02-02`, COACH, { type: "play", wave: "am" })).status).toBe(400);
     expect((await call("PUT", `/teams/${T}/events/sq/dayplan/2027-01-31`, LEE, { type: "last", wave: "am" })).status).toBe(403);
     const plan = (await ddb.send(new GetCommand({ TableName: TABLE, Key: keys.dayPlan(T, "sq") }))).Item;
-    expect(Object.keys(plan!.days)).toEqual(["2027-01-30"]);
+    expect(Object.keys(plan!.days)).toContain("2027-01-30");
+    expect(Object.keys(plan!.days)).not.toContain("2027-01-31");
     expect((await call("PUT", `/teams/${T}/events/hc/dayplan/2026-12-11`, COACH, { type: "play", wave: "am" })).status).toBe(400);
   });
 });

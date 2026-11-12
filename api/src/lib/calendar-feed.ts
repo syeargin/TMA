@@ -16,6 +16,8 @@ import { ddb, TABLE } from "./db.js";
 import type { Item } from "./comms/schedule.js";
 import { zonedInstant, localParts } from "./comms/zoned.js";
 import type { Team } from "./comms/content.js";
+import { agendaOf, minutesOf, type EventDayPlan } from "../shared/dayplans.js";
+import { isOn } from "../shared/features.js";
 
 export const CAL_TYPES = ["practice", "tournament", "event"] as const;
 export type CalType = (typeof CAL_TYPES)[number];
@@ -166,6 +168,36 @@ function vevent(t: FeedTeam, it: Item, site: string, stamp: string): string[] {
   ];
 }
 
+/**
+ * Day plan items someone chose to add to the team calendar ("Add it to the team calendar"): a team meeting,
+ * leaving for the venue. One hour long, at the tournament's place unless the item names its own.
+ */
+function dayPlanEvents(t: FeedTeam, from: string, site: string, stamp: string): string[] {
+  if (!isOn(t.team.features, "meals")) return [];
+  const out: string[] = [];
+  for (const [eid, plan] of Object.entries(t.team.dayPlans ?? {})) {
+    const e = t.team.events.find((x) => x.eid === eid);
+    if (!e || e.kind !== "tournament") continue;
+    const page = `${site}/teams/${t.team.teamId}/tournaments/${eid}/meals`;
+    for (const [day, d] of Object.entries((plan as unknown as EventDayPlan).days ?? {})) {
+      if (day < from) continue;
+      for (const a of agendaOf(d)) {
+        const mins = minutesOf(a.time);
+        if (!a.cal || a.removed || mins === null) continue;
+        const s = zonedInstant(day, `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`, t.zone);
+        const location = a.where || [str(e.location), str(e.address)].filter(Boolean).join(", ");
+        out.push(
+          "BEGIN:VEVENT", `UID:${t.team.teamId}-dp-${eid}-${a.id}@feed.teemhub.net`, `DTSTAMP:${stamp}`,
+          `DTSTART:${utc(s)}`, `DTEND:${utc(new Date(s.getTime() + 3600_000))}`,
+          `SUMMARY:${esc(`${t.team.teamName} · ${a.what}`)}`, ...(location ? [`LOCATION:${esc(location)}`] : []),
+          `DESCRIPTION:${esc([a.note, `${str(e.title)} day plan: ${page}`].filter(Boolean).join("\n\n"))}`, `URL:${page}`, "END:VEVENT"
+        );
+      }
+    }
+  }
+  return out;
+}
+
 /** The whole calendar: everything from 30 days ago on, for the chosen kinds of event. */
 export function feedIcs(name: string, teams: FeedTeam[], site: string, now = new Date()): string {
   const stamp = utc(now);
@@ -181,6 +213,7 @@ export function feedIcs(name: string, teams: FeedTeam[], site: string, now = new
       if ((it.end || it.date) < from || !t.types.includes(typeOf(it.kind))) continue;
       lines.push(...vevent(t, it, site, stamp));
     }
+    if (t.types.includes("tournament")) lines.push(...dayPlanEvents(t, from, site, stamp));
   }
   lines.push("END:VCALENDAR");
   return lines.map(fold).join("\r\n") + "\r\n";
