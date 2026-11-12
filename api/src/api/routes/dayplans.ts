@@ -7,8 +7,8 @@ import { badRequest, forbidden, json, notFound, parseBody } from "../http.js";
 import type { Router } from "../router.js";
 import { checkId, date, deleteItem, getItem, newId, now, optStr, putItem, queryAll, str } from "../util.js";
 import {
-  DAY_TYPES, MEAL_SLOTS, MEAL_STYLES, PLAN_KEYS, defaultDayType, isJob, listedDates, orderDeadline, planDates, planKey, playbookOf,
-  type EventDayPlan, type PlanDay, type Playbook
+  DAY_TYPES, MEAL_SLOTS, MEAL_STYLES, PLAN_KEYS, agendaOf, defaultDayType, isJob, listedDates, mergeAgenda, minutesOf, orderDeadline, planDates, planKey, playbookOf,
+  templateItems, type AgendaItem, type EventDayPlan, type PlanDay, type Playbook
 } from "../../shared/dayplans.js";
 
 /**
@@ -19,7 +19,7 @@ import {
 
 const dayTemplate = z.object({
   meals: z.array(z.object({ meal: z.enum(MEAL_SLOTS), style: z.enum(MEAL_STYLES), optional: z.boolean().optional() })).max(6),
-  agenda: z.array(str(200).min(1)).max(12)
+  agenda: z.array(z.union([str(200).min(1), z.object({ what: str(200).min(1), time: optStr(20) })])).max(12)
 });
 const playbookSchema = z.object({
   plans: z.object(Object.fromEntries(PLAN_KEYS.map((k) => [k, dayTemplate])) as Record<(typeof PLAN_KEYS)[number], typeof dayTemplate>),
@@ -32,9 +32,14 @@ const playbookSchema = z.object({
 }).refine((p) => Object.values(p.plans).every((d) => new Set(d.meals.map((m) => m.meal)).size === d.meals.length), "A day lists the same meal twice.");
 const daySchema = z.object({
   type: z.enum(DAY_TYPES),
-  wave: z.enum(["am", "pm"]).nullable().optional(),
-  /** Leave out to fill in from the playbook; send to keep your own lines. */
-  agenda: z.array(str(200).min(1)).max(20).optional()
+  wave: z.enum(["am", "pm"]).nullable().optional()
+});
+const TIME = /^\s*\d{1,2}(:\d{2})?\s*(AM|PM)?\s*$/i;
+const itemSchema = z.object({
+  what: str(200).min(1, "Say what it is."),
+  time: z.string().trim().max(20).refine((v) => !v || (TIME.test(v) && minutesOf(v) !== null), "Use a time like 7:30 PM.").optional(),
+  where: optStr(300), note: optStr(1000),
+  cal: z.boolean().optional()
 });
 const orderLinkSchema = z.object({
   vendor: optStr(80),
@@ -88,7 +93,8 @@ export async function applyDay(teamId: string, e: Item, day: string, set: PlanDa
   }
   const saved2 = (await getItem(keys.dayPlan(teamId, eid))) as EventDayPlan | undefined;
   const days = { ...(saved2?.days ?? {}) };
-  days[day] = { type: set.type, ...(set.wave ? { wave: set.wave } : {}), agenda: set.agenda ?? template?.agenda ?? [] };
+  const agenda = mergeAgenda(agendaOf(days[day]), templateItems(template, () => newId("a")));
+  days[day] = { type: set.type, ...(set.wave ? { wave: set.wave } : {}), agenda };
   await putItem({ ...(saved2 ?? {}), ...keys.dayPlan(teamId, eid), type: "DayPlan", days, updatedAt: at, updatedBy: by });
   return { days, changed };
 }
@@ -117,9 +123,55 @@ export function dayPlanRoutes(r: Router) {
     const dates = planDates(!!e.travel, String(e.date), e.endDate ? String(e.endDate) : undefined, !!plan?.noArrival);
     if (!dates.includes(params.day)) throw badRequest("That date isn't part of this tournament's day plan.");
     const b = parseBody(daySchema, body);
-    const set: PlanDay = { type: b.type, ...(b.wave ? { wave: b.wave } : {}), ...(b.agenda ? { agenda: b.agenda } : {}) };
+    const set: PlanDay = { type: b.type, ...(b.wave ? { wave: b.wave } : {}) };
     const out = await applyDay(a.teamId, { ...e, eid }, params.day, set, caller.sub);
     return json(200, out);
+  });
+
+  /** Add something to a day's timeline (a team meeting, a photo, leaving for the venue), or change or remove it. */
+  const loadDay = async (caller: Parameters<typeof loadAccess>[0], teamId: string, eidRaw: string, day: string) => {
+    const a = await loadAccess(caller, checkId(teamId, "team"));
+    if (!a.can("schedule") && !a.can("meals")) throw forbidden("Only coaches, coordinators and food coordinators can change the day plan.");
+    a.requireFeature("meals");
+    const eid = checkId(eidRaw, "event");
+    const e = await getItem(keys.event(a.teamId, eid));
+    if (!e || e.kind !== "tournament") throw notFound("That tournament isn't on the schedule any more.");
+    const saved = (await getItem(keys.dayPlan(a.teamId, eid))) as (EventDayPlan & Item) | undefined;
+    if (!planDates(!!e.travel, String(e.date), e.endDate ? String(e.endDate) : undefined, !!saved?.noArrival).includes(day)) throw badRequest("That date isn't part of this tournament's day plan.");
+    const days = { ...(saved?.days ?? {}) };
+    const current: PlanDay = days[day] ?? { type: defaultDayType(!!e.travel, listedDates(String(e.date), e.endDate ? String(e.endDate) : undefined), day) };
+    const write = async (agenda: AgendaItem[]) => {
+      days[day] = { ...current, agenda };
+      await putItem({ ...(saved ?? {}), ...keys.dayPlan(a.teamId, eid), type: "DayPlan", days, updatedAt: now(), updatedBy: caller.sub });
+      return json(200, { days });
+    };
+    return { a, items: agendaOf(current), write };
+  };
+  const clean = (b: z.infer<typeof itemSchema>) => ({
+    what: b.what, ...(b.time ? { time: b.time } : {}), ...(b.where ? { where: b.where } : {}), ...(b.note ? { note: b.note } : {}),
+    ...(b.cal && b.time ? { cal: true } : {})
+  });
+  r.on("POST", "/teams/{teamId}/events/{eid}/dayplan/{day}/items", async ({ caller, params, body }) => {
+    const { items, write } = await loadDay(caller, params.teamId, params.eid, params.day);
+    const b = parseBody(itemSchema, body);
+    if (items.length >= 40) throw badRequest("That day has a lot on it already. Remove something first.");
+    return write([...items, { id: newId("a"), ...clean(b), by: caller.sub, at: now() }]);
+  });
+  r.on("PUT", "/teams/{teamId}/events/{eid}/dayplan/{day}/items/{id}", async ({ caller, params, body }) => {
+    const { items, write } = await loadDay(caller, params.teamId, params.eid, params.day);
+    const b = parseBody(itemSchema, body);
+    const it = items.find((x) => x.id === params.id);
+    if (!it) throw notFound("That item isn't on the day plan any more.");
+    // An edited playbook line stays when the wave changes (it replaces the line it came from).
+    const next: AgendaItem = { id: it.id, ...clean(b), ...(it.fromPlan ? { fromPlan: true, edited: true, src: it.src } : {}), by: it.by ?? caller.sub, at: now() };
+    return write(items.map((x) => (x.id === it.id ? next : x)));
+  });
+  r.on("DELETE", "/teams/{teamId}/events/{eid}/dayplan/{day}/items/{id}", async ({ caller, params }) => {
+    const { items, write } = await loadDay(caller, params.teamId, params.eid, params.day);
+    const it = items.find((x) => x.id === params.id);
+    if (!it) throw notFound("That item isn't on the day plan any more.");
+    // A playbook line is kept out of sight, so a change of wave doesn't bring it back.
+    return write(it.fromPlan ? items.map((x) => (x.id === it.id ? { ...x, removed: true, edited: true } : x)) : items.filter((x) => x.id !== it.id));
   });
 
   /** A travel tournament's arrival day (the day before it starts): on by default; off when the team travels that morning. */

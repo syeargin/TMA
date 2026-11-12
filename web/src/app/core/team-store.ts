@@ -4,7 +4,7 @@ import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
 import { Permission, can as roleCan } from '@shared/permissions';
 import { clubAllows, FEATURES, Feature, isOn, type ClubFeature } from '@shared/features';
-import { ApiError, ApiService } from './api.service';
+import { ApiError, ApiService, type PlanItemBody } from './api.service';
 import { explain } from './errors';
 import { LiveService } from './live.service';
 import { playbookOf, type DayType, type Playbook, type Wave } from '@shared/dayplans';
@@ -330,6 +330,9 @@ export class TeamStore implements OnDestroy {
   claimMeal(m: Meal, pid: string) { return this.save("Thanks! It's yours.", (t) => this.api.claimMeal(t, m.eid, m.mid, pid)); }
   savePlaybook(p: Playbook) { return this.save('Day plans saved', (t) => this.api.savePlaybook(t, p)); }
   setPlanDay(eid: string, day: string, v: { type: DayType; wave: Wave | null; agenda?: string[] }, done = 'Day plan updated') { return this.save(done, (t) => this.api.setPlanDay(t, eid, day, v)); }
+  addPlanItem(eid: string, day: string, v: PlanItemBody) { return this.save('Added to the day', (t) => this.api.addPlanItem(t, eid, day, v)); }
+  savePlanItem(eid: string, day: string, id: string, v: PlanItemBody) { return this.save('Saved', (t) => this.api.savePlanItem(t, eid, day, id, v)); }
+  deletePlanItem(eid: string, day: string, id: string) { return this.save('Removed from the day', (t) => this.api.deletePlanItem(t, eid, day, id)); }
   setArrival(eid: string, on: boolean) { return this.save(on ? 'Arrival day added' : 'Arrival day removed', (t) => this.api.setArrival(t, eid, on)); }
   saveOrderLink(m: Meal, v: { vendor?: string; orderLink: string }) { return this.save(v.orderLink ? 'Group order link saved. Families can add their orders now.' : 'Link removed', (t) => this.api.saveOrderLink(t, m.eid, m.mid, v)); }
   myOrder(m: Meal, pid: string, state: 'added' | 'skip' | null) {

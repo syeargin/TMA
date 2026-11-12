@@ -1,6 +1,6 @@
 import { Component, effect, inject, input, output, signal, untracked } from '@angular/core';
 import {
-  DEFAULT_PLAYBOOK, MEAL_SLOTS, MEAL_STYLES, PLAN_KEYS, PLAN_LABELS, STYLE_LABELS, type MealSlot, type MealStyle, type PlanKey, type Playbook
+  DEFAULT_PLAYBOOK, MEAL_SLOTS, MEAL_STYLES, PLAN_KEYS, PLAN_LABELS, STYLE_LABELS, minutesOf, type MealSlot, type MealStyle, type PlanKey, type Playbook, type TemplateLine
 } from '@shared/dayplans';
 import { TeamStore } from '../../core/team-store';
 import { toCents } from '../../core/tournament';
@@ -55,7 +55,15 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
                 </div>
               }
               @if (p.plans[k].meals.length < 6) { <button class="link-btn small" type="button" (click)="addMeal(k)">+ Add a meal</button> }
-              <label class="small">Agenda lines (one per line)<textarea rows="2" [value]="p.plans[k].agenda.join('\\n')" (input)="setAgenda(k, $event)"></textarea></label>
+              <span class="small dpf-agh">Agenda</span>
+              @for (l of p.plans[k].agenda; track $index; let j = $index) {
+                <div class="dpf-line">
+                  <input class="dpf-time" [attr.aria-label]="'Time for agenda line ' + (j + 1)" placeholder="Time" [value]="timeOf(l)" (change)="setLine(k, j, 'time', $event)">
+                  <input [attr.aria-label]="'Agenda line ' + (j + 1)" [value]="textOf(l)" (change)="setLine(k, j, 'what', $event)">
+                  <button class="link-btn small" type="button" (click)="removeLine(k, j)">Remove</button>
+                </div>
+              }
+              @if (p.plans[k].agenda.length < 12) { <button class="link-btn small" type="button" (click)="addLine(k)">+ Add a line</button> }
             </fieldset>
           }
 
@@ -75,6 +83,9 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
     .dpf-plan{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 10px;display:flex;flex-direction:column;gap:8px;min-width:0}
     .dpf-plan legend{padding:0 4px}
     .dpf-meal{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .dpf-agh{font-weight:600;color:var(--ink-2)}
+    .dpf-line{display:grid;grid-template-columns:100px minmax(0,1fr) auto;gap:8px;align-items:center}
+    .dpf-line input{height:38px}
     .dpf-meal select{width:auto;flex:1 1 140px;height:40px;padding-block:0}
     .dpf-plan > .link-btn{align-self:flex-start}
     .dpf-plan textarea{font-weight:400}
@@ -112,10 +123,19 @@ export class DayPlansForm {
   addMeal(k: PlanKey) {
     this.edit((p) => { const used = new Set(p.plans[k].meals.map((m) => m.meal)); p.plans[k].meals.push({ meal: MEAL_SLOTS.find((s) => !used.has(s)) ?? 'Lunch', style: 'own' }); });
   }
-  setAgenda(k: PlanKey, ev: Event) {
-    const lines = this.val(ev).split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 12);
-    this.edit((p) => { p.plans[k].agenda = lines; });
+  textOf(l: TemplateLine) { return typeof l === 'string' ? l : l.what; }
+  timeOf(l: TemplateLine) { return typeof l === 'string' ? '' : l.time ?? ''; }
+  setLine(k: PlanKey, j: number, field: 'time' | 'what', ev: Event) {
+    const v = this.val(ev).trim();
+    this.edit((p) => {
+      const l = p.plans[k].agenda[j];
+      const cur = { what: this.textOf(l), time: this.timeOf(l) };
+      cur[field] = v;
+      p.plans[k].agenda[j] = cur.time ? { what: cur.what, time: cur.time } : cur.what;
+    });
   }
+  removeLine(k: PlanKey, j: number) { this.edit((p) => { p.plans[k].agenda.splice(j, 1); }); }
+  addLine(k: PlanKey) { this.edit((p) => { p.plans[k].agenda.push(''); }); }
   reset() { this.draft.set(clone(DEFAULT_PLAYBOOK)); }
 
   async save(ev: Event) {
@@ -123,6 +143,9 @@ export class DayPlansForm {
     const p = this.draft()!;
     if (p.howTo && !/^https?:\/\//i.test(p.howTo)) { this.error.set('The how-to link needs to start with https://.'); return; }
     for (const k of PLAN_KEYS) {
+      p.plans[k].agenda = p.plans[k].agenda.filter((l) => this.textOf(l).trim());
+      const badTime = p.plans[k].agenda.find((l) => this.timeOf(l) && minutesOf(this.timeOf(l)) === null);
+      if (badTime) { this.error.set(`"${this.timeOf(badTime)}" isn't a time. Use one like 7:00 PM.`); return; }
       const names = p.plans[k].meals.map((m) => m.meal);
       if (new Set(names).size !== names.length) { this.error.set(`${PLAN_LABELS[k].day}${PLAN_LABELS[k].wave ? ' · ' + PLAN_LABELS[k].wave : ''} lists the same meal twice.`); return; }
     }

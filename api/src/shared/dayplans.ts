@@ -40,7 +40,9 @@ export const PLAN_LABELS: Record<PlanKey, { group: string; day: string; wave?: s
 };
 
 export type PlanMeal = { meal: MealSlot; style: MealStyle; optional?: boolean };
-export type DayTemplate = { meals: PlanMeal[]; agenda: string[] };
+/** A playbook agenda line: just words, or words with a default time ("7:00 PM"). */
+export type TemplateLine = string | { what: string; time?: string };
+export type DayTemplate = { meals: PlanMeal[]; agenda: TemplateLine[] };
 export type Budgets = { court: number; delivered: number; restaurant: number };
 export interface Playbook {
   plans: Record<PlanKey, DayTemplate>;
@@ -69,7 +71,7 @@ export const DEFAULT_PLAYBOOK: Playbook = {
     },
     "travel-arrival": {
       meals: [{ meal: "Dinner", style: "restaurant", optional: true }],
-      agenda: ["Check in at the hotel", "Team meeting in the hotel lobby"]
+      agenda: ["Check in at the hotel", { what: "Team meeting in the hotel lobby", time: "7:00 PM" }]
     },
     "travel-am": {
       meals: [{ meal: "Breakfast", style: "own" }, { meal: "Lunch", style: "delivered" }, { meal: "Dinner", style: "own" }],
@@ -106,7 +108,49 @@ export function playbookOf(saved?: Partial<Playbook> | null): Playbook {
   };
 }
 
-export type PlanDay = { type: DayType; wave?: Wave; agenda?: string[] };
+/**
+ * One thing on a tournament day's timeline. fromPlan: it came from the playbook (it's swapped when the wave
+ * changes, unless someone edited it); src is the playbook line it came from. cal: also goes in families'
+ * subscribed calendars (only with a time).
+ */
+export type AgendaItem = {
+  id: string; what: string; time?: string; where?: string; note?: string;
+  fromPlan?: boolean; edited?: boolean; src?: string; cal?: boolean; by?: string; at?: string;
+  /** A playbook line someone removed: kept out of sight so a change of wave doesn't bring it back. */
+  removed?: boolean;
+};
+/** agenda: saved items (older days saved plain lines). */
+export type PlanDay = { type: DayType; wave?: Wave; agenda?: (AgendaItem | string)[] };
+
+const lineText = (l: TemplateLine) => (typeof l === "string" ? l : l.what);
+/** A day's items, oldest saves (plain lines) included. */
+export function agendaOf(day?: PlanDay | null): AgendaItem[] {
+  return (day?.agenda ?? []).map((a, i) => (typeof a === "string" ? { id: `p${i}`, what: a, fromPlan: true, src: a } : a));
+}
+/** The playbook's lines for a day, as timeline items. */
+export function templateItems(t: DayTemplate | null | undefined, id: (i: number) => string): AgendaItem[] {
+  return (t?.agenda ?? []).map((l, i) => ({ id: id(i), what: lineText(l), ...(typeof l !== "string" && l.time ? { time: l.time } : {}), fromPlan: true, src: lineText(l) }));
+}
+/**
+ * The day's items after a change of wave or kind: the new playbook lines, plus everything someone added
+ * or edited by hand (an edited playbook line replaces the line it came from).
+ */
+export function mergeAgenda(current: AgendaItem[], fresh: AgendaItem[]): AgendaItem[] {
+  const kept = current.filter((a) => !a.fromPlan || a.edited);
+  const keptSrc = new Set(kept.map((a) => a.src).filter(Boolean));
+  return [...fresh.filter((a) => !keptSrc.has(a.src)), ...kept];
+}
+
+/** Minutes after midnight for "7:30 PM" or "19:30"; null without a time (sorted first, as "Any time"). */
+export function minutesOf(t?: string): number | null {
+  const m = /^\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?\s*$/i.exec(t ?? "");
+  if (!m) return null;
+  let h = +m[1];
+  const min = +(m[2] ?? 0);
+  if (h > 23 || min > 59) return null;
+  if (m[3]) h = (h % 12) + (m[3].toUpperCase() === "PM" ? 12 : 0);
+  return h * 60 + min;
+}
 /** noArrival: a travel tournament without the arrival day before it (the team travels the morning of). */
 export type EventDayPlan = { days: Record<string, PlanDay>; noArrival?: boolean };
 
