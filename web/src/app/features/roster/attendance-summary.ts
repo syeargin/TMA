@@ -3,6 +3,7 @@ import { MARK_LETTERS, MARK_LABELS, type Mark, type PlayerSummary } from '@share
 import { addDays, fmt, today } from '../../core/dates';
 import type { Player } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
+import { AttendanceShare, type ReportFormat } from './attendance-share';
 
 type Range = 'season' | '30d' | 'month';
 const LOW = 75;
@@ -14,6 +15,7 @@ const LOW = 75;
  */
 @Component({
   selector: 'th-attendance-summary',
+  imports: [AttendanceShare],
   template: `
     <div class="att-head">
       <p class="muted small" style="margin:0">Coaches, coordinators and team admins see every player. Each family sees only their own player, on Home.</p>
@@ -22,9 +24,18 @@ const LOW = 75;
         <button class="chip" type="button" [attr.aria-pressed]="range() === 'season'" (click)="range.set('season')">This season</button>
         <button class="chip" type="button" [attr.aria-pressed]="range() === '30d'" (click)="range.set('30d')">Last 30 days</button>
         <button class="chip" type="button" [attr.aria-pressed]="range() === 'month'" (click)="range.set('month')">{{ monthName }}</button>
-        <button class="chip" type="button" (click)="download()" [disabled]="!summary().taken">Download</button>
+        @if (!canReport()) { <button class="chip" type="button" (click)="download()" [disabled]="!summary().taken">Download</button> }
       </nav>
     </div>
+    @if (canReport()) {
+      <div class="row att-report">
+        <span class="small muted">Send the club this range as a branded report.</span>
+        <span class="spacer"></span>
+        <button class="btn sm" type="button" (click)="openReport('xlsx')" [disabled]="!summary().taken">Export to Excel</button>
+        <button class="btn sm primary" type="button" (click)="openReport('pdf')" [disabled]="!summary().taken">Share report</button>
+      </div>
+      <th-attendance-share [open]="reportOpen()" [start]="reportFormat()" [from]="from()" [to]="to()" [rangeLabel]="rangeName()" (closed)="reportOpen.set(false)" />
+    }
 
     <div class="health-tiles">
       <div class="card health-tile"><div class="small muted">Team attendance</div>
@@ -106,6 +117,14 @@ export class AttendanceSummary {
     return { from: undefined, to: undefined };
   });
   readonly summary = computed(() => { const b = this.bounds(); return this.store.attendanceSummary(b.from, b.to); });
+  readonly from = computed(() => this.bounds().from);
+  readonly to = computed(() => this.bounds().to);
+  readonly rangeName = computed(() => (this.range() === 'season' ? 'Season to date' : this.range() === '30d' ? 'Last 30 days' : this.monthName));
+  /** Branded reports for the club: coaches, team admins and site owners. */
+  readonly canReport = computed(() => { const y = this.store.you?.(); return !!y && (!!y.siteOwner || (y.roles ?? []).includes('coach') || (y.roles ?? []).includes('admin')); });
+  readonly reportOpen = signal(false);
+  readonly reportFormat = signal<ReportFormat>('pdf');
+  openReport(f: ReportFormat) { this.reportFormat.set(f); this.reportOpen.set(true); }
   readonly excusedCounts = computed(() => this.store.settings()?.attendanceExcusedCounts !== false);
 
   private readonly pastPractices = computed(() => {
