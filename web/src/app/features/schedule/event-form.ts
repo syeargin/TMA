@@ -6,6 +6,7 @@ import type { EventKind, Occurrence, TeamEvent } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { ApiService } from '../../core/api.service';
 import { explain } from '../../core/errors';
+import { attachedText } from '../../core/attached';
 import { OVERRIDABLE, OVERRIDE_LABELS, type Overridable } from '@shared/feed-rules';
 import { Messages } from '../../shared/messages';
 import { Sheet } from '../../shared/sheet';
@@ -37,6 +38,7 @@ const OCCURRENCE_FIELDS = ['title', 'time', 'endTime', 'location', 'address', 'c
         @if (feedLocked()) {
           <div class="hint feed-hint">
             <p style="margin:0">From {{ feedLabel() }}'s calendar@if (event()?.src?.change; as c) { · changed {{ ago(c.at) }}: {{ c.text }} }. The name, date, time, place and court update from there on their own. Everything else here is the team's.</p>
+            @if (event()?.src?.gone) { <p class="small" style="margin:4px 0 0"><b>Gone from {{ feedLabel() }}'s calendar and cancelled.</b> You can delete it to take it off the schedule.</p> }
             @for (o of overrides(); track o.field) {
               <div class="feed-ov"><span class="pill p-mute">Override</span><span class="grow">{{ o.label }}: {{ o.mine || 'nothing' }} · {{ feedLabel() }} has {{ o.feed || 'nothing' }}</span>
                 <button class="link-btn small" type="button" [disabled]="busy()" (click)="useFeed(o.field)">Use {{ feedLabel() }}'s</button></div>
@@ -187,12 +189,13 @@ const OCCURRENCE_FIELDS = ['title', 'time', 'endTime', 'location', 'address', 'c
           @if (mode() === 'date' && hasDateChange()) {
             <button class="btn" type="button" [disabled]="busy()" (click)="undoDate()">Match the series again</button>
           }
-          @if (event() && mode() === 'series' && !feedLocked()) {
+          @if (event() && mode() === 'series' && (!feedLocked() || event()?.src?.gone)) {
             <button class="btn" type="button" [class.danger]="!confirmDelete()" [class.confirming]="confirmDelete()" [disabled]="busy()" (click)="remove()">
               {{ confirmDelete() ? 'Tap again to delete' : event()?.repeat ? 'Delete series' : 'Delete' }}
             </button>
           }
         </div>
+        @if (confirmDelete() && attached()) { <p class="hint warn" role="alert">Deleting also removes {{ attached() }}. This can't be undone.</p> }
       </form>
     </th-sheet>`
 })
@@ -213,6 +216,8 @@ export class EventForm {
   readonly busy = signal(false);
   readonly error = signal('');
   readonly confirmDelete = signal(false);
+  /** What deleting takes with it (answers, meals, matches…), shown once Delete is tapped. */
+  readonly attached = signal('');
 
   readonly form = this.fb.group({
     kind: 'event' as EventKind, title: '', date: '', endDate: '', time: '', endTime: '', location: '', address: '', court: '', uniformColor: '',
@@ -440,7 +445,12 @@ export class EventForm {
   async remove() {
     const e = this.event();
     if (!e) return;
-    if (!this.confirmDelete()) { this.confirmDelete.set(true); return; }
+    if (!this.confirmDelete()) {
+      this.attached.set('');
+      this.confirmDelete.set(true);
+      this.api.eventAttached(this.store.teamId(), e.eid).then((a) => { if (this.confirmDelete()) this.attached.set(attachedText(a)); }).catch(() => undefined);
+      return;
+    }
     this.busy.set(true);
     const ok = await this.store.deleteEvent(e.eid);
     this.busy.set(false);

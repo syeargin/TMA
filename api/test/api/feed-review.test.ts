@@ -144,6 +144,43 @@ describe("events gone from the calendar", () => {
     await syncNow();
     expect((await ev("SprocketSports-103"))!.src.keep).toBeUndefined();
   });
+
+  it("can be cancelled and removed: answers and everything attached go, and a return comes back as a new event", async () => {
+    const uid = "SprocketSports-200", eid = eidFor(uid);
+    const at = feed.findIndex((e) => e.uid === uid);
+    await put({ ...keys.family(T, "p2"), type: "Family", rsvp: { [eid]: { v: "yes", at: "x" }, keepme: { v: "no", at: "x" } } });
+    await put({ ...keys.meal(T, eid, "m1"), type: "Meal", meal: "Lunch", style: "delivered" });
+    // Still on the calendar: not removable from the review list.
+    expect((await review({ action: "remove", eid })).status).toBe(422);
+    const gone = feed.splice(at, 1)[0];
+    await syncNow(); await syncNow();
+    expect((await coach("GET", `/teams/${T}/events/${eid}/attached`)).body).toMatchObject({ answers: 1, meals: 1, matches: 0, dayPlan: false });
+    expect((await call("GET", `/teams/${T}/events/${eid}/attached`, PARENT)).status).toBe(403);
+    expect((await review({ action: "remove", eid })).status).toBe(200);
+    expect(await get(keys.event(T, eid))).toBeUndefined();
+    expect(await get(keys.meal(T, eid, "m1"))).toBeUndefined();
+    expect((await get(keys.family(T, "p2")))!.rsvp).toEqual({ keepme: { v: "no", at: "x" } });
+    expect((await view()).review).toEqual([]);
+    const h = (await coord("GET", `/teams/${T}/events/${eid}/history`)).body.history;
+    expect(h[0].text).toContain("removed from the schedule");
+    feed.splice(at, 0, gone);
+    expect((await syncNow()).body.run).toMatchObject({ added: 1 });
+    expect(await get(keys.event(T, eid))).toMatchObject({ src: { uid } });
+  });
+
+  it("can be deleted from the event once it's been cancelled as gone, not before", async () => {
+    const uid = "SprocketSports-102", eid = eidFor(uid);
+    expect((await coach("DELETE", `/teams/${T}/events/${eid}`)).status).toBe(409);
+    const at = feed.findIndex((e) => e.uid === uid);
+    const gone = feed.splice(at, 1)[0];
+    await syncNow(); await syncNow();
+    expect((await coach("DELETE", `/teams/${T}/events/${eid}`)).status).toBe(409);
+    await review({ action: "cancel", eid });
+    expect((await coach("DELETE", `/teams/${T}/events/${eid}`)).status).toBe(204);
+    expect(await get(keys.event(T, eid))).toBeUndefined();
+    feed.splice(at, 0, gone);
+    expect((await syncNow()).body.run).toMatchObject({ added: 1 });
+  });
 });
 
 describe("possible duplicates", () => {

@@ -15,9 +15,14 @@ type Filter = 'all' | 'practice' | 'tournament' | 'event';
 type Range = '8w' | 'season';
 type View = 'list' | 'month';
 const VIEW_KEY = 'th.schedule.view';
+const HIDE_KEY = 'th.schedule.hideCancelled';
 
 function savedView(): View {
   try { return localStorage.getItem(VIEW_KEY) === 'month' ? 'month' : 'list'; } catch { return 'list'; }
+}
+
+function savedHide(): boolean {
+  try { return localStorage.getItem(HIDE_KEY) === '1'; } catch { return false; }
 }
 
 export interface MonthCell { date: string; inMonth: boolean; isToday: boolean; items: ScheduleItem[] }
@@ -33,6 +38,8 @@ export class Schedule {
   /** How many players are marked at a practice; 0 when attendance hasn't been taken. */
   taken(key: string): number { return Object.keys(this.store.attendanceOf(key)?.marks ?? {}).length; }
   readonly filter = signal<Filter>('all');
+  /** Hide cancelled practices and events (remembered on this device). */
+  readonly hideCancelled = signal(savedHide());
   readonly range = signal<Range>('8w');
   readonly fmt = fmt;
   readonly pd = pd;
@@ -75,6 +82,7 @@ export class Schedule {
 
   constructor() {
     effect(() => { const v = this.view(); try { localStorage.setItem(VIEW_KEY, v); } catch { /* private mode */ } });
+    effect(() => { const h = this.hideCancelled(); try { localStorage.setItem(HIDE_KEY, h ? '1' : '0'); } catch { /* private mode */ } });
     effect(() => {
       const key = this.editKey();
       const items = this.store.items();
@@ -89,6 +97,7 @@ export class Schedule {
   }
 
   private matches(i: ScheduleItem): boolean {
+    if (this.hideCancelled() && i.cancelled) return false;
     const f = this.filter();
     return f === 'all' || (f === 'event' ? i.kind === 'event' || i.kind === 'deadline' : i.kind === f);
   }

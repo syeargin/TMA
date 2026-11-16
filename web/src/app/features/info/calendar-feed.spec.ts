@@ -46,7 +46,7 @@ function setup(view: FeedView) {
     feed: vi.fn(() => Promise.resolve(view)),
     checkFeed: vi.fn(() => Promise.resolve(structuredClone(check))),
     saveFeed: vi.fn(() => Promise.resolve(saved)),
-    restoreFeedRules: vi.fn(), importFeed: vi.fn(), syncFeed: vi.fn(), reviewFeed: vi.fn(), catchUpFeed: vi.fn(), applyCatchUp: vi.fn(), acceptFeedDrop: vi.fn(), saveFeedTemplate: vi.fn(() => Promise.resolve({})), disconnectFeed: vi.fn(() => Promise.resolve({ connected: false, version: 0, rules: null, history: [] }))
+    restoreFeedRules: vi.fn(), importFeed: vi.fn(), syncFeed: vi.fn(), reviewFeed: vi.fn(), eventAttached: vi.fn(), catchUpFeed: vi.fn(), applyCatchUp: vi.fn(), acceptFeedDrop: vi.fn(), saveFeedTemplate: vi.fn(() => Promise.resolve({})), disconnectFeed: vi.fn(() => Promise.resolve({ connected: false, version: 0, rules: null, history: [] }))
   };
   const store = {
     teamId: signal('t14'), items: () => [{ kind: 'practice', date: '2030-01-14', cancelled: false }],
@@ -163,6 +163,22 @@ describe('calendar feed panel', () => {
     button(el, 'Keep Court 6').click();
     await settle();
     expect(api.reviewFeed).toHaveBeenLastCalledWith('t14', { action: 'keepMine', eid: 'fd2', field: 'court' });
+  });
+
+  it('cancels and removes after a second tap that says what goes with it', async () => {
+    const v: FeedView = { ...imported, review: [{ kind: 'missing', eid: 'fd1', title: 'Practice', date: '2030-01-14', since: '2030-01-10T00:00:00Z', syncs: 2 }] };
+    const { api, el } = setup(v);
+    api.eventAttached.mockResolvedValue({ answers: 12, meals: 2, matches: 0, workMatches: 0, refJobs: false, dayPlan: true, agenda: false, attendance: 0 });
+    api.reviewFeed.mockResolvedValue({ feed: { ...v, review: [] } });
+    await settle();
+    button(el, 'Cancel and remove').click();
+    await settle();
+    expect(api.eventAttached).toHaveBeenCalledWith('t14', 'fd1');
+    expect(text(el)).toContain('along with 12 answers, 2 meal jobs and the day plan');
+    expect(api.reviewFeed).not.toHaveBeenCalled();
+    button(el, 'Remove it').click();
+    await settle();
+    expect(api.reviewFeed).toHaveBeenCalledWith('t14', { action: 'remove', eid: 'fd1' });
   });
 
   it('asks for a catch-up after syncing was off, and pauses when the rules stop matching', async () => {

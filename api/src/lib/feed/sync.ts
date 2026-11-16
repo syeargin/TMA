@@ -33,6 +33,7 @@ import { openLink } from "./secret.js";
 import { applyRules, FEED_OWNED, feedFields, FEED_KIND_LABELS, OVERRIDABLE, OVERRIDE_LABELS, type EventSource, type FeedFields, type FeedRules, type Overridable } from "../../shared/feed-rules.js";
 import { effectiveFeatures, isOn, type FeatureMap } from "../../shared/features.js";
 import { deleteMany, getItem, putItem, putMany, queryAll } from "../../api/util.js";
+import { removeEvent } from "../remove-event.js";
 
 type Row = Record<string, unknown>;
 const DAY = 86400;
@@ -464,7 +465,7 @@ export async function setOverrides(teamId: string, eid: string, ov: Partial<Reco
 }
 
 export type ReviewAction =
-  | { action: "cancel" | "keep" | "merge" | "different"; eid: string }
+  | { action: "cancel" | "remove" | "keep" | "merge" | "different"; eid: string }
   | { action: "useFeed" | "keepMine"; eid: string; field: Overridable };
 
 /** Settles one item on the review list. */
@@ -478,6 +479,15 @@ export async function settleReview(teamId: string, b: ReviewAction, by: string):
       await notifyChanges(teamId, await clubOfTeam(teamId), [{ eid: b.eid, title: String(e.title), date: String(e.date), text: "cancelled", cancelled: true, fields: ["cancelled"] }], `review:${b.eid}:${String(e.date)}`)
         .catch((err) => console.error(JSON.stringify({ msg: "feed notice failed", teamId, error: String(err) })));
       return { eid: b.eid };
+    case "remove": {
+      // Cancel and remove: only for an event gone from the calendar (on the review list, or already cancelled from it).
+      if (!e.src.gone && (e.src.missing ?? 0) < 2) throw new FeedError("feed_not_gone", "That event is still on the club's calendar, so it can't be removed here.");
+      await putItem(chgRow(teamId, b.eid, e, "removed from the schedule: it's gone from the club's calendar", "review", by));
+      if (!e.src.gone) await notifyChanges(teamId, await clubOfTeam(teamId), [{ eid: b.eid, title: String(e.title), date: String(e.date), text: "cancelled", cancelled: true, fields: ["cancelled"] }], `review:${b.eid}:${String(e.date)}`)
+        .catch((err) => console.error(JSON.stringify({ msg: "feed notice failed", teamId, error: String(err) })));
+      await removeEvent(teamId, b.eid);
+      return { eid: b.eid };
+    }
     case "keep":
       await saveEvent(teamId, b.eid, {}, [], { ...s, keep: true }, by);
       await putItem(chgRow(teamId, b.eid, e, "kept, though it's gone from the club's calendar", "review", by));

@@ -145,7 +145,7 @@ async function template(clubId: string, preset: string) {
 }
 
 const reviewSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.enum(["cancel", "keep"]), eid: z.string().max(64) }),
+  z.object({ action: z.enum(["cancel", "remove", "keep"]), eid: z.string().max(64) }),
   z.object({ action: z.enum(["merge", "different"]), eid: z.string().max(64) }),
   z.object({ action: z.enum(["useFeed", "keepMine"]), eid: z.string().max(64), field: z.enum(OVERRIDABLE) })
 ]);
@@ -332,12 +332,12 @@ export function feedRoutes(r: Router) {
     } finally { await unlockFeed(a.teamId); }
   });
 
-  /** Needs your review: cancel or keep an event gone from the calendar, merge or split a possible duplicate, settle an override conflict. */
+  /** Needs your review: cancel, remove or keep an event gone from the calendar, merge or split a possible duplicate, settle an override conflict. */
   r.on("POST", "/teams/{teamId}/feed/review", async ({ caller, params, body }) => {
     const a = await access(caller, params.teamId, true);
     a.require("schedule");
     const b = parseBody(reviewSchema, body);
-    const res = await settleReview(a.teamId, b, caller.sub);
+    const res = await settleReview(a.teamId, b, caller.sub).catch(toHttp);
     console.log(JSON.stringify({ msg: "feed review", teamId: a.teamId, by: caller.sub, action: b.action, eid: b.eid }));
     return json(200, { ...res, feed: await view(a.teamId) });
   });
