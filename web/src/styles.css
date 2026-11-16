@@ -293,7 +293,9 @@ main.narrow{max-width:480px}
 .ev.k-practice{border-left:5px solid var(--btn)}
 .ev.k-event{border-left:5px solid var(--warn)}
 .ev.k-deadline{border-left:5px solid var(--ink-3)}
-.ev.cancel{opacity:.6}
+/* Dim a cancelled row's parts, not the row: opacity on the row would trap its open menus under the rows below. */
+.ev.cancel > *{opacity:.6}
+.ev.cancel > *:has(details[open]){opacity:1}
 .ev.cancel .ev-t span.t{text-decoration:line-through}
 .ev .d{text-align:center;line-height:1}
 .ev .d .dw{font-family:var(--f-cond);font-weight:600;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
