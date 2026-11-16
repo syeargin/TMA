@@ -11,6 +11,7 @@ import type { FeedCheck, FeedRun, FeedView } from '../../core/models';
 import { TeamStore } from '../../core/team-store';
 import { ToastService } from '../../core/toast.service';
 import { explain } from '../../core/errors';
+import { attachedText } from '../../core/attached';
 import { Messages } from '../../shared/messages';
 import { Sheet } from '../../shared/sheet';
 
@@ -120,7 +121,13 @@ export { clock };
                       <span class="pill p-bad">Not in feed</span>
                       <div class="grow"><b>{{ fmt(r.date) }} · {{ r.title }}@if (r.time) { · {{ r.time }} }</b>
                         <div class="muted">Gone from {{ feedLabel() }}'s calendar for {{ r.syncs }} syncs. Usually it means it was cancelled.</div>
-                        <div class="form-actions"><button class="btn sm primary" type="button" [disabled]="busy()" (click)="settle(r, 'cancel')">Cancel it</button><button class="link-btn small" type="button" [disabled]="busy()" (click)="settle(r, 'keep')">Keep it</button></div></div>
+                        @if (removing()?.eid === r.eid) {
+                          <p class="hint warn" role="alert">Removes it from the schedule{{ removing()!.text ? ' along with ' + removing()!.text : '' }}. This can't be undone. If {{ feedLabel() }} puts it back on its calendar, it comes back as a new event with no answers.</p>
+                          <div class="form-actions"><button class="btn sm danger" type="button" [disabled]="busy()" (click)="settle(r, 'remove')">Remove it</button><button class="link-btn small" type="button" [disabled]="busy()" (click)="removing.set(null)">Never mind</button></div>
+                        } @else {
+                          <div class="form-actions"><button class="btn sm primary" type="button" [disabled]="busy()" (click)="settle(r, 'cancel')">Cancel it</button><button class="btn sm" type="button" [disabled]="busy()" (click)="askRemove(r)">Cancel and remove</button><button class="link-btn small" type="button" [disabled]="busy()" (click)="settle(r, 'keep')">Keep it</button></div>
+                          <span class="hint">Cancel it keeps it on the schedule marked Cancelled, with families' answers. Cancel and remove takes it off.</span>
+                        }</div>
                     }
                     @case ('duplicate') {
                       <span class="pill p-warn">Looks the same</span>
@@ -295,6 +302,14 @@ export class CalendarFeed {
 
   readonly loading = signal(false);
   readonly busy = signal(false);
+  /** Cancel and remove, waiting for a second tap: which event, and what goes with it. */
+  readonly removing = signal<{ eid: string; text: string } | null>(null);
+  async askRemove(r: ReviewItem) {
+    this.busy.set(true); this.error.set('');
+    try { this.removing.set({ eid: r.eid, text: attachedText(await this.api.eventAttached(this.store.teamId(), r.eid)) }); }
+    catch (e) { this.error.set(explain(e)); }
+    finally { this.busy.set(false); }
+  }
   readonly saving = signal(false);
   readonly error = signal('');
   readonly view = signal<FeedView | null>(null);
@@ -484,8 +499,9 @@ export class CalendarFeed {
     } catch (e) { this.error.set(explain(e)); }
     finally { this.busy.set(false); }
   }
-  settle(r: ReviewItem, action: 'cancel' | 'keep' | 'merge' | 'different' | 'useFeed' | 'keepMine') {
-    const done = { cancel: `${r.title} on ${fmt(r.date)} is cancelled`, keep: 'Kept on the schedule', merge: 'Merged', different: 'Kept as two events', useFeed: "Using the calendar's value", keepMine: 'Kept the override' }[action];
+  settle(r: ReviewItem, action: 'cancel' | 'remove' | 'keep' | 'merge' | 'different' | 'useFeed' | 'keepMine') {
+    this.removing.set(null);
+    const done = { cancel: `${r.title} on ${fmt(r.date)} is cancelled`, remove: `${r.title} on ${fmt(r.date)} is cancelled and removed`, keep: 'Kept on the schedule', merge: 'Merged', different: 'Kept as two events', useFeed: "Using the calendar's value", keepMine: 'Kept the override' }[action];
     return this.act(() => this.api.reviewFeed(this.store.teamId(), { action, eid: r.eid, ...(r.kind === 'conflict' ? { field: r.field } : {}) }), done);
   }
   previewCatchUp() { return this.act(() => this.api.catchUpFeed(this.store.teamId()), '', false); }

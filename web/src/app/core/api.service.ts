@@ -1,4 +1,5 @@
 import type { DayType, Playbook, Wave } from '@shared/dayplans';
+import type { Attached } from './attached';
 import type { WorkGroup, WorkMatch } from '@shared/matches';
 export type PlanItemBody = { what: string; time?: string; where?: string; note?: string; cal?: boolean };
 import type { PlayerMark } from '@shared/attendance';
@@ -155,6 +156,7 @@ export class ApiService {
     return this.call<{ eid: string; combined: number; answersMoved: number }>('POST', `/teams/${enc(teamId)}/events/combine`, body);
   }
   deleteEvent(teamId: string, eid: string) { return this.call('DELETE', `/teams/${enc(teamId)}/events/${enc(eid)}`); }
+  eventAttached(teamId: string, eid: string) { return this.call<Attached>('GET', `/teams/${enc(teamId)}/events/${enc(eid)}/attached`); }
   /** "This and following dates": the series stops before `from`; `event` carries on from there with a new id. */
   splitEvent(teamId: string, eid: string, from: string, event: TeamEvent) {
     return this.call<{ eid: string; answersMoved: number }>('POST', `/teams/${enc(teamId)}/events/${enc(eid)}/split`, { from, event });

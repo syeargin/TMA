@@ -42,6 +42,7 @@
       <button class="chip" type="button" [attr.aria-pressed]="filter() === f[0]" (click)="filter.set(f[0])">{{ f[1] }}</button>
     }
   </div>
+  <button class="chip" type="button" [attr.aria-pressed]="hideCancelled()" (click)="hideCancelled.set(!hideCancelled())">Hide cancelled</button>
   <span class="spacer"></span>
   @if (view() === 'list') {
     <div class="chips" role="group" aria-label="Range">

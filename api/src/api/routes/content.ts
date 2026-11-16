@@ -10,6 +10,7 @@ import { badRequest, conflict, forbidden, json, mapDbError, notFound, parseBody 
 import type { Router } from "../router.js";
 import { cents, checkId, date, deleteItem, deleteMany, getItem, newId, now, optStr, putItem, queryAll, str } from "../util.js";
 import { MEAL_STYLES } from "../../shared/dayplans.js";
+import { attachedTo, removeEvent } from "../../lib/remove-event.js";
 
 const parent = z.object({ name: str(120), cell: optStr(40), email: z.string().trim().max(200).optional() });
 const playerSchema = z.object({
@@ -255,14 +256,18 @@ export function contentRoutes(r: Router) {
     a.require("schedule");
     const eid = checkId(params.eid, "event");
     const ev = await getItem(keys.event(a.teamId, eid));
-    if (ev?.src && (await feedActive(a.teamId, a.features))) throw conflict("This event comes from the club's calendar, so it can't be deleted here. If it's gone from the club's schedule, Teem Hub asks an admin what to do; to stop importing events like it, change the feed's rules.", "feed_event");
-    const children = await queryAll({
-      KeyConditionExpression: "PK = :p AND begins_with(SK, :s)",
-      ExpressionAttributeValues: { ":p": `TEAM#${a.teamId}`, ":s": `EVENT#${eid}#` },
-      ProjectionExpression: "PK, SK"
-    });
-    await deleteMany([keys.event(a.teamId, eid), ...(children as { PK: string; SK: string }[])]);
+    // From the club's calendar: only once an admin has cancelled it as gone from there (the review list).
+    if (ev?.src && !(ev.src as { gone?: boolean }).gone && (await feedActive(a.teamId, a.features))) throw conflict("This event comes from the club's calendar, so it can't be deleted here. If it's gone from the club's schedule, Teem Hub asks an admin what to do; to stop importing events like it, change the feed's rules.", "feed_event");
+    await removeEvent(a.teamId, eid);
+    console.log(JSON.stringify({ msg: "event removed", teamId: a.teamId, eid, by: caller.sub, fromFeed: !!ev?.src }));
     return json(204, undefined);
+  });
+
+  /** What removing an event would take with it: answers, meals, matches, ref jobs, day plan, attendance. */
+  r.on("GET", "/teams/{teamId}/events/{eid}/attached", async ({ caller, params }) => {
+    const a = await loadAccess(caller, checkId(params.teamId, "team"));
+    a.require("schedule");
+    return json(200, await attachedTo(a.teamId, checkId(params.eid, "event")));
   });
 
   /** Split the roster into ref job groups A and B. Only touches each player's refTeam. */
