@@ -42,7 +42,7 @@
       <button class="chip" type="button" [attr.aria-pressed]="filter() === f[0]" (click)="filter.set(f[0])">{{ f[1] }}</button>
     }
   </div>
-  <button class="chip" type="button" [attr.aria-pressed]="hideCancelled()" (click)="hideCancelled.set(!hideCancelled())">Hide cancelled</button>
+  <button class="chip" type="button" [attr.aria-pressed]="hideCancelled()" (click)="toggleHide()">Hide cancelled</button>
   <span class="spacer"></span>
   @if (view() === 'list') {
     <div class="chips" role="group" aria-label="Range">
@@ -52,6 +52,9 @@
     </div>
   }
 </div>
+@if (view() === 'list' && hiddenCount()) {
+  <p class="small muted" style="margin:0 0 8px">{{ hiddenCount() }} cancelled {{ hiddenCount() === 1 ? 'date' : 'dates' }} hidden. <button class="link-btn small" type="button" (click)="toggleHide()">Show {{ hiddenCount() === 1 ? 'it' : 'them' }}</button></p>
+}
 
 <ng-template #row let-it>
   <div class="ev" [class]="'k-' + it.kind" [class.cancel]="it.cancelled">

@@ -15,14 +15,15 @@ type Filter = 'all' | 'practice' | 'tournament' | 'event';
 type Range = '8w' | 'season';
 type View = 'list' | 'month';
 const VIEW_KEY = 'th.schedule.view';
-const HIDE_KEY = 'th.schedule.hideCancelled';
+/** '1' once someone chooses to see cancelled dates; hidden otherwise. */
+const SHOW_KEY = 'th.schedule.showCancelled';
 
 function savedView(): View {
   try { return localStorage.getItem(VIEW_KEY) === 'month' ? 'month' : 'list'; } catch { return 'list'; }
 }
 
 function savedHide(): boolean {
-  try { return localStorage.getItem(HIDE_KEY) === '1'; } catch { return false; }
+  try { return localStorage.getItem(SHOW_KEY) !== '1'; } catch { return true; }
 }
 
 export interface MonthCell { date: string; inMonth: boolean; isToday: boolean; items: ScheduleItem[] }
@@ -38,8 +39,13 @@ export class Schedule {
   /** How many players are marked at a practice; 0 when attendance hasn't been taken. */
   taken(key: string): number { return Object.keys(this.store.attendanceOf(key)?.marks ?? {}).length; }
   readonly filter = signal<Filter>('all');
-  /** Hide cancelled practices and events (remembered on this device). */
+  /** Hide cancelled practices and events: on unless someone turns it off (remembered on this device). */
   readonly hideCancelled = signal(savedHide());
+  toggleHide() {
+    const h = !this.hideCancelled();
+    this.hideCancelled.set(h);
+    try { localStorage.setItem(SHOW_KEY, h ? '0' : '1'); } catch { /* private mode */ }
+  }
   readonly range = signal<Range>('8w');
   readonly fmt = fmt;
   readonly pd = pd;
@@ -82,7 +88,6 @@ export class Schedule {
 
   constructor() {
     effect(() => { const v = this.view(); try { localStorage.setItem(VIEW_KEY, v); } catch { /* private mode */ } });
-    effect(() => { const h = this.hideCancelled(); try { localStorage.setItem(HIDE_KEY, h ? '1' : '0'); } catch { /* private mode */ } });
     effect(() => {
       const key = this.editKey();
       const items = this.store.items();
@@ -96,8 +101,8 @@ export class Schedule {
     });
   }
 
-  private matches(i: ScheduleItem): boolean {
-    if (this.hideCancelled() && i.cancelled) return false;
+  private matches(i: ScheduleItem, hiding = true): boolean {
+    if (hiding && this.hideCancelled() && i.cancelled) return false;
     const f = this.filter();
     return f === 'all' || (f === 'event' ? i.kind === 'event' || i.kind === 'deadline' : i.kind === f);
   }
@@ -157,6 +162,13 @@ export class Schedule {
     if (this.store.can('attendance')) return 'Tap the counts on any row to see and mark each player’s availability.';
     if (this.store.can('family')) return 'Your account isn’t linked to a player yet. Ask your team admin to link you so you can mark availability.';
     return 'Families mark their player’s availability here.';
+  });
+
+  /** Cancelled dates the list is hiding (in its range and filter). */
+  readonly hiddenCount = computed(() => {
+    if (!this.hideCancelled()) return 0;
+    const from = today(), lim = this.range() === '8w' ? addDays(from, 56) : '9999';
+    return this.store.items().filter((i) => i.cancelled && i.end >= from && i.date <= lim && this.matches(i, false)).length;
   });
 
   /** Items in range and filter, grouped under month headings. */
