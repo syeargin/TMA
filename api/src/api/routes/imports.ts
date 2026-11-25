@@ -17,7 +17,7 @@ import type { Router } from "../router.js";
 import { checkId } from "../util.js";
 
 const cell = z.union([z.string().max(10_000), z.number(), z.boolean(), z.null()]);
-const sheetsSchema = z.record(z.array(z.array(cell).max(80)).max(3001)).refine((s) => Object.keys(s).length <= 30, "Too many tabs.");
+const sheetsSchema = z.record(z.string(), z.array(z.array(cell).max(80)).max(3001)).refine((s) => Object.keys(s).length <= 30, "Too many tabs.");
 const teamBody = z.object({ sheets: sheetsSchema, apply: z.boolean().default(false) });
 const clubBody = z.object({
   sheets: sheetsSchema,

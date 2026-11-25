@@ -21,7 +21,7 @@ const OWNER_ONLY = "Only site owners can use the site admin dashboard.";
 const controlsSchema = z.object({
   status: z.enum(["active", "inactive"]).optional(),
   teamLimit: z.number().int().min(0).max(1000).nullable().optional(),
-  features: z.record(z.enum(CLUB_FEATURE_KEYS as [string, ...string[]]), z.boolean()).optional(),
+  features: z.partialRecord(z.enum(CLUB_FEATURE_KEYS as [string, ...string[]]), z.boolean()).optional(),
   /** Why: required to make a club inactive, kept in the change log. */
   reason: str(300).optional()
 }).refine((b) => b.status !== undefined || b.teamLimit !== undefined || b.features !== undefined, "send status, teamLimit or features");

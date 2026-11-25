@@ -13,9 +13,9 @@ const travel = z.object({
   arrive: optStr(80), depart: optStr(80), notes: optStr(1000)
 });
 const familySchema = z.object({
-  rsvp: z.record(z.enum(["yes", "maybe", "no", ""])).optional(),
-  travel: z.record(travel.nullable()).optional(),
-  uniform: z.object({ sizes: z.record(z.string().max(10)) }).optional(),
+  rsvp: z.record(z.string(), z.enum(["yes", "maybe", "no", ""])).optional(),
+  travel: z.record(z.string(), travel.nullable()).optional(),
+  uniform: z.object({ sizes: z.record(z.string(), z.string().max(10)) }).optional(),
   /** Whether other families on the team see this family's phone numbers and emails (R3). Off by default. */
   shareContacts: z.boolean().optional()
 }).refine((b) => b.rsvp || b.travel || b.uniform || b.shareContacts !== undefined, "send rsvp, travel, uniform or shareContacts");

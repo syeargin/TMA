@@ -31,7 +31,7 @@ const settingsSchema = z.object({
   coaches: z.array(coach).max(6).default([]),
   teamCode: optStr(40),
   dues: z.object({ amountCents: z.number().int().min(0).max(10_000_00), due: optStr(10), label: optStr(100) }).partial().default({}),
-  budget: z.record(z.number()).optional(), // left out = keep what's saved
+  budget: z.record(z.string(), z.number()).optional(), // left out = keep what's saved
   // Left out = keep what's saved (coaches manage these through the /practices routes).
   practices: z.array(practice).max(20).optional(),
   cancelled: z.array(str(80)).max(500).optional(),
@@ -44,7 +44,7 @@ const settingsSchema = z.object({
 });
 
 /** Every feature can be listed; true = on. Features left out keep their saved setting. */
-const featuresSchema = z.object({ features: z.record(z.enum(FEATURE_KEYS as [Feature, ...Feature[]]), z.boolean()) });
+const featuresSchema = z.object({ features: z.partialRecord(z.enum(FEATURE_KEYS as [Feature, ...Feature[]]), z.boolean()) });
 
 const practicesSchema = z.object({ practices: z.array(practice).max(20) });
 const MAX_CANCELLED = 500;
