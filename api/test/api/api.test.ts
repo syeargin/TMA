@@ -358,6 +358,21 @@ describe("payments", () => {
     expect((await call("DELETE", `/teams/${T}/payments/${r.body.payId}`, ROLE_SUBS.coach)).status).toBe(204);
   });
 
+  it("files a reimbursement under the requester's own family, whatever player it names, unless finance (R13)", async () => {
+    const r = await call("POST", `/teams/${T}/payments`, ROLE_SUBS.parent, { kind: "out", cat: "Team meals", pid: "p2", amountCents: 1500, date: "2026-10-04", desc: "Pizza" });
+    expect(r.status).toBe(201);
+    let pay = (await call("GET", `/teams/${T}`, ROLE_SUBS.finance)).body.payments.find((p: any) => p.payId === r.body.payId);
+    expect(pay.pid).toBe("p1");
+    // Confirmed, it shows in the requester's family history and not in the named family's.
+    expect((await call("POST", `/teams/${T}/payments/${r.body.payId}/confirm`, ROLE_SUBS.finance)).status).toBe(200);
+    expect((await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.ledger.some((l: any) => l.src === r.body.payId)).toBe(true);
+    expect((await call("GET", `/teams/${T}`, PARENT2)).body.ledger.some((l: any) => l.src === r.body.payId)).toBe(false);
+    // Finance can still file one for a family.
+    const f = await call("POST", `/teams/${T}/payments`, ROLE_SUBS.finance, { kind: "out", cat: "Team meals", pid: "p2", amountCents: 900, date: "2026-10-04", desc: "Snacks for p2's family" });
+    pay = (await call("GET", `/teams/${T}`, ROLE_SUBS.finance)).body.payments.find((p: any) => p.payId === f.body.payId);
+    expect(pay.pid).toBe("p2");
+  });
+
   it("families only see their own payments; finance sees all", async () => {
     await call("POST", `/teams/${T}/payments`, PARENT2, { kind: "in", cat: "Dues", pid: "p2", amountCents: 100, date: "2026-10-03", desc: "x" });
     const mine = (await call("GET", `/teams/${T}`, ROLE_SUBS.parent)).body.payments;

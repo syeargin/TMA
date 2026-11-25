@@ -43,8 +43,11 @@ export function moneyRoutes(r: Router) {
     const p = parseBody(paymentSchema, body);
     if (p.kind === "in" && !a.isParentOf(p.pid)) throw forbidden("You can only record payments for your own family.");
     if (p.kind === "out" && !a.can("reimb")) throw forbidden();
+    // A reimbursement is filed under the requester's own family; only finance may file one for another (R13).
+    const own = a.member?.pid ?? "";
+    const pid = p.kind === "out" && !a.can("finance") ? own : p.pid ?? own;
     const payId = newId("pay");
-    await putItem({ ...keys.payment(a.teamId, payId), type: "Payment", ...p, pid: p.pid ?? a.member?.pid ?? "",
+    await putItem({ ...keys.payment(a.teamId, payId), type: "Payment", ...p, pid,
       status: "pending", submittedBy: caller.sub, submittedAt: now() });
     return json(201, { payId });
   });
