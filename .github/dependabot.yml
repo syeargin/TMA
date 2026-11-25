@@ -5,6 +5,10 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /api
+    # The Lambdas run Node.js 24: keep its type definitions on 24.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     schedule:
       interval: weekly
       day: monday
@@ -47,5 +51,8 @@ updates:
     cooldown:
       default-days: 7
     groups:
+      # Minor and patch only. A major version changes how an action behaves and isn't covered by
+      # CI (the deploy only runs on main), so each one comes as its own PR to review.
       actions:
         patterns: ["*"]
+        update-types: [minor, patch]
