@@ -19,7 +19,7 @@ import { checkId, ID, now, optStr, putItem } from "../util.js";
 const mark = z.object({ s: z.enum(MARKS), note: optStr(120) });
 const marksSchema = z.object({
   /** Player id → their mark; null removes it. Only the players sent change, so two coaches marking at once don't undo each other. */
-  marks: z.record(mark.nullable()).refine((m) => Object.keys(m).length > 0 && Object.keys(m).length <= 80, "send between 1 and 80 players")
+  marks: z.record(z.string(), mark.nullable()).refine((m) => Object.keys(m).length > 0 && Object.keys(m).length <= 80, "send between 1 and 80 players")
 });
 
 export function attendanceRoutes(r: Router) {

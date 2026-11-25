@@ -340,11 +340,11 @@ Every call needs a Cognito access token (`Authorization: Bearer …`). The API l
 
 Money is stored in whole cents (`amountCents`, `costCents`).
 
-**Tests.** `api/test/api` runs every route as each role against a local DynamoDB. CI uses the DynamoDB Local container. Locally:
+**Tests.** `api/test/api` runs every route as each role against a local DynamoDB: moto, at the version CI pins. Locally:
 
 ```bash
-docker run -p 8000:8000 amazon/dynamodb-local     # or: pip install "moto[server]" && moto_server -p 8000
-cd api && npm test
+pip install "moto[server]==5.2.4" && moto_server -p 8000
+cd api && DYNAMODB_ENDPOINT=http://127.0.0.1:8000 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test npm test
 ```
 
 ### Who sees what (R3)
@@ -616,9 +616,11 @@ Node 24 is required (Angular 22 needs 22.22.3+ or 24).
 cd web && npm install && npm start        # site on http://localhost:4200
 cd web && npm test                         # unit tests (Vitest): live client, API service, messages
 cd api && npm install && npm test         # unit and integration tests for the Lambda code
-npm install -g esbuild                     # needed once for sam build
-sam validate --lint && sam build          # check and build the stack
+sam validate --lint
+PATH="$PWD/api/node_modules/.bin:$PATH" sam build   # esbuild comes from api's lockfile, not a global install
 ```
+
+**Dependencies (R7, R33).** CI fails a pull request on any high or critical `npm audit` finding, or a package whose registry signature doesn't check out. Dependabot proposes updates weekly, a week after each release, and security fixes at once. Workflow actions are pinned to commits; Dependabot updates them too. Install and build steps run in a job with no AWS access; only the deploy job can get credentials, and it runs no package code.
 
 To run the site locally against dev, copy the dev site's `/config.json` into `web/public/config.json` (don't commit it; the committed copy only says `{"env":"local"}`). The dev API accepts calls from `http://localhost:4200`.
 

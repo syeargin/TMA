@@ -31,7 +31,9 @@ export function parseBody<S extends ZodTypeAny>(schema: S, raw: string | null | 
   } catch (e) {
     if (e instanceof ZodError) {
       const first = e.issues[0];
-      throw badRequest(`${first.path.join(".") || "body"}: ${first.message}`);
+      // zod 4 words a missing field "Invalid input: expected string, received undefined"; say it plainly.
+      const msg = first.code === "invalid_type" && /received undefined$/.test(first.message) ? "Required" : first.message;
+      throw badRequest(`${first.path.join(".") || "body"}: ${msg}`);
     }
     throw e;
   }

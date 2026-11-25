@@ -72,9 +72,9 @@ const combineSchema = z.object({
   skip: z.array(date).max(400).default([])
 });
 
-const refGroupsSchema = z.object({ groups: z.record(z.enum(["A", "B"])) });
+const refGroupsSchema = z.object({ groups: z.record(z.string(), z.enum(["A", "B"])) });
 const refjobsSchema = z.object({
-  assign: z.record(z.object({ s1: optStr(20), s2: optStr(20), s3: optStr(20) }))
+  assign: z.record(z.string(), z.object({ s1: optStr(20), s2: optStr(20), s3: optStr(20) }))
 });
 const agendaSchema = z.object({
   note: optStr(1000),

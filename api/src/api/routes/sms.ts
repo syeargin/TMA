@@ -33,7 +33,7 @@ export const showPhone = (e164: string) => e164.replace(/^\+1(\d{3})(\d{3})(\d{4
 
 const saveSchema = z.object({
   phone: z.string().max(30),
-  agree: z.literal(true, { errorMap: () => ({ message: "Tick the box to agree to text alerts." }) }),
+  agree: z.literal(true, { error: "Tick the box to agree to text alerts." }),
   consentVersion: z.string().max(20)
 });
 

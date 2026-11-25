@@ -149,7 +149,7 @@ const reviewSchema = z.discriminatedUnion("action", [
   z.object({ action: z.enum(["merge", "different"]), eid: z.string().max(64) }),
   z.object({ action: z.enum(["useFeed", "keepMine"]), eid: z.string().max(64), field: z.enum(OVERRIDABLE) })
 ]);
-const overrideSchema = z.object({ ov: z.record(z.enum(OVERRIDABLE), z.string().trim().max(300).nullable()) });
+const overrideSchema = z.object({ ov: z.partialRecord(z.enum(OVERRIDABLE), z.string().trim().max(300).nullable()) });
 const templateSchema = z.object({ rules: rulesSchema });
 
 export function feedRoutes(r: Router) {

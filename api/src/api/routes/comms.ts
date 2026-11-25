@@ -38,11 +38,11 @@ const msgSettings = z.object({
   day: z.number().int().min(0).max(6).optional(),
   time: z.string().regex(/^([01]\d|2[0-3]):(00|15|30|45)$/, "use a time like 18:00").optional(),
   days: z.number().int().min(1).max(14).optional(),
-  audience: z.record(z.boolean()).optional(),
-  rules: z.record(z.boolean()).optional()
+  audience: z.record(z.string(), z.boolean()).optional(),
+  rules: z.record(z.string(), z.boolean()).optional()
 });
 const commsSchema = z.object({
-  messages: z.record(settable, msgSettings).default({}),
+  messages: z.partialRecord(settable, msgSettings).default({}),
   timeZone: z.string().max(60).refine(validTimeZone, "That isn't a time zone.").optional(),
   pauseUntil: date.nullable().optional()
 });
@@ -127,7 +127,7 @@ export function commsRoutes(r: Router) {
     a.require("settings");
     const b = parseBody(commsSchema, body);
     const cur = (await getComms(a.teamId)) ?? {};
-    const messages = { ...(cur.messages ?? {}), ...tidy(b.messages) };
+    const messages = { ...(cur.messages ?? {}), ...tidy(b.messages as Parameters<typeof tidy>[0]) };
     await putItem({
       ...commsKey(a.teamId), type: "Comms", messages,
       timeZone: b.timeZone ?? cur.timeZone, pauseUntil: b.pauseUntil === undefined ? cur.pauseUntil : b.pauseUntil ?? undefined,

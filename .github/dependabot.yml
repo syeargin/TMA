@@ -1,0 +1,51 @@
+# Dependency updates (R7, R33). Weekly, grouped so each week is a few PRs rather than dozens.
+# cooldown: a new release waits a week before Dependabot proposes it, so a bad or hijacked version
+# has time to be caught and pulled first. Security updates don't wait.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /api
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/New_York
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      aws-sdk:
+        patterns: ["@aws-sdk/*", "@smithy/*"]
+      api-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/New_York
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      # Angular's packages must stay on exactly the same version.
+      angular:
+        patterns: ["@angular/*", "@angular-devkit/*"]
+      web-minor-and-patch:
+        update-types: [minor, patch]
+        exclude-patterns: ["@angular/*", "@angular-devkit/*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/New_York
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]

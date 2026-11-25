@@ -15,14 +15,15 @@
     "@aws-sdk/client-sesv2": "^3.1156.0",
     "@aws-sdk/lib-dynamodb": "^3.700.0",
     "@types/aws-lambda": "^8.10.145",
-    "@types/node": "^20.17.0",
+    "@types/node": "^24.19.2",
     "aws-sdk-client-mock": "^4.1.0",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.2",
     "typescript": "^5.6.3",
-    "vitest": "^3.2.4"
+    "vite-node": "^6.0.0",
+    "vitest": "^5.1.1"
   },
   "dependencies": {
     "aws-jwt-verify": "^5.2.1",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   }
 }
